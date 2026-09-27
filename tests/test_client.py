@@ -307,3 +307,100 @@ def test_token_raises_when_no_recovery_possible(tmp_path: Path, monkeypatch):
     with pytest.raises(CredentialsError):
         client._token()
     client.close()
+
+
+# --- macOS Keychain credential store -----------------------------------------
+def _keychain_doc(token: str, refresh: str, expires_at_ms: int) -> str:
+    return json.dumps({
+        "mcpOAuth": {"srv": {"accessToken": "mcp"}},
+        "claudeAiOauth": {
+            "accessToken": token, "refreshToken": refresh,
+            "expiresAt": expires_at_ms, "scopes": ["user:inference"],
+            "subscriptionType": "max", "rateLimitTier": "tier",
+            "refreshTokenExpiresAt": 123}})
+
+
+@pytest.fixture
+def fake_keychain(monkeypatch):
+    """A darwin host whose Keychain is a dict and whose credentials file is absent."""
+    from claude_rc import credentials as cr
+    store: dict[str, str] = {}
+    monkeypatch.setattr(cr.sys, "platform", "darwin")
+    monkeypatch.delenv(cr.ENV_ACCESS_TOKEN, raising=False)
+    monkeypatch.delenv(cr.ENV_CLI_OAUTH_TOKEN, raising=False)
+    monkeypatch.setattr(cr, "DEFAULT_CREDENTIALS_PATH", Path("/nonexistent/.credentials.json"))
+    monkeypatch.setattr(cr, "_keychain_read", lambda svc: store.get(svc))
+    monkeypatch.setattr(cr, "_keychain_write", lambda svc, secret: store.__setitem__(svc, secret))
+    return store
+
+
+def test_load_credentials_from_macos_keychain(fake_keychain):
+    from claude_rc.credentials import KEYCHAIN_SERVICE
+    fake_keychain[KEYCHAIN_SERVICE] = _keychain_doc("kc-token", "kc-refresh", 9999999999999)
+    c = load_credentials()
+    assert c.access_token == "kc-token"
+    assert c.source_keychain == KEYCHAIN_SERVICE and c.source_path is None
+
+
+def test_macos_missing_keychain_and_file_names_both(fake_keychain):
+    with pytest.raises(CredentialsError, match="Keychain item"):
+        load_credentials()
+
+
+def test_explicit_path_skips_keychain(fake_keychain, tmp_path: Path):
+    from claude_rc.credentials import KEYCHAIN_SERVICE
+    fake_keychain[KEYCHAIN_SERVICE] = _keychain_doc("kc-token", "kc-refresh", 9999999999999)
+    p = tmp_path / ".credentials.json"
+    _write_creds(p, "file-token", "file-refresh", 9999999999999)
+    assert load_credentials(p).access_token == "file-token"
+
+
+def test_refresh_persists_back_to_keychain(fake_keychain):
+    """A refresh spends the single-use refresh token, so the rotated pair must
+    land back in the Keychain — or the CLI itself is logged out — without
+    clobbering the document's other keys."""
+    import httpx
+    from claude_rc.credentials import KEYCHAIN_SERVICE, refresh_credentials
+    fake_keychain[KEYCHAIN_SERVICE] = _keychain_doc("old-token", "old-refresh", 1)
+    transport = httpx.MockTransport(lambda req: httpx.Response(200, json={
+        "access_token": "new-token", "refresh_token": "new-refresh", "expires_in": 3600}))
+    with httpx.Client(transport=transport) as http:
+        new = refresh_credentials(load_credentials(), client=http)
+    assert new.access_token == "new-token"
+    doc = json.loads(fake_keychain[KEYCHAIN_SERVICE])
+    assert doc["mcpOAuth"] == {"srv": {"accessToken": "mcp"}}
+    block = doc["claudeAiOauth"]
+    assert (block["accessToken"], block["refreshToken"]) == ("new-token", "new-refresh")
+    assert block["rateLimitTier"] == "tier"
+    assert "refreshTokenExpiresAt" not in block
+
+
+def test_client_reloads_rotated_keychain_tokens(fake_keychain, monkeypatch):
+    from claude_rc.client import RemoteControlClient
+    from claude_rc.credentials import KEYCHAIN_SERVICE
+    fake_keychain[KEYCHAIN_SERVICE] = _keychain_doc("old-token", "old-refresh", 1)
+    client = RemoteControlClient(org_uuid="org-x")
+
+    def _no_refresh(*a, **kw):
+        raise AssertionError("network refresh must not run when the Keychain has fresh tokens")
+
+    monkeypatch.setattr("claude_rc.client.refresh_credentials", _no_refresh)
+    fake_keychain[KEYCHAIN_SERVICE] = _keychain_doc("new-token", "new-refresh", 9999999999999)
+    assert client._token() == "new-token"
+    client.close()
+
+
+def test_keychain_write_keeps_secret_off_argv(monkeypatch):
+    from claude_rc import credentials as cr
+    seen = {}
+
+    def _run(argv, **kw):
+        seen["argv"], seen["input"] = argv, kw["input"]
+        return subprocess.CompletedProcess(argv, 0, "", "")
+
+    import subprocess
+    monkeypatch.setattr(cr.subprocess, "run", _run)
+    cr._keychain_write("svc", '{"s":1}')
+    assert seen["argv"] == ["security", "-i"]
+    assert '{"s":1}'.encode().hex() in seen["input"] and '{"s":1}' not in seen["input"]
+    assert "-U" in seen["input"] and '-s "svc"' in seen["input"]

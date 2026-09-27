@@ -45,7 +45,7 @@ from .events import (
 from .sse import SSEFrame, parse_sse
 from .webui import serve as serve_webui
 
-__version__ = "0.2.0"
+__version__ = "0.2.2"
 
 __all__ = [
     "RemoteControlClient",

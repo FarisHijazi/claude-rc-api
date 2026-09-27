@@ -60,6 +60,12 @@ accepted for Remote Control. The CLI stores tokens after `/login`:
 ```
 The scope that gates Remote Control is **`user:sessions:claude_code`**.
 
+On **macOS** the CLI writes no such file: the same JSON document is the secret
+of a login-Keychain generic password (service **`Claude Code-credentials`**,
+account = the login user; `security find-generic-password -s "Claude
+Code-credentials" -w`). `load_credentials()` reads it there first on macOS
+(unless given an explicit path), and refreshes write back to the same item.
+
 **Organization UUID** (needed for the `x-organization-uuid` header) lives in
 **`~/.claude.json`** → `oauthAccount.organizationUuid` (a top-level
 `organizationUuid` in `.credentials.json` is used as a fallback).
