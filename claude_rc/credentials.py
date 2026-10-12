@@ -247,7 +247,71 @@ def _persist(creds: OAuthCredentials) -> None:
     except (OSError, json.JSONDecodeError):
         data = {}
     data["claudeAiOauth"] = creds.to_block()
+    if creds.trusted_device_token:
+        data["trustedDeviceToken"] = creds.trusted_device_token
     tmp = path.with_suffix(path.suffix + ".tmp")
     tmp.write_text(json.dumps(data, indent=2))
     os.chmod(tmp, 0o600)
     os.replace(tmp, path)
+
+
+def enroll_trusted_device(
+    creds: OAuthCredentials,
+    *,
+    base_url: str = "https://api.anthropic.com",
+    persist: bool = True,
+    client: httpx.Client | None = None,
+    display_name: str | None = None,
+) -> str | None:
+    """Enroll this device for Trusted Devices, returning the device token.
+
+    Some organizations require Trusted Devices for Remote Control: calls that
+    touch an elevated session (e.g. reading its event stream) are rejected
+    with HTTP 403 ``untrusted_device`` unless the caller presents an
+    ``X-Trusted-Device-Token`` header. The official CLI enrolls on demand when
+    it hits that rejection ("lazy enrollment"); this mirrors that behavior.
+
+    On success the token is stored on ``creds.trusted_device_token`` and
+    (optionally) written back to the credentials file as the top-level
+    ``trustedDeviceToken`` key, exactly where the CLI keeps it. Returns
+    ``None`` when the server declines enrollment (e.g. the org does not use
+    Trusted Devices), so callers can fall through to the original error.
+    """
+    import platform
+    import socket
+
+    if not creds.access_token:
+        raise CredentialsError("cannot enroll a trusted device without an access token")
+
+    owns_client = client is None
+    client = client or httpx.Client(timeout=30.0)
+    try:
+        name = display_name or f"claude-rc-api on {socket.gethostname()} · {platform.system().lower()}"
+        resp = client.post(
+            base_url.rstrip("/") + "/api/auth/trusted_devices",
+            headers={
+                "Authorization": f"Bearer {creds.access_token}",
+                "Content-Type": "application/json",
+                "anthropic-version": "2023-06-01",
+                "User-Agent": "claude-rc-api-python/0.2.1",
+            },
+            json={"display_name": name},
+            timeout=10.0,
+        )
+    finally:
+        if owns_client:
+            client.close()
+
+    if resp.status_code not in (200, 201):
+        return None
+    try:
+        token = resp.json().get("device_token")
+    except (ValueError, AttributeError):
+        token = None
+    if not token or not isinstance(token, str):
+        return None
+
+    creds.trusted_device_token = token
+    if persist:
+        _persist(creds)
+    return token
