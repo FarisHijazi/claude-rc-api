@@ -16,9 +16,11 @@ Quick start (Remote Control — steer a live `claude remote-control` session):
         ...
 """
 
+from ._version import __version__
 from .client import (
     APIError,
     ControlRejected,
+    ControlTimeout,
     ManagedAgentsClient,
     RemoteControlClient,
     CCR_BETA,
@@ -34,10 +36,16 @@ from .credentials import (
 from .events import (
     Event,
     RC,
+    RCSystem,
     Recv,
     Send,
     cli_user_message,
     cli_control_request,
+    cli_control_cancel_request,
+    cli_control_response,
+    cli_permission_response,
+    cli_question_response,
+    cli_dialog_response,
     user_message,
     interrupt,
     custom_tool_result,
@@ -45,13 +53,13 @@ from .events import (
 from .sse import SSEFrame, parse_sse
 from .webui import serve as serve_webui
 
-__version__ = "0.2.0"
-
 __all__ = [
+    "__version__",
     "RemoteControlClient",
     "ManagedAgentsClient",
     "APIError",
     "ControlRejected",
+    "ControlTimeout",
     "OAuthCredentials",
     "CredentialsError",
     "load_credentials",
@@ -59,10 +67,16 @@ __all__ = [
     "refresh_credentials",
     "Event",
     "RC",
+    "RCSystem",
     "Recv",
     "Send",
     "cli_user_message",
     "cli_control_request",
+    "cli_control_cancel_request",
+    "cli_control_response",
+    "cli_permission_response",
+    "cli_question_response",
+    "cli_dialog_response",
     "user_message",
     "interrupt",
     "custom_tool_result",

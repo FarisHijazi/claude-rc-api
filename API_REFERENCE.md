@@ -1,7 +1,7 @@
 # Claude Remote Control API — Reverse-Engineered Reference
 
-> **Unofficial.** Reconstructed from the Claude Code CLI (`/opt/claude-code/bin/claude`,
-> a Bun single-file executable) and the API docs it embeds. These are private
+> **Unofficial.** Reconstructed from the Claude Code CLI (a Bun single-file
+> executable; last mined at 2.1.301) and the API docs it embeds. These are private
 > endpoints used by `claude.ai/code` and the Claude mobile apps. They are not a
 > supported public interface and can change without notice. The list/read paths
 > here were exercised against the live API; write/steer paths are documented from
@@ -71,7 +71,7 @@ Content-Type:               application/json
 anthropic-version:          2023-06-01                 # the ONLY version string ever sent
 anthropic-client-platform:  web_claude_ai              # LOAD-BEARING on event ingest — see §2.3
 x-organization-uuid:        <organizationUuid>
-anthropic-beta:             ccr-byoc-2025-07-29         # on /v1/sessions (v1) & /v1/code/* ; NOT on the bare /v1/code/sessions list
+anthropic-beta:             ccr-byoc-2025-07-29         # only on the CLI's /v1/sessions compat path; /v1/code/* needs none
 X-Trusted-Device-Token:     <token>                    # only if org requires Trusted Devices
 User-Agent:                 claude-code/2.1.207         # any value works
 ```
@@ -101,7 +101,7 @@ Content-Type:      application/json
 ### 2.3 `anthropic-beta` matrix
 | beta | used for |
 |---|---|
-| `ccr-byoc-2025-07-29` | Mode A session/code endpoints |
+| `ccr-byoc-2025-07-29` | Mode A's `/v1/sessions` compat path (not `/v1/code/*`) |
 | `managed-agents-2026-04-01` | Mode B endpoints |
 | `oauth-2025-04-20` | OAuth token refresh |
 | `files-api-2025-04-14` | `/v1/files` (both modes) |
@@ -129,56 +129,67 @@ inbound message). Send `web_claude_ai`.
 ## 3. Remote Control API (mode A — the controller surface)
 
 Base: `https://api.anthropic.com`. All calls use the Mode-A headers from §2.1.
-`{id}` is a `cse_…` session id.
+`{id}` is a `cse_…` session id. Everything marked *verified* was exercised live
+against Claude Code **2.1.301** workers on 2026-10-16; the rest is read from the
+binary.
 
 ### 3.1 Sessions
 
 | Method | Path | Purpose |
 |---|---|---|
-| `GET` | `/v1/code/sessions` | List your Remote Control sessions |
-| `GET` | `/v1/code/sessions/{id}` | Get one session |
-| `PUT` | `/v1/code/sessions/{id}` | Update title — body `{"title": "..."}` |
+| `GET` | `/v1/code/sessions` | List your sessions, newest first — `?limit`, `?cursor=<next_cursor>` |
+| `GET` | `/v1/code/sessions/{id}` | Get one — **wrapped**: `{"response_shape": {…session…}}` |
+| `PUT` | `/v1/code/sessions/{id}` | Update `{"title"}` or `{"add_tags", "remove_tags"}` → `{"session": {…}}` (verified; the CLI's own title/colour sync) |
 | `POST` | `/v1/code/sessions/{id}/archive` | Archive/end (empty body `{}`; **200 or 409** = success) |
+| `POST` | `/v1/code/sessions/{id}/unarchive` | Unarchive (in the 2.1.301 client; wants an elevated-auth / trusted device — unverified) |
 | `POST` | `/v1/code/sessions/{id}/mark_read` | Mark read (optional `{sequence_num}`) |
 | `POST` | `/v1/code/sessions/{id}/client/presence` | Announce/clear a watching client |
 
 There is **no DELETE** for code sessions — archive only. Session **creation** is done
-by the local CLI, not the controller (see §5).
+by the local CLI, not the controller (see §5). A list page is
+`{"data": [...], "next_cursor": …, "resume_token": …}`.
 
-**`GET /v1/code/sessions` response** (verified live):
-```json
-{
-  "data": [ { /* session object */ } ],
-  "next_cursor": null,
-  "resume_token": "..."
-}
-```
-
-**Session object** (verified live):
+**Session object** (verified):
 ```json
 {
   "id": "cse_019B9e41WcXsxvZmtvJK9SEB",
   "title": "Add audio transcript functionality",
   "status": "active",                 // active | archived
-  "status_bucket": "working",         // working | ...
+  "status_bucket": "working",         // working | completed | blocked (lags: stays "blocked" after the block clears)
   "worker_status": "running",         // idle | running | requires_action
-  "connection_status": "connected",   // connected | connecting | ...
-  "environment_id": "",
+  "connection_status": "connected",   // connected | connecting | disconnected
   "environment_kind": "bridge",       // Remote Control = "bridge"
-  "config": { "model": "claude-opus-4-8", "mcp_connector_ids": [],
-              "sources": [], "outcomes": [] },
-  "created_at": "2026-07-15T15:25:49.307782Z",
-  "last_event_at": "2026-07-15T15:53:22.309103Z",
+  "config": { "model": "claude-opus-5-5", "origin": "claude_code_cli", "mcp_connector_ids": [], … },
+  "created_at": "2026-10-16T15:25:49.307782Z",
+  "last_event_at": "2026-10-16T15:53:22.309103Z",
   "user_message_count": "0",
-  "tags": ["remote-control-repl"],
+  "tags": ["remote-control-repl", "config:auto-create-pr:off"],
   "unread": true,
-  "external_metadata": { "post_turn_summary": { "status_category": "review_ready",
-                          "status_detail": "...", "needs_action": "" } },
+  "external_metadata": {
+    "container_cc_version": "2.1.301",          // the worker's Claude Code version
+    "model": "claude-opus-5-5",
+    "effort_level": "max",                      // the worker's CURRENT effort
+    "context_usage": { "used_tokens": 44935, "max_tokens": 1000000, "after_boundary": "<uuid>" },
+    "post_turn_summary": {                      // a server-side one-liner per turn
+      "status_category": "completed",           // completed | need_input | …
+      "status_detail": "rag committed and pushed; answers via OpenRouter Haiku",
+      "needs_action": "",                       // what it waits on you for, when it does
+      "recent_action": "…"
+    },
+    "rate_limit_info": { "status": "allowed", "rateLimitType": "five_hour", "resetsAt": 1792180800, "isUsingOverage": false },
+    "usage": { "input_tokens": 2466, "output_tokens": 145184, "cache_read_tokens": …, "cache_write_tokens": … },
+    "flag_settings": { "effortLevel": "xhigh", "ultracode": false },  // server fold of every apply_flag_settings SENT — rejected ones too
+    "current_branches": { "owner/repo": "main" }, "worktree_state": { … },
+    "pending_action": { … }                     // while worker_status == requires_action
+  },
   "participants": [], "relations": []
 }
 ```
-`requires_action` on `worker_status` means the agent is blocked on you (a permission
-prompt); details live in `external_metadata.pending_action`.
+`requires_action` on `worker_status` means the agent is blocked on you (a
+permission prompt or dialog); details live in `external_metadata.pending_action`.
+The session has **no permission-mode field** — read it from the `system/init` /
+`system/status` events (§3.3). Prefer `effort_level` over `flag_settings` (the
+latter keeps values the worker refused).
 
 **`POST …/client/presence`** — body `{client_id, connected_at}` (ISO-8601) to
 announce, or `{client_id, clear:true}` to leave. The web client pulses this.
@@ -191,77 +202,150 @@ announce, or `{client_id, clear:true}` to leave. The web client pulses this.
   "events": [ { "payload": { /* stream-json message, gets a uuid if missing */ } } ] }
 ```
 Each event is wrapped in `payload`, and the client adds a `uuid` if the payload
-lacks one. There is also a separate outbound channel `POST …/{id}/teleport-events`
+lacks one. The ack (verified) is
+`{"results": [{"event_id", "sequence_num", "duplicate"}], "attestation_feedback": null}`
+— `sequence_num` is the event's place in the log, a ready cursor for §3.3.
+There is also a separate outbound channel `POST …/{id}/teleport-events`
 (screen-mirroring) — not needed for steering.
 
 **Send a user message** — payload is Claude Code stream-json, **not** `user.message`:
 ```json
-{ "type": "user",
+{ "type": "user", "uuid": "<optional: your handle for cancel_async_message>",
   "message": { "role": "user",
     "content": [ { "type": "text", "text": "run the tests" } ] } }
 ```
 `content` accepts the full Messages-API block union: `text`,
 `image` (`{source:{type:"base64",media_type,data}}`), `tool_result`, plus file
-attachments.
+attachments. A message sent while a turn runs queues behind it.
 
-**Steer via `control_request`** — payload `{type:"control_request", request_id, request:{subtype, ...}}`:
+**Steer and query via `control_request`** — payload
+`{type:"control_request", request_id, request:{subtype, ...}}`. The POST only
+queues it: the worker's verdict arrives later as a `control_response`
+(`response: {subtype: success|error, request_id, response?, error?}`) in the
+event log. **The 2.1.301 remote-control (REPL) worker's dispatch table** (each
+verified live unless noted):
 
-| `request.subtype` | effect |
-|---|---|
-| `interrupt` | stop the running agent (jumps the queue) |
-| `set_model` (`model`) | change model mid-session |
-| `set_permission_mode` (`mode`, opt `ultraplan`) | `default` \| `plan` \| `acceptEdits` \| `bypassPermissions` |
-| `set_max_thinking_tokens` | thinking budget |
-| `apply_flag_settings` (`settings`) | merge session flag settings — notably `settings.effortLevel` (`low` \| `medium` \| `high` \| `xhigh`, explicit `null` = back to auto) + `settings.ultracode` (bool). This is how the CLI's `/effort` reaches an SDK/cloud worker (there is **no** `set_effort` subtype; `max` is session-scoped and rejected by the worker's schema). ⚠️ **Remote-control REPL workers do NOT dispatch this subtype** (confirmed live on 2.1.187; the dispatch table is unchanged in 2.1.212) — they answer `control_response {subtype:"error", error:"REPL bridge does not handle control_request subtype: apply_flag_settings"}`. `RemoteControlClient.set_effort()` wraps it, with an optional wait-for-verdict + `/effort` slash-command fallback. |
-| `can_use_tool` | answer a permission prompt |
-| `mcp_message`, `request_user_dialog`, `seed_read_state`, `set_mcp_permission_mode_override` | other controls |
+| `request.subtype` | fields | verdict `response` / notes |
+|---|---|---|
+| `initialize` | `supportedDialogKinds?` | `{claude_code_version, current_model, current_permission_mode, commands, agents, models, pid, inbound_read_receipts, …}`, with `pending_permission_requests` / `pending_user_dialog_requests` beside it. claude.ai sends it on every attach (often twice) and the worker answers each with a fresh `system/init`. |
+| `interrupt` | — | stops the running turn (jumps the queue) |
+| `set_model` | `model` (`null`/`"default"` = default) | may post `system/informational` notices; `only_if_model_is_current` is refused over RC |
+| `set_permission_mode` | `mode` (`default` \| `plan` \| `acceptEdits` \| `bypassPermissions`) | |
+| `apply_flag_settings` | `settings: {effortLevel?, ultracode?}` — nothing else over RC | `effortLevel` ∈ `low` `medium` `high` `xhigh` `max`, `null` = auto; anything else → `"unrecognized effortLevel"`. **Session-scoped**: re-emits `system/init` with the new `effort`, persists nothing. This is how the CLI's `/effort` reaches a worker — there is no `set_effort` subtype. ⚠️ Refused by RC workers through at least 2.1.212 (`"REPL bridge does not handle…"`); `RemoteControlClient.set_effort()` falls back to the `/effort` slash command there. |
+| `set_max_thinking_tokens` | `max_thinking_tokens` (int \| null), `thinking_display?` | unverified |
+| `side_question` | `question`, `history?: [{question, response}]` | `{response: string \| null, synthetic: bool}` — claude.ai's "btw": answered from the conversation without interrupting the turn or entering the transcript (one model call; ~2–3 s on Haiku). `null` = nothing to answer from (empty conversation); `synthetic: true` carries a canned "(No answer available…)". Progress posts as `system/control_request_progress`; 11-minute deadline; `control_cancel_request` ends it with error `"Side question cancelled"`. |
+| `cancel_async_message` | `message_uuid` | `{cancelled: bool}` — withdraws a controller's queued user message (its payload `uuid`); `false` once a turn picked it up |
+| `stop_task` | `task_id` | `{}` — the task posts `task_updated` (`killed`) → `task_notification` (`stopped`); unknown ids are acked too |
+| `background_tasks` | `tool_use_id?` | backgrounds the running foreground shell task (`{backgrounded}`), or all of them — unverified |
+| `get_context_usage` | `detail?: summary \| full` | `{totalTokens, maxTokens, percentage, model, autoCompactThreshold, isAutoCompactEnabled, categories:[{name, tokens, kind}], gridRows, messageBreakdown, …}` |
+| `get_usage` | `skip_behaviors?` | `{subscription_type, rate_limits:{limits:[{kind: session \| weekly_all \| weekly_scoped, percent, resets_at, severity, scope}], five_hour, seven_day, …}, session:{total_cost_usd, total_lines_added, …}}` |
+| `get_workspace_diff` | — | `{diff: {stats:{filesCount, linesAdded, linesRemoved}, perFileStats, hunks, restricted, skippedLarge, source} \| null}` — `null` outside git; an 8 s budget, then error_code `workspace_diff_pending` |
+| `mcp_status` | — | `{mcpServers: [{name, status}]}` |
+| `rename_session` | `title` | renames the worker's *local* session only — the title controllers list is `PUT /v1/code/sessions/{id}` (§3.1) |
+| `set_color` | `color` | unverified |
+| `file_suggestions` / `read_file` | `query` / `path, max_bytes?, encoding?, anchor?` | `{suggestions:[{path}]}` / file content + `absPath` — unverified |
+| `mcp_authenticate`, `mcp_oauth_callback_url`, `mcp_reconnect`, `mcp_set_servers` | | MCP management; claude.ai's `mcp_set_servers` (server-injected MCP) is refused on RC sessions |
+| `fork_conversation` | | `{forked: false, reason: "requires_remote_control_server"}` on a plain RC worker |
 
-The remote-control REPL worker's full `control_request` dispatch table (2.1.187 and
-2.1.212, from the binary): `initialize`, `set_model`, `set_max_thinking_tokens`,
-`set_permission_mode`, `rename_session`, `set_color`, `file_suggestions`,
-`read_file`, `get_context_usage`, `get_usage`, `mcp_status`, `mcp_authenticate`,
-`mcp_oauth_callback_url`, `mcp_reconnect`, `interrupt` — anything else gets the
-"does not handle" error response.
+Anything else gets `"REPL bridge does not handle control_request subtype: …"`.
+A process that is shutting down refuses everything but the read-only queries.
+To withdraw an in-flight request, send `{type:"control_cancel_request", request_id}`.
+
+**Answering the worker's prompts.** A worker blocks its turn with a
+`control_request` of its own (`source: "worker"`): `can_use_tool` (a tool
+permission) or `request_user_dialog`. Answer with a `control_response`:
+```json
+{ "type": "control_response",
+  "response": { "subtype": "success", "request_id": "<the prompt's>", "tool_use_id": "<optional>",
+                "response": { "behavior": "allow", "updatedInput": { /* optional */ } } } }
+```
+or `{"behavior": "deny", "message": "…"}`. `updatedInput` is optional in the
+2.1.301 schema (older workers expect it — echo the request's `input`).
+**AskUserQuestion arrives as `can_use_tool`**, not a dialog: answer it with an
+allow whose `updatedInput` is the tool's input plus
+`answers: {<question text>: <label | [labels]>}` (an empty map dismisses it; the
+tool crashes if `questions` is missing). Any controller's answer echoes back as a
+`control_response`, so every controller sees a prompt resolve.
 
 **Slash commands work as user messages** (confirmed live, 2026-07-17): a `user`
-event whose text is e.g. `/effort high` is executed by the remote-control worker
+event whose text is e.g. `/context` is executed by the remote-control worker
 as a **local command** — zero cost, `num_turns: 0`, no API call; the transcript
 gains the synthetic `<command-name>` user events plus a synthetic assistant echo
-of the command output (e.g. "Set effort level to high (saved as your default for
-new sessions)"). Semantics are exactly "typed at that terminal" — so `/effort
-<level>` **persists that machine's default**, it is not session-scoped. This is
-the practical route for any steering the control table above lacks.
+of the command output. Semantics are exactly "typed at that terminal" — so
+`/effort <level>` **persists that machine's default** for the model, unlike the
+`apply_flag_settings` control.
 
 ### 3.3 Receiving events
 
-**Stream (SSE):** `GET /v1/code/sessions/{id}/events/stream?from_sequence_num=N`
-- Each SSE frame: `event: client_event`, `id: <sequence_num>`,
-  `data: {event_type, sequence_num, source, payload}`. The real event is `payload`.
-- Other top-level frame kinds: `catch_up_truncated` (history-gap signal),
-  `ephemeral_event`, and `session_update`/`delivery_update` (ignored by the CLI).
-- **Resume** after a drop: reconnect with **both** `?from_sequence_num=<last>`
-  **and** a `Last-Event-ID: <last>` header; de-dupe by `sequence_num`. Server-side
-  resumable (unlike mode B). A liveness timer + exponential backoff drive reconnects.
-- `sequence_num` arrives as a **string** on the wire — coerce to int.
+**Envelope** (both transports, verified):
+`{sequence_num, event_id, event_type, source, created_at, device_attestation_status, sent_by_account_id, payload}`.
+`source` is `client` (a controller — claude.ai, the apps, this library) or
+`worker` (Claude Code). A controller's events also carry the delivery timestamps
+`received_at` / `processing_at` / `processed_at`. `sequence_num` arrives as a
+**string** — coerce to int.
 
-**Poll (history):** `GET /v1/code/sessions/{id}/events?limit=N&sort_order=desc`
-- `sort_order` = `asc` | `desc` (CLI fetches `desc` = newest first).
-- Returns `{data:[{sequence_num, payload}, ...]}`. The CLI's paginator caps at 50 pages.
+**Stream (SSE):** `GET /v1/code/sessions/{id}/events/stream?from_sequence_num=N`
+- Replays every persisted event after `N` (**exclusive**; `0` replays the whole
+  backlog), then follows live. Reconnect with **both** `?from_sequence_num=<last>`
+  **and** a `Last-Event-ID: <last>` header and de-dupe by `sequence_num`.
+- Frame kinds (`event:` line):
+  - `client_event` — a persisted event; `id: <sequence_num>`, data = the envelope.
+  - `ephemeral_event` — never persisted, no sequence number: `stream_event`
+    deltas and `system/thinking_tokens`.
+  - `session_update` — `{connection_status, …}` changes.
+  - `delivery_update` — `{event_id, status, timestamp}` for a controller's event:
+    `DELIVERY_STATUS_RECEIVED` → `…_PROCESSING` (it left the queue for a turn)
+    → `…_PROCESSED` (the turn ended).
+  - `catch_up_truncated` — a history gap.
+- Comment lines (`:keepalive`) are heartbeats.
+
+**Poll (history):** `GET /v1/code/sessions/{id}/events?limit=N&sort_order=desc&cursor=C`
+- `sort_order=asc` starts at the session's **first** event, `desc` at its newest
+  (the CLI fetches `desc`). `cursor` is a sequence number: `asc` returns the
+  events after it, `desc` the events before it. **`from_sequence_num` is
+  ignored here** (stream only).
+- Returns `{data:[envelope, ...], next_cursor, resume_cursor}`.
 
 **stream-json payload `type` values** (the RC event vocabulary):
 
 | `payload.type` | meaning |
 |---|---|
-| `system` (`subtype:"init"`) | session init: `cwd`, `session_id`, `tools[]`, `mcp_servers[]`, `model` |
-| `system` (`subtype:"compact_boundary"`) | context was compacted |
-| `user` | a user turn — `{message:{role:"user", content:[...]}}` (echoed sends + tool results) |
-| `assistant` | assistant turn — `{message:{role:"assistant", content:[text|thinking|tool_use...]}}` |
+| `system` / `init` | the worker's live settings: `model`, `effort`, `permissionMode`, `claude_code_version`, `fast_mode_state`, `capabilities`, `terminal_slash_commands`, `cwd`, `tools[]`… Re-posted on every model / mode / effort change and every controller `initialize`, so the newest one is current. |
+| `system` / `status` | `permissionMode` + `status` (e.g. `compacting`, or `null`) |
+| `system` / `compact_boundary` | context was compacted |
+| `system` / `task_started`, `task_updated`, `task_notification` | a shell/agent task's lifecycle: `task_id`, `task_type` (`local_bash` …), `description`, `is_backgrounded`, `tool_use_id`; the notification carries `status` (`completed` \| `stopped` …) and `summary` |
+| `system` / `background_tasks_changed` | `tasks: [{task_id, task_type, description, run_id}]` — the running background set |
+| `system` / `control_request_progress` | a long control (side question) working: `request_id`, `status` |
+| `system` / `informational` | a notice (`content`, `level`) |
+| `user` | a user turn — `{message:{role:"user", content:[...]}}` (sends, echoes, tool results) |
+| `assistant` | assistant turn — `{message:{role:"assistant", content:[text\|thinking\|tool_use...]}}` |
 | `result` | **turn complete** — `{subtype: success\|error_max_turns\|error_during_execution, is_error, num_turns, duration_ms, total_cost_usd, usage, stop_reason}` |
-| `stream_event` | partial streaming (Messages-API `message_start`/`content_block_delta`/…) |
-| `control_request` / `control_response` | the CLI control protocol (permissions, context usage, set_model, …) |
-| `tool_progress`, `tool_use_summary`, `rate_limit_event`, `conversation_reset`, `active_goal`, `auth_status`, `env_manager_log`, `ephemeral_event` | auxiliary UI/telemetry events |
+| `stream_event` | partial streaming (ephemeral) |
+| `control_request` / `control_response` | the control protocol (§3.2), from either side — `source` says whose |
+| `rate_limit_event`, `tool_progress`, `tool_use_summary`, `conversation_reset`, `active_goal`, `auth_status`, `env_manager_log` | auxiliary UI/telemetry events |
 
 A turn ends on a **`result`** event (not `session.status_idle` — that's mode B).
+
+### 3.4 Device attestation (Trusted Devices)
+
+Every envelope carries `device_attestation_status`: `UNSPECIFIED`, `ABSENT`,
+`VERIFIED`, `VERIFIED_BY_GATE`, `VERIFIED_KEYLESS_DEVICE`, `INVALID`, `UNCHECKED`,
+`SERVICE_VOUCHED`, `SERVER_AUTHORED`, `SERVER_REPLAYED`, `TRANSITIVELY_VOUCHED`
+(prefixed `DEVICE_ATTESTATION_STATUS_` on the wire). 2.1.301 workers filter
+inbound controller events on it, by a policy the server sends
+(`{accept_level, accept_statuses}`, default level `VERIFIED`). Without an
+enforcing policy they accept and log unverified events — every event seen on
+this project's personal Max account (October 2026) was `UNSPECIFIED`, claude.ai's
+own included. Under
+enforcement, a worker **drops** unverified user messages, prompt answers and the
+mutating controls (`set_model`, `set_permission_mode`, `interrupt`, `stop_task`,
+`background_tasks`, `cancel_async_message`, `set_max_thinking_tokens`,
+`rename_session`, `set_color`, `apply_flag_settings`, `side_question`, the MCP
+controls), and posts an assistant notice: *"Remote Control ignored a message that
+arrived without a valid device signature (attestation: ABSENT). Re-pair the
+sending device in Trusted Devices."* This library does not sign (it does send
+`X-Trusted-Device-Token` when the credentials file has one); the send ack's
+`attestation_feedback` is where the server would say more.
 
 ---
 
@@ -309,7 +393,7 @@ docs omit it — the header alone is sufficient.)
 
 **CreateAgent** — `model`/`system`/`tools`/`mcp_servers`/`skills` live **here**, not on the session:
 ```json
-{ "name": "Coding Assistant", "model": "claude-opus-4-8",
+{ "name": "Coding Assistant", "model": "claude-opus-5-5",
   "system": "optional", "tools": [{"type": "agent_toolset_20260401"}],
   "mcp_servers": [{"type":"url","name":"github","url":"https://.../mcp/"}],
   "skills": [{"type":"anthropic","skill_id":"xlsx"}] }

@@ -25,6 +25,7 @@ from typing import Any, Iterable, Iterator, Optional
 
 import httpx
 
+from ._version import __version__
 from .credentials import (
     CredentialsError,
     OAuthCredentials,
@@ -33,17 +34,22 @@ from .credentials import (
     refresh_credentials,
 )
 from .events import (
+    RC,
     Event,
-    cli_user_message,
+    _to_int,
+    cli_control_cancel_request,
     cli_control_request,
+    cli_permission_response,
+    cli_question_response,
+    cli_user_message,
     user_message,
-    custom_tool_result,
 )
 from .sse import parse_sse
 
 DEFAULT_BASE_URL = "https://api.anthropic.com"
-# Beta headers observed in the CLI.
-CCR_BETA = "ccr-byoc-2025-07-29"          # /v1/sessions (v1) remote-control path
+# Beta headers observed in the CLI. The /v1/code/* paths need none; CCR_BETA rides
+# only the CLI's older /v1/sessions compat path for the same sessions.
+CCR_BETA = "ccr-byoc-2025-07-29"
 MANAGED_AGENTS_BETA = "managed-agents-2026-04-01"
 ANTHROPIC_VERSION = "2023-06-01"
 # anthropic-client-platform value the claude.ai web app sends. Since Claude Code
@@ -56,11 +62,35 @@ ANTHROPIC_VERSION = "2023-06-01"
 # framing — and, depending on the worker's peer-gate policy, parked without
 # ever starting a turn (observed live on 2.1.234; 2.1.219 predates the gate).
 CLIENT_PLATFORM = "web_claude_ai"
-USER_AGENT = "claude-rc-api-python/0.2.1"
+USER_AGENT = f"claude-rc-api-python/{__version__}"
+
+# Waiting for a control verdict: the history page size each poll scans, and how
+# far the poll interval backs off for slow verdicts (a side question can take
+# minutes).
+_VERDICT_SCAN = 50
+_MAX_POLL_INTERVAL = 2.0
 
 
 def _backoff_sleep(attempt: int, base: float = 0.5, cap: float = 30.0) -> None:
     time.sleep(min(cap, base * (2 ** (attempt - 1))))
+
+
+def _ack_sequence(ack: Any) -> Optional[int]:
+    """The sequence number ingest assigned the first event of a send."""
+    results = ack.get("results") if isinstance(ack, dict) else None
+    if isinstance(results, list) and results and isinstance(results[0], dict):
+        return _to_int(results[0].get("sequence_num"))
+    return None
+
+
+def _unwrap_session(body: Any) -> Any:
+    """Session reads and updates wrap the object (``{response_shape: …}`` /
+    ``{session: …}``); hand callers the session itself."""
+    if isinstance(body, dict):
+        for key in ("response_shape", "session"):
+            if isinstance(body.get(key), dict):
+                return body[key]
+    return body
 
 
 class APIError(RuntimeError):
@@ -75,10 +105,18 @@ class ControlRejected(RuntimeError):
     """The worker answered a ``control_request`` with an error ``control_response``.
 
     The ingest POST succeeding only means the request was queued — the worker
-    acks (or refuses) asynchronously in the event stream. E.g. remote-control
-    REPL workers (observed through Claude Code 2.1.212) do not dispatch the
-    ``apply_flag_settings`` subtype and answer
-    ``"REPL bridge does not handle control_request subtype: …"``."""
+    acks (or refuses) asynchronously in the event stream. A subtype the worker
+    doesn't serve comes back as ``"REPL bridge does not handle control_request
+    subtype: …"``."""
+
+
+class ControlTimeout(TimeoutError):
+    """No ``control_response`` to a ``control_request`` arrived in time — the
+    worker may be busy, gone, or on a version that drops the subtype."""
+
+    def __init__(self, request_id: str, message: str):
+        super().__init__(message)
+        self.request_id = request_id
 
 
 # ---------------------------------------------------------------------------
@@ -222,13 +260,15 @@ class RemoteControlClient:
             return resp.text
 
     # -- sessions ----------------------------------------------------------
-    def list_sessions(self, *, limit: int | None = None, page: str | None = None) -> dict:
-        """``GET /v1/code/sessions`` — your Remote Control sessions."""
-        params = {}
+    def list_sessions(self, *, limit: int | None = None, cursor: str | None = None) -> dict:
+        """``GET /v1/code/sessions`` — your Remote Control sessions, newest first:
+        ``{data, next_cursor}``. Pass ``next_cursor`` back as ``cursor`` for the
+        next page."""
+        params: dict[str, Any] = {}
         if limit is not None:
             params["limit"] = limit
-        if page is not None:
-            params["page"] = page
+        if cursor is not None:
+            params["cursor"] = cursor
         return self._ok(self._request("GET", self._url(), params=params))
 
     def sessions(self, **kw) -> list[dict]:
@@ -242,8 +282,19 @@ class RemoteControlClient:
         return []
 
     def get_session(self, session_id: str) -> dict:
-        """``GET /v1/code/sessions/{id}``."""
-        return self._ok(self._request("GET", self._url(session_id)))
+        """``GET /v1/code/sessions/{id}`` — the session object (unwrapped from the
+        ``response_shape`` envelope the endpoint returns)."""
+        return _unwrap_session(self._ok(self._request("GET", self._url(session_id))))
+
+    def update_session(self, session_id: str, **fields: Any) -> dict:
+        """``PUT /v1/code/sessions/{id}`` — change ``title``, or ``add_tags`` /
+        ``remove_tags``. Returns the updated session."""
+        return _unwrap_session(self._ok(self._request("PUT", self._url(session_id), json=fields)))
+
+    def rename_session(self, session_id: str, title: str) -> dict:
+        """Retitle a session where every controller's list shows it (a connected
+        worker adopts the new title too)."""
+        return self.update_session(session_id, title=title)
 
     def archive_session(self, session_id: str) -> bool:
         """``POST /v1/code/sessions/{id}/archive`` — end/hide a session. 409 = already archived."""
@@ -259,6 +310,7 @@ class RemoteControlClient:
 
         Body is ``{session_id, events:[{payload: <event+uuid>}]}`` — each event is
         wrapped in ``payload`` and given a ``uuid`` if it lacks one (matching the CLI).
+        The ack is ``{results: [{event_id, sequence_num, duplicate}], attestation_feedback}``.
         """
         wrapped = []
         for e in events:
@@ -268,14 +320,130 @@ class RemoteControlClient:
         body = {"session_id": session_id, "events": wrapped}
         return self._ok(self._request("POST", self._url(session_id, "events"), json=body), 200, 201)
 
-    def send_message(self, session_id: str, text: str) -> dict:
+    def send_message(self, session_id: str, text: str, *, message_uuid: str | None = None) -> dict:
         """Send a user message (Claude Code stream-json ``user`` event) — what you
-        type at claude.ai/code."""
-        return self.send_events(session_id, [cli_user_message(text)])
+        type at claude.ai/code. Pass ``message_uuid`` to keep a handle for
+        :meth:`cancel_queued_message`."""
+        return self.send_events(session_id, [cli_user_message(text, message_uuid=message_uuid)])
 
     def send_raw(self, session_id: str, payload: dict) -> dict:
         """Send an arbitrary stream-json payload (advanced escape hatch)."""
         return self.send_events(session_id, [payload])
+
+    def cancel_queued_message(self, session_id: str, message_uuid: str, *, timeout: float = 15.0) -> bool:
+        """Withdraw a message the worker hasn't started on yet — one sent with
+        ``message_uuid`` that is queued behind a running turn or prompt. True if
+        it was removed; False once a turn has picked it up."""
+        response = self.request_control(session_id, "cancel_async_message", message_uuid=message_uuid, timeout=timeout)
+        return bool(response.get("cancelled"))
+
+    # -- answering the worker's blocking prompts ----------------------------
+    def respond_permission(
+        self,
+        session_id: str,
+        request_id: str,
+        *,
+        allow: bool,
+        tool_input: dict | None = None,
+        tool_use_id: str | None = None,
+        message: str | None = None,
+    ) -> dict:
+        """Allow or deny a ``can_use_tool`` prompt (``Event.is_blocking_control``).
+        See :func:`~claude_rc.events.cli_permission_response` for the fields."""
+        answer = cli_permission_response(
+            request_id, allow=allow, tool_input=tool_input, tool_use_id=tool_use_id, message=message
+        )
+        return self.send_events(session_id, [answer])
+
+    def answer_question(
+        self,
+        session_id: str,
+        request_id: str,
+        answers: dict[str, str | list[str]],
+        *,
+        tool_input: dict,
+        tool_use_id: str | None = None,
+    ) -> dict:
+        """Answer an ``AskUserQuestion`` prompt: ``answers`` maps question text to
+        the chosen label(s); ``{}`` dismisses it. See
+        :func:`~claude_rc.events.cli_question_response`."""
+        answer = cli_question_response(request_id, answers, tool_input=tool_input, tool_use_id=tool_use_id)
+        return self.send_events(session_id, [answer])
+
+    # -- the control protocol -----------------------------------------------
+    def _send_control(self, session_id: str, subtype: str, **fields: Any) -> tuple[str, dict]:
+        request_id = f"{subtype}-{uuid.uuid4()}"
+        ack = self.send_events(session_id, [cli_control_request(subtype, request_id=request_id, **fields)])
+        return request_id, ack
+
+    def send_control(self, session_id: str, subtype: str, **fields: Any) -> str:
+        """Send a ``control_request`` without waiting; returns its request id
+        (pair with :meth:`wait_control_response`)."""
+        return self._send_control(session_id, subtype, **fields)[0]
+
+    def _control(self, session_id: str, subtype: str, timeout: float, **fields: Any) -> tuple[str, dict]:
+        """Send a control and wait for its verdict: ``(request_id, verdict)``."""
+        request_id, ack = self._send_control(session_id, subtype, **fields)
+        verdict = self.wait_control_response(
+            session_id, request_id, timeout=timeout, after_sequence_num=_ack_sequence(ack)
+        )
+        if verdict is None:
+            raise ControlTimeout(request_id, f"no answer to {subtype} within {timeout:g}s")
+        if verdict.get("subtype") == "error":
+            raise ControlRejected(str(verdict.get("error") or f"{subtype} rejected"))
+        return request_id, verdict
+
+    def request_control(self, session_id: str, subtype: str, *, timeout: float = 15.0, **fields: Any) -> dict:
+        """Send a ``control_request`` and wait for the worker's verdict.
+
+        Returns the verdict's ``response`` payload (``{}`` when it has none).
+        Raises :class:`ControlRejected` on an error verdict and
+        :class:`ControlTimeout` when none arrives within ``timeout``. The typed
+        methods below wrap the subtypes worth having; this reaches the rest
+        (``read_file``, ``file_suggestions``, ``mcp_status`` …, see
+        API_REFERENCE.md).
+        """
+        return self._control(session_id, subtype, timeout, **fields)[1].get("response") or {}
+
+    def wait_control_response(
+        self,
+        session_id: str,
+        request_id: str,
+        *,
+        timeout: float = 5.0,
+        poll_interval: float = 0.4,
+        after_sequence_num: int | None = None,
+    ) -> dict | None:
+        """Poll history for the worker's ``control_response`` to ``request_id``.
+
+        Returns the ``response`` object (``subtype`` is ``success`` | ``error``),
+        or ``None`` if none arrived within ``timeout``. Controls are acked
+        asynchronously through the event stream — a 200 on the ingest POST only
+        means "queued", so this is how a caller learns whether the worker
+        actually applied one. ``after_sequence_num`` (the request's own, from
+        the send ack) makes the scan exact; without it each poll checks the
+        newest events. The interval backs off for slow verdicts.
+        """
+        deadline = time.monotonic() + timeout
+        delay = poll_interval
+        cursor = after_sequence_num
+        while True:
+            if cursor is None:
+                page = self.list_events(session_id, limit=_VERDICT_SCAN, sort_order="desc")
+            else:
+                page = self.list_events(session_id, limit=_VERDICT_SCAN, sort_order="asc", cursor=str(cursor))
+            for ev in page:
+                if ev.type == RC.CONTROL_RESPONSE and ev.request_id == request_id:
+                    return ev.payload.get("response") or {}
+            if cursor is not None:
+                cursor = max([cursor, *(ev.sequence_num or 0 for ev in page)])
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                return None
+            if cursor is not None and len(page) == _VERDICT_SCAN:
+                continue  # a full page: more history is already waiting
+            time.sleep(min(delay, remaining))
+            delay = min(delay * 1.5, _MAX_POLL_INTERVAL)
 
     def interrupt(self, session_id: str) -> dict:
         """Interrupt the running agent via a ``control_request`` (jumps the queue)."""
@@ -283,7 +451,7 @@ class RemoteControlClient:
         return self.send_events(session_id, [req])
 
     def set_model(self, session_id: str, model: str) -> dict:
-        """Change the session's model (e.g. ``claude-opus-4-8``)."""
+        """Change the session's model (e.g. ``claude-opus-5-5``)."""
         req = cli_control_request("set_model", request_id=f"set-model-{uuid.uuid4()}", model=model)
         return self.send_events(session_id, [req])
 
@@ -303,44 +471,43 @@ class RemoteControlClient:
         wait: float | None = None,
         command_fallback: bool = False,
     ) -> dict:
-        """Set reasoning effort: ``low`` | ``medium`` | ``high`` | ``xhigh``; ``None`` = auto.
+        """Set reasoning effort: ``low`` | ``medium`` | ``high`` | ``xhigh`` | ``max``;
+        ``None`` = auto (the model's default).
 
         There is no ``set_effort`` control subtype — the CLI's ``/effort`` command
         sends ``apply_flag_settings`` with ``settings.effortLevel`` (an explicit
         ``null`` clears back to auto) and ``ultracode`` alongside it (a plain
-        effort change switches ultracode off). ``max`` is session-scoped in the
-        CLI and rejected by the worker's flag-settings schema, so it cannot be
-        applied remotely. ``ultracode=True`` needs ``effort="xhigh"`` and an
-        xhigh-capable model on the worker.
+        effort change switches ultracode off; ``ultracode=True`` needs ``xhigh``
+        and an xhigh-capable model). Applied this way the level is
+        session-scoped: the worker re-emits ``system/init`` with the new
+        ``effort`` and persists nothing.
 
-        **Remote-control REPL workers (observed through 2.1.212) do not dispatch
-        ``apply_flag_settings``** — they refuse it with an error
-        ``control_response`` (SDK/cloud workers apply it). Hence the two opt-ins:
+        Remote-control workers refused ``apply_flag_settings`` through at least
+        2.1.212 (``"REPL bridge does not handle…"``); 2.1.301 applies it. For
+        older workers, two opt-ins:
 
         * ``wait`` (seconds) — poll for the worker's ``control_response`` and act
           on the verdict instead of firing blind. Without it, a refusal only ever
           surfaces in the event stream.
         * ``command_fallback`` — on refusal, inject ``/effort <level>`` as a user
-          message instead. Remote-control workers execute slash commands from
-          controllers as local commands (verified live: zero cost, no model
-          turn) — but mind the CLI semantics: a plain level is also *persisted
-          as that machine's default for new sessions*, not session-scoped.
-          Requires ``wait``. Without it a refusal raises :class:`ControlRejected`.
+          message instead. Workers run slash commands from controllers as local
+          commands (zero cost, no model turn) — but with CLI semantics: a plain
+          level is also *saved as that machine's default for the model*, not
+          session-scoped. Requires ``wait``. Without it a refusal raises
+          :class:`ControlRejected`.
 
         Returns ``{"via": "control" | "command" | "control_unconfirmed", "ack": …}``
         — ``control_unconfirmed`` means ``wait`` elapsed with no verdict (assumed
         applied; no fallback is attempted, to avoid a double apply).
         """
-        request_id = f"set-effort-{uuid.uuid4()}"
-        req = cli_control_request(
-            "apply_flag_settings",
-            request_id=request_id,
-            settings={"effortLevel": effort, "ultracode": ultracode},
+        request_id, ack = self._send_control(
+            session_id, "apply_flag_settings", settings={"effortLevel": effort, "ultracode": ultracode}
         )
-        ack = self.send_events(session_id, [req])
         if wait is None:
             return {"via": "control", "ack": ack}
-        resp = self.wait_control_response(session_id, request_id, timeout=wait)
+        resp = self.wait_control_response(
+            session_id, request_id, timeout=wait, after_sequence_num=_ack_sequence(ack)
+        )
         if resp is None:
             return {"via": "control_unconfirmed", "ack": ack}
         if resp.get("subtype") != "error":
@@ -351,33 +518,76 @@ class RemoteControlClient:
         ack = self.send_message(session_id, f"/effort {command}")
         return {"via": "command", "ack": ack}
 
-    def wait_control_response(
+    # -- asking the worker --------------------------------------------------
+    def initialize(self, session_id: str, *, timeout: float = 15.0) -> dict:
+        """The controller handshake claude.ai sends on every attach. Returns the
+        worker's ``claude_code_version``, ``current_model``,
+        ``current_permission_mode`` … plus ``pending_permission_requests`` /
+        ``pending_user_dialog_requests`` (the prompts it is blocked on). Like an
+        attach, it makes the worker post a fresh ``system/init`` event."""
+        verdict = self._control(session_id, "initialize", timeout)[1]
+        return {
+            **(verdict.get("response") or {}),
+            "pending_permission_requests": verdict.get("pending_permission_requests") or [],
+            "pending_user_dialog_requests": verdict.get("pending_user_dialog_requests") or [],
+        }
+
+    def side_question(
         self,
         session_id: str,
-        request_id: str,
+        question: str,
         *,
-        timeout: float = 5.0,
-        poll_interval: float = 0.4,
-    ) -> dict | None:
-        """Poll history for the worker's ``control_response`` to ``request_id``.
+        history: list[dict] | None = None,
+        timeout: float = 300.0,
+    ) -> str | None:
+        """Ask the session something on the side — claude.ai's "btw". The worker
+        answers from its conversation without interrupting a running turn or
+        adding to the transcript (it does cost a model call).
 
-        Returns the ``response`` object (``subtype`` is ``success`` | ``error``),
-        or ``None`` if none arrived within ``timeout``. Controls are acked
-        asynchronously through the event stream — a 200 on the ingest POST only
-        means "queued", so this is how a caller learns whether the worker
-        actually applied one.
+        ``history`` holds this side thread's earlier ``{question, response}``
+        pairs, so follow-ups make sense. Returns the answer, or None when the
+        worker has nothing to answer from (e.g. an empty conversation). On
+        ``timeout`` the question is withdrawn and :class:`ControlTimeout` raised.
         """
-        deadline = time.monotonic() + timeout
-        while True:
-            for ev in self.list_events(session_id, limit=25, sort_order="desc"):
-                if ev.type != "control_response":
-                    continue
-                resp = ev.payload.get("response") or {}
-                if resp.get("request_id") == request_id:
-                    return resp
-            if time.monotonic() >= deadline:
-                return None
-            time.sleep(poll_interval)
+        fields: dict[str, Any] = {"question": question}
+        if history:
+            fields["history"] = [{"question": h["question"], "response": h["response"]} for h in history]
+        try:
+            verdict = self._control(session_id, "side_question", timeout, **fields)[1]
+        except ControlTimeout as exc:
+            try:  # don't leave the worker answering a question nobody waits for
+                self.send_events(session_id, [cli_control_cancel_request(exc.request_id)])
+            except APIError:
+                pass
+            raise
+        return (verdict.get("response") or {}).get("response")
+
+    def get_context_usage(self, session_id: str, *, detail: str = "summary", timeout: float = 15.0) -> dict:
+        """How full the context window is: ``totalTokens`` / ``maxTokens`` /
+        ``percentage``, ``autoCompactThreshold``, and a per-``categories``
+        breakdown. The headline numbers also ride the session object
+        (``external_metadata.context_usage``) with no round trip."""
+        return self.request_control(session_id, "get_context_usage", detail=detail, timeout=timeout)
+
+    def get_usage(self, session_id: str, *, timeout: float = 15.0) -> dict:
+        """Plan usage as the worker's account sees it: ``rate_limits.limits`` (the
+        5-hour and weekly windows, each ``{kind, percent, resets_at}``), the
+        ``session``'s cost and line totals, and ``subscription_type``."""
+        return self.request_control(session_id, "get_usage", timeout=timeout)
+
+    def get_workspace_diff(self, session_id: str, *, timeout: float = 15.0) -> dict | None:
+        """The worker's uncommitted git changes — ``stats`` (``filesCount``,
+        ``linesAdded``, ``linesRemoved``), ``perFileStats``, ``hunks`` — or None
+        outside a git repo. A diff still computing after ~8 s is refused with
+        ``workspace_diff_pending`` (raised as :class:`ControlRejected`)."""
+        return self.request_control(session_id, "get_workspace_diff", timeout=timeout).get("diff")
+
+    def stop_task(self, session_id: str, task_id: str, *, timeout: float = 15.0) -> None:
+        """Stop a running shell/agent task by the ``task_id`` of its
+        ``system/task_started`` event (``system/background_tasks_changed`` lists
+        the running background set). The worker acks unknown ids too; a stopped
+        task reports ``task_notification`` with ``status: stopped``."""
+        self.request_control(session_id, "stop_task", task_id=task_id, timeout=timeout)
 
     def mark_read(self, session_id: str, up_to_sequence_num: int | None = None) -> Any:
         """``POST /v1/code/sessions/{id}/mark_read`` — mark the session read."""
@@ -393,22 +603,22 @@ class RemoteControlClient:
         *,
         limit: int | None = None,
         sort_order: str | None = None,
-        from_sequence_num: int | None = None,
-        page: str | None = None,
+        cursor: str | None = None,
     ) -> list[Event]:
         """``GET /v1/code/sessions/{id}/events`` — paginated history (returns immediately).
 
-        ``sort_order`` is ``asc`` | ``desc`` (the CLI fetches ``desc`` = newest first).
+        ``sort_order`` is ``asc`` (oldest first — the session's FIRST events) or
+        ``desc`` (newest first, what the CLI fetches). ``cursor`` is a sequence
+        number: ``asc`` returns the events after it, ``desc`` the events before
+        it (each response's ``next_cursor`` is the last one it held).
         """
         params: dict[str, Any] = {}
         if limit is not None:
             params["limit"] = limit
         if sort_order is not None:
             params["sort_order"] = sort_order
-        if from_sequence_num is not None:
-            params["from_sequence_num"] = from_sequence_num
-        if page is not None:
-            params["page"] = page
+        if cursor is not None:
+            params["cursor"] = cursor
         body = self._ok(self._request("GET", self._url(session_id, "events"), params=params))
         rows = body if isinstance(body, list) else body.get("data") or body.get("events") or []
         return [Event.from_wire(r) for r in rows]
@@ -424,13 +634,15 @@ class RemoteControlClient:
     ) -> Iterator[Event]:
         """``GET /v1/code/sessions/{id}/events/stream`` — live SSE events.
 
-        Each SSE frame is a ``client_event`` envelope
-        ``{event_type, sequence_num, source, payload}``; this unwraps ``payload``
-        into an :class:`Event`. Resumes with both ``?from_sequence_num=`` and a
-        ``Last-Event-ID`` header, de-duping by ``sequence_num``, so a dropped
-        connection neither replays nor skips events. Reconnects with exponential
-        backoff. Open this *before* sending a message — the stream only delivers
-        events that occur after it connects.
+        Replays every persisted event after ``from_sequence_num`` (exclusive — 0
+        replays the whole backlog), then follows live. A ``client_event`` frame is
+        an envelope ``{event_type, sequence_num, source, payload}``; this unwraps
+        ``payload`` into an :class:`Event`. ``ephemeral_event`` frames (partial
+        ``stream_event`` deltas, ``system/thinking_tokens``) come through with no
+        sequence number; ``session_update`` / ``delivery_update`` frames are
+        skipped. Resumes with both ``?from_sequence_num=`` and a ``Last-Event-ID``
+        header, de-duping by ``sequence_num``, so a dropped connection neither
+        replays nor skips events. Reconnects with exponential backoff.
         """
         seen: set[int] = set()
         last_seq = from_sequence_num
@@ -506,7 +718,6 @@ class RemoteControlClient:
         text: str,
         *,
         print_stream: bool = False,
-        idle_timeout: float | None = None,
     ) -> list[Event]:
         """Send a message and stream until the session goes idle again.
 

@@ -92,9 +92,9 @@ def test_cli_user_message_shape():
 
 
 def test_cli_control_request_shape():
-    r = cli_control_request("set_model", "rid-1", model="claude-opus-4-8")
+    r = cli_control_request("set_model", "rid-1", model="claude-opus-5-5")
     assert r["type"] == "control_request"
-    assert r["request"] == {"subtype": "set_model", "model": "claude-opus-4-8"}
+    assert r["request"] == {"subtype": "set_model", "model": "claude-opus-5-5"}
 
 
 def test_cli_control_request_effort_shape():
@@ -121,7 +121,7 @@ def test_set_effort_control_accepted(monkeypatch):
     sent = []
     monkeypatch.setattr(rc, "send_events", lambda sid, evs: sent.append(list(evs)) or {"ok": 1})
     monkeypatch.setattr(
-        rc, "wait_control_response", lambda sid, rid, timeout: {"subtype": "success", "request_id": rid}
+        rc, "wait_control_response", lambda sid, rid, **kw: {"subtype": "success", "request_id": rid}
     )
     out = rc.set_effort("cse_x", "high", wait=1.0, command_fallback=True)
     assert out["via"] == "control"
@@ -137,13 +137,13 @@ def test_set_effort_command_fallback(monkeypatch):
     monkeypatch.setattr(
         rc,
         "wait_control_response",
-        lambda sid, rid, timeout: {
+        lambda sid, rid, **kw: {
             "subtype": "error",
             "error": "REPL bridge does not handle control_request subtype: apply_flag_settings",
             "request_id": rid,
         },
     )
-    monkeypatch.setattr(rc, "send_message", lambda sid, text: messages.append(text) or {})
+    monkeypatch.setattr(rc, "send_message", lambda sid, text, **kw: messages.append(text) or {})
     assert rc.set_effort("cse_x", "high", wait=1.0, command_fallback=True)["via"] == "command"
     assert messages == ["/effort high"]
     assert rc.set_effort("cse_x", None, wait=1.0, command_fallback=True)["via"] == "command"
@@ -156,7 +156,7 @@ def test_set_effort_rejected_without_fallback(monkeypatch):
     rc = _bare_rc()
     monkeypatch.setattr(rc, "send_events", lambda sid, evs: {})
     monkeypatch.setattr(
-        rc, "wait_control_response", lambda sid, rid, timeout: {"subtype": "error", "error": "nope"}
+        rc, "wait_control_response", lambda sid, rid, **kw: {"subtype": "error", "error": "nope"}
     )
     try:
         rc.set_effort("cse_x", "low", wait=1.0)
@@ -170,8 +170,8 @@ def test_set_effort_timeout_no_fallback(monkeypatch):
     rc = _bare_rc()
     messages = []
     monkeypatch.setattr(rc, "send_events", lambda sid, evs: {})
-    monkeypatch.setattr(rc, "wait_control_response", lambda sid, rid, timeout: None)
-    monkeypatch.setattr(rc, "send_message", lambda sid, text: messages.append(text) or {})
+    monkeypatch.setattr(rc, "wait_control_response", lambda sid, rid, **kw: None)
+    monkeypatch.setattr(rc, "send_message", lambda sid, text, **kw: messages.append(text) or {})
     assert rc.set_effort("cse_x", "high", wait=0.1, command_fallback=True)["via"] == "control_unconfirmed"
     assert messages == []
 
@@ -307,3 +307,214 @@ def test_token_raises_when_no_recovery_possible(tmp_path: Path, monkeypatch):
     with pytest.raises(CredentialsError):
         client._token()
     client.close()
+
+
+# --- envelope + control-protocol accessors -----------------------------------
+def _wire(payload, **envelope):
+    return {"sequence_num": "7", "payload": payload, **envelope}
+
+
+def test_event_envelope_accessors():
+    e = Event.from_wire(_wire(
+        {"type": "user", "message": {"role": "user", "content": "hi"}},
+        event_id="ev-1", source="client", created_at="2026-10-16T15:17:54Z",
+        device_attestation_status="DEVICE_ATTESTATION_STATUS_UNSPECIFIED",
+    ))
+    assert (e.event_id, e.source, e.created_at) == ("ev-1", "client", "2026-10-16T15:17:54Z")
+    assert e.attestation == "UNSPECIFIED"
+    assert Event.from_wire({"type": "agent.message"}).attestation is None
+
+
+def test_blocking_control_is_worker_prompts_only():
+    def req(subtype, source):
+        return Event.from_wire(_wire(
+            {"type": "control_request", "request_id": "r1", "request": {"subtype": subtype}}, source=source
+        ))
+
+    assert req("can_use_tool", "worker").is_blocking_control
+    assert req("request_user_dialog", "worker").is_blocking_control
+    assert req("can_use_tool", None).is_blocking_control  # envelope without a source
+    # A controller's side question (ours, or claude.ai's "btw") is not a prompt.
+    assert not req("side_question", "client").is_blocking_control
+    assert not req("side_question", "worker").is_blocking_control
+    assert not req("can_use_tool", "client").is_blocking_control
+    assert not req("interrupt", "client").is_blocking_control
+
+
+def test_request_id_and_control_subtype():
+    ask = Event.from_wire(_wire({"type": "control_request", "request_id": "r1", "request": {"subtype": "get_usage"}}))
+    ans = Event.from_wire(_wire({"type": "control_response", "response": {"subtype": "success", "request_id": "r1"}}))
+    assert (ask.request_id, ask.control_subtype) == ("r1", "get_usage")
+    assert (ans.request_id, ans.control_subtype) == ("r1", None)
+    assert Event.from_wire(_wire({"type": "assistant"})).request_id is None
+
+
+def test_worker_state():
+    init = Event.from_wire(_wire({
+        "type": "system", "subtype": "init", "model": "claude-haiku-5-5", "effort": "max",
+        "permissionMode": "bypassPermissions", "claude_code_version": "2.1.301", "cwd": "",
+    }))
+    assert init.worker_state == {
+        "model": "claude-haiku-5-5", "effort": "max",
+        "permission_mode": "bypassPermissions", "claude_code_version": "2.1.301",
+    }
+    status = Event.from_wire(_wire({"type": "system", "subtype": "status", "permissionMode": "plan", "status": None}))
+    assert status.worker_state == {"permission_mode": "plan"}
+    assert Event.from_wire(_wire({"type": "system", "subtype": "task_started"})).worker_state == {}
+
+
+# --- answer builders ---------------------------------------------------------
+from claude_rc.events import (  # noqa: E402
+    cli_control_cancel_request,
+    cli_dialog_response,
+    cli_permission_response,
+    cli_question_response,
+)
+
+
+def test_cli_user_message_pins_uuid():
+    assert "uuid" not in cli_user_message("x")
+    assert cli_user_message("x", message_uuid="u-1")["uuid"] == "u-1"
+
+
+def test_cli_control_cancel_request_shape():
+    assert cli_control_cancel_request("r9") == {"type": "control_cancel_request", "request_id": "r9"}
+
+
+def test_cli_permission_response_shapes():
+    allow = cli_permission_response("r1", allow=True, tool_input={"command": "ls"}, tool_use_id="toolu_1")
+    assert allow == {"type": "control_response", "response": {
+        "subtype": "success", "request_id": "r1", "tool_use_id": "toolu_1",
+        "response": {"behavior": "allow", "updatedInput": {"command": "ls"}},
+    }}
+    # No input → no updatedInput at all (an empty one would blank the tool's input).
+    assert cli_permission_response("r1", allow=True)["response"]["response"] == {"behavior": "allow"}
+    deny = cli_permission_response("r2", allow=False)["response"]
+    assert deny["response"] == {"behavior": "deny", "message": "Denied by controller"}
+    assert "tool_use_id" not in deny
+
+
+def test_cli_question_response_keeps_questions():
+    questions = [{"question": "Pick one?", "header": "Pick", "options": [], "multiSelect": False}]
+    r = cli_question_response("r3", {"Pick one?": "A"}, tool_input={"questions": questions}, tool_use_id="t")
+    updated = r["response"]["response"]["updatedInput"]
+    assert updated == {"questions": questions, "answers": {"Pick one?": "A"}}
+    assert r["response"]["response"]["behavior"] == "allow"
+
+
+def test_cli_dialog_response_shape():
+    assert cli_dialog_response("r4", completed=False)["response"]["response"] == {"status": "cancelled", "result": {}}
+    done = cli_dialog_response("r4", completed=True, result={"answers": ["x"]})
+    assert done["response"]["response"] == {"status": "completed", "result": {"answers": ["x"]}}
+
+
+# --- request/verdict plumbing (offline: transport stubbed) --------------------
+def _ack(seq):
+    return {"attestation_feedback": None, "results": [{"event_id": "e", "sequence_num": str(seq), "duplicate": False}]}
+
+
+def _verdict_event(seq, request_id, **response):
+    return Event.from_wire(_wire(
+        {"type": "control_response", "response": {"request_id": request_id, **response}}, source="worker"
+    ) | {"sequence_num": str(seq)})
+
+
+def test_wait_control_response_scans_forward_from_the_request(monkeypatch):
+    rc = _bare_rc()
+    calls = []
+    pages = {"40": [Event.from_wire(_wire({"type": "assistant"}) | {"sequence_num": "41"})],
+             "41": [_verdict_event(42, "rid-1", subtype="success", response={"ok": 1})]}
+
+    def fake_list(sid, **kw):
+        calls.append(kw)
+        return pages.get(kw.get("cursor"), [])
+
+    monkeypatch.setattr(rc, "list_events", fake_list)
+    monkeypatch.setattr("claude_rc.client.time.sleep", lambda s: None)
+    verdict = rc.wait_control_response("cse_x", "rid-1", timeout=5, after_sequence_num=40)
+    assert verdict == {"request_id": "rid-1", "subtype": "success", "response": {"ok": 1}}
+    assert [c["cursor"] for c in calls] == ["40", "41"]  # the cursor advanced past seq 41
+    assert all(c["sort_order"] == "asc" for c in calls)
+
+
+def test_request_control_success_error_and_timeout(monkeypatch):
+    from claude_rc.client import ControlRejected, ControlTimeout
+
+    rc = _bare_rc()
+    sent = []
+    monkeypatch.setattr(rc, "send_events", lambda sid, evs: sent.append(list(evs)) or _ack(10))
+    verdicts = iter([
+        {"subtype": "success", "response": {"cancelled": True}},
+        {"subtype": "error", "error": "stop_task: task_id must be a string"},
+        None,
+    ])
+    seen_kw = []
+    monkeypatch.setattr(rc, "wait_control_response", lambda sid, rid, **kw: seen_kw.append(kw) or next(verdicts))
+    assert rc.cancel_queued_message("cse_x", "u-1") is True
+    assert sent[0][0]["request"] == {"subtype": "cancel_async_message", "message_uuid": "u-1"}
+    assert seen_kw[0]["after_sequence_num"] == 10
+    with pytest.raises(ControlRejected, match="task_id"):
+        rc.stop_task("cse_x", 123)
+    with pytest.raises(ControlTimeout) as exc:
+        rc.request_control("cse_x", "get_usage", timeout=0.1)
+    assert exc.value.request_id.startswith("get_usage-")
+
+
+def test_side_question_answer_and_cancel_on_timeout(monkeypatch):
+    from claude_rc.client import ControlTimeout
+
+    rc = _bare_rc()
+    sent = []
+    monkeypatch.setattr(rc, "send_events", lambda sid, evs: sent.append(list(evs)) or _ack(5))
+    monkeypatch.setattr(rc, "wait_control_response", lambda sid, rid, **kw: {
+        "subtype": "success", "request_id": rid, "response": {"response": "Writing tests.", "synthetic": False}})
+    history = [{"question": "q0", "response": "a0", "extra": "dropped"}]
+    assert rc.side_question("cse_x", "What now?", history=history) == "Writing tests."
+    assert sent[0][0]["request"] == {
+        "subtype": "side_question", "question": "What now?", "history": [{"question": "q0", "response": "a0"}],
+    }
+
+    sent.clear()
+    monkeypatch.setattr(rc, "wait_control_response", lambda sid, rid, **kw: None)
+    with pytest.raises(ControlTimeout):
+        rc.side_question("cse_x", "Still there?", timeout=0.1)
+    asked, cancelled = sent[0][0], sent[1][0]
+    assert cancelled == {"type": "control_cancel_request", "request_id": asked["request_id"]}
+
+
+def test_initialize_merges_pending_prompts(monkeypatch):
+    rc = _bare_rc()
+    monkeypatch.setattr(rc, "send_events", lambda sid, evs: _ack(3))
+    monkeypatch.setattr(rc, "wait_control_response", lambda sid, rid, **kw: {
+        "subtype": "success", "response": {"claude_code_version": "2.1.301", "current_model": "m"},
+        "pending_permission_requests": [{"request_id": "p"}], "pending_user_dialog_requests": [],
+    })
+    info = rc.initialize("cse_x")
+    assert info["claude_code_version"] == "2.1.301"
+    assert info["pending_permission_requests"] == [{"request_id": "p"}]
+
+
+def test_session_reads_and_updates_are_unwrapped(monkeypatch):
+    import httpx
+
+    rc = _bare_rc()
+    seen = []
+
+    def fake_request(method, url, **kw):
+        seen.append((method, url, kw.get("json")))
+        body = {"response_shape": {"id": "cse_x", "title": "a"}} if method == "GET" else {"session": {"id": "cse_x", "title": "b"}}
+        return httpx.Response(200, json=body)
+
+    monkeypatch.setattr(rc, "_request", fake_request)
+    rc.base_url = "https://api.example"
+    assert rc.get_session("cse_x") == {"id": "cse_x", "title": "a"}
+    assert rc.rename_session("cse_x", "b") == {"id": "cse_x", "title": "b"}
+    assert seen[1] == ("PUT", "https://api.example/v1/code/sessions/cse_x", {"title": "b"})
+
+
+def test_send_message_message_uuid(monkeypatch):
+    rc = _bare_rc()
+    sent = []
+    monkeypatch.setattr(rc, "send_events", lambda sid, evs: sent.append(list(evs)) or {})
+    rc.send_message("cse_x", "hello", message_uuid="u-7")
+    assert sent[0][0]["uuid"] == "u-7"

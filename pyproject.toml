@@ -1,6 +1,6 @@
 [project]
 name = "claude-rc-api"
-version = "0.2.1"
+dynamic = ["version"]
 description = "Unofficial Python client for the Claude Code Remote Control / Sessions API (reverse-engineered)"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -32,6 +32,9 @@ claude-rc = "claude_rc.cli:main"
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.hatch.version]
+path = "claude_rc/_version.py"
 
 [tool.hatch.build.targets.wheel]
 packages = ["claude_rc"]

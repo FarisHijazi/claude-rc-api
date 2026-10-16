@@ -108,7 +108,7 @@
   }
   .pane-head .row1 { display: flex; align-items: center; gap: 10px; }
   .pane-head .title { font-weight: 600; font-size: 15px; }
-  .pane-head .cwd { font-size: 12px; color: var(--muted); margin-top: 2px; word-break: break-all; }
+  .pane-head .cwd { font-size: 12px; color: var(--muted); margin-top: 2px; word-break: break-word; }
   .badge { font-size: 11px; padding: 2px 8px; border-radius: 6px; background: var(--panel-2); border: 1px solid var(--border); color: var(--muted); }
   .controls { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
   .controls label { font-size: 12px; color: var(--muted); display: inline-flex; align-items: center; gap: 6px; }
@@ -129,7 +129,12 @@
   .divider { align-self: center; font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 8px; }
   .divider::before, .divider::after { content: ""; height: 1px; width: 40px; background: var(--border); }
   .attention { align-self: center; color: #1a1206; background: var(--warn); font-weight: 600;
-    padding: 6px 12px; border-radius: 8px; font-size: 13px; }
+    padding: 6px 12px; border-radius: 8px; font-size: 13px; display: flex; align-items: center; gap: 8px; }
+  .attention button { padding: 2px 10px; font-size: 12px; }
+  .attention.settled { background: var(--panel-2); color: var(--muted); font-weight: 400; }
+  .aside { align-self: stretch; border: 1px dashed var(--border); border-radius: 10px; padding: 8px 12px;
+    color: var(--muted); white-space: pre-wrap; }
+  .aside .who { font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: var(--accent); }
 
   .composer { flex: 0 0 auto; border-top: 1px solid var(--border); background: var(--panel);
     padding: 12px 16px; display: flex; gap: 10px; align-items: flex-end; }
@@ -182,15 +187,15 @@
             <span class="badge" id="s-status"></span>
             <span class="badge" id="s-model"></span>
           </div>
-          <div class="cwd mono" id="s-cwd"></div>
+          <div class="cwd" id="s-summary"></div>
           <div class="controls">
             <label>model
               <select id="sel-model">
                 <option value="">— keep —</option>
-                <option>claude-opus-4-8</option>
-                <option>claude-sonnet-5</option>
-                <option>claude-haiku-4-5-20251001</option>
-                <option>claude-fable-5</option>
+                <option>claude-opus-5-5</option>
+                <option>claude-sonnet-5-5</option>
+                <option>claude-haiku-5-5</option>
+                <option>claude-fable-5-1</option>
               </select>
             </label>
             <label>permission
@@ -200,6 +205,17 @@
                 <option value="plan">plan</option>
                 <option value="acceptEdits">acceptEdits</option>
                 <option value="bypassPermissions">bypassPermissions</option>
+              </select>
+            </label>
+            <label>effort
+              <select id="sel-effort">
+                <option value="">— keep —</option>
+                <option value="auto">auto</option>
+                <option>low</option>
+                <option>medium</option>
+                <option>high</option>
+                <option>xhigh</option>
+                <option>max</option>
               </select>
             </label>
             <button id="btn-interrupt" title="Interrupt the running turn">⛔ Interrupt</button>
@@ -212,6 +228,7 @@
 
         <div class="composer">
           <textarea id="composer-text" placeholder="Message this session…  (Enter to send, Shift+Enter for newline)" rows="1"></textarea>
+          <button id="btn-aside" title="Ask on the side: answered from the conversation without interrupting it or adding to it">Ask aside</button>
           <button class="primary" id="btn-send">Send</button>
         </div>
       </div>
@@ -226,6 +243,8 @@ const $ = (id) => document.getElementById(id);
 const S = {
   sessions: [], selectedId: null, session: null,
   seen: new Set(), es: null, lastSeq: 0,
+  prompts: new Map(),   // request_id → its "needs you" row, while unanswered
+  lastDivider: null,    // {text, count, node} — folds repeated dividers
 };
 
 // ---- helpers -------------------------------------------------------------
@@ -260,6 +279,15 @@ function el(tag, cls, text) {
   if (cls) e.className = cls;
   if (text != null) e.textContent = text;
   return e;
+}
+function contextLabel(meta) {
+  const c = meta && meta.context_usage;
+  if (!c || !c.max_tokens) return "";
+  return `ctx ${Math.round((100 * c.used_tokens) / c.max_tokens)}%`;
+}
+function summaryOf(s) {
+  const p = ((s && s.external_metadata) || {}).post_turn_summary || {};
+  return p.needs_action || p.status_detail || "";
 }
 function classifyStatus(s) {
   const st = `${s.status || ""} ${s.worker_status || ""}`.toLowerCase();
@@ -305,7 +333,9 @@ function renderSessions() {
     const meta = el("div", "meta");
     meta.appendChild(el("div", "title", s.title || "(untitled)"));
     const model = (s.config && s.config.model) || "";
-    const sub = [s.status, model, timeAgo(s.last_event_at)].filter(Boolean).join(" · ");
+    const md = s.external_metadata || {};
+    const sub = [s.worker_status || s.status, model, md.effort_level, contextLabel(md), timeAgo(s.last_event_at)]
+      .filter(Boolean).join(" · ");
     meta.appendChild(el("div", "sub", sub || s.id));
     row.appendChild(meta);
     row.onclick = () => selectSession(s.id);
@@ -317,13 +347,14 @@ function renderSessions() {
 async function selectSession(id) {
   if (S.es) { S.es.close(); S.es = null; }
   S.selectedId = id; S.seen = new Set(); S.lastSeq = 0; S.session = null;
+  S.prompts = new Map(); S.lastDivider = null;
   renderSessions();
   $("empty").style.display = "none";
   $("pane-body").style.display = "flex";
   $("log").innerHTML = "";
   $("s-title").textContent = "loading…";
-  $("s-status").textContent = ""; $("s-model").textContent = ""; $("s-cwd").textContent = "";
-  $("sel-model").value = ""; $("sel-perm").value = "";
+  $("s-status").textContent = ""; $("s-model").textContent = ""; $("s-summary").textContent = "";
+  $("sel-model").value = ""; $("sel-perm").value = ""; $("sel-effort").value = "";
 
   try {
     const s = await api(`/api/sessions/${id}`);
@@ -339,15 +370,27 @@ async function selectSession(id) {
   openStream(id);
 }
 function renderSessionHeader(s) {
+  const meta = s.external_metadata || {};
   $("s-title").textContent = s.title || "(untitled)";
-  $("s-status").textContent = [s.status, s.worker_status].filter(Boolean).join(" / ") || "—";
+  $("s-status").textContent = [s.worker_status, contextLabel(meta)].filter(Boolean).join(" · ") || "—";
   const model = (s.config && s.config.model) || "";
   $("s-model").textContent = model || "model ?";
   $("s-dot").className = "status-dot " + classifyStatus(s);
-  $("s-cwd").textContent = s.cwd || s.working_directory || (s.config && s.config.cwd) || "";
-  if (model) $("sel-model").value = [...$("sel-model").options].some(o => o.value === model) ? model : "";
-  const pm = (s.config && (s.config.permission_mode || s.config.permissionMode)) || "";
-  if (pm) $("sel-perm").value = pm;
+  $("s-summary").textContent = summaryOf(s);
+  pickOption("sel-model", model);
+  pickOption("sel-effort", meta.effort_level || "");
+}
+// The newest system/init|status says what the worker is running right now —
+// permission mode in particular is on no session field.
+function applyWorkerState(state) {
+  if (!state) return;
+  if (state.model) { $("s-model").textContent = state.model; pickOption("sel-model", state.model); }
+  if (state.permission_mode) pickOption("sel-perm", state.permission_mode);
+  if (state.effort) pickOption("sel-effort", state.effort);
+}
+function pickOption(id, value) {
+  const sel = $(id);
+  sel.value = [...sel.options].some(o => o.value === value) ? value : "";
 }
 function openStream(id) {
   const es = new EventSource(`/api/sessions/${id}/stream?from_seq=${S.lastSeq}`);
@@ -376,12 +419,33 @@ function appendEvent(ev, live) {
     S.seen.add(ev.sequence_num);
     if (ev.sequence_num > S.lastSeq) S.lastSeq = ev.sequence_num;
   }
+  applyWorkerState(ev.worker_state);
+  // Any controller's answer (ours echoing back included) or the turn ending
+  // settles a prompt: its buttons go.
+  if (ev.type === "control_response" && ev.request_id) settlePrompt(ev.request_id);
+  if (ev.type === "result") [...S.prompts.keys()].forEach(settlePrompt);
   const node = eventNode(ev);
   if (!node) return;
+  // Workers post a system/init on every controller attach: fold identical
+  // consecutive dividers into one "×N" line instead of stacking them.
+  const div = node.firstChild && node.firstChild.className === "divider" ? node.firstChild : null;
+  if (div && S.lastDivider && S.lastDivider.text === div.textContent) {
+    S.lastDivider.node.textContent = `${S.lastDivider.text} ×${++S.lastDivider.count}`;
+    return;
+  }
+  S.lastDivider = div ? { text: div.textContent, count: 1, node: div } : null;
+  if (ev.is_blocking_control && ev.request_id) S.prompts.set(ev.request_id, node.firstChild);
   const log = $("log");
   const atBottom = log.scrollHeight - log.scrollTop - log.clientHeight < 80;
   log.appendChild(node);
   if (live) scrollLog(atBottom);
+}
+function settlePrompt(requestId) {
+  const row = S.prompts.get(requestId);
+  if (!row) return;
+  S.prompts.delete(requestId);
+  row.querySelectorAll("button").forEach(b => b.remove());
+  row.classList.add("settled");
 }
 function eventNode(ev) {
   const frag = document.createDocumentFragment();
@@ -411,11 +475,26 @@ function eventNode(ev) {
   } else if (ev.type === "result") {
     frag.appendChild(el("div", "divider", "turn complete" + (ev.subtype && ev.subtype !== "success" ? " · " + ev.subtype : "")));
   } else if (ev.is_blocking_control) {
-    frag.appendChild(el("div", "attention", "⚠ needs you: " + (ev.blocking_subtype || "input")));
+    frag.appendChild(promptNode(ev));
   } else {
     return null;
   }
   return frag.childNodes.length ? frag : null;
+}
+function promptNode(ev) {
+  const row = el("div", "attention", "⚠ needs you: " + (ev.tool_name || ev.blocking_subtype || "input"));
+  // Tool permissions are answerable here; questions (AskUserQuestion, dialogs)
+  // still need claude.ai or the terminal.
+  if (ev.blocking_subtype === "can_use_tool" && ev.tool_name !== "AskUserQuestion") {
+    for (const [label, allow] of [["Allow", true], ["Deny", false]]) {
+      const b = el("button", allow ? "primary" : "danger", label);
+      b.onclick = () => steer(label, "permission", {
+        request_id: ev.request_id, allow, tool_input: ev.tool_input, tool_use_id: ev.tool_use_id,
+      }, label === "Allow" ? "Allowed" : "Denied");
+      row.appendChild(b);
+    }
+  }
+  return row;
 }
 function argPreview(input) {
   if (input == null) return "";
@@ -450,6 +529,22 @@ async function sendMessage() {
   try { await post(`/api/sessions/${S.selectedId}/send`, { text }); }
   catch (e) { toast("Send failed: " + e.message); ta.value = text; }
 }
+async function askAside() {
+  const ta = $("composer-text");
+  const question = ta.value.trim();
+  if (!question || !S.selectedId) return;
+  const sid = S.selectedId;
+  ta.value = ""; autoGrow(ta);
+  const row = el("div", "aside");
+  row.appendChild(el("div", "who", "aside"));
+  row.appendChild(el("div", null, question + "\n…"));
+  $("log").appendChild(row); scrollLog(true);
+  try {
+    const { answer } = await post(`/api/sessions/${sid}/aside`, { question });
+    row.lastChild.textContent = question + "\n→ " + (answer || "(no answer: the session has no conversation yet)");
+  } catch (e) { row.lastChild.textContent = question + "\n✗ " + e.message; }
+  if (sid === S.selectedId) scrollLog(true);
+}
 async function steer(kind, path, body, okMsg) {
   if (!S.selectedId) return;
   try { await post(`/api/sessions/${S.selectedId}/${path}`, body); toast(okMsg); }
@@ -460,6 +555,7 @@ function autoGrow(ta) { ta.style.height = "42px"; ta.style.height = Math.min(180
 // ---- wire up -------------------------------------------------------------
 $("refresh-sessions").onclick = loadSessions;
 $("btn-send").onclick = sendMessage;
+$("btn-aside").onclick = askAside;
 $("composer-text").addEventListener("input", (e) => autoGrow(e.target));
 $("composer-text").addEventListener("keydown", (e) => {
   if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
@@ -484,6 +580,10 @@ $("sel-model").onchange = (e) => {
 $("sel-perm").onchange = (e) => {
   const mode = e.target.value;
   if (mode) steer("Set permission", "permission_mode", { mode }, "Permission → " + mode);
+};
+$("sel-effort").onchange = (e) => {
+  const effort = e.target.value;
+  if (effort) steer("Set effort", "effort", { effort: effort === "auto" ? null : effort }, "Effort → " + effort);
 };
 
 // ---- boot ----------------------------------------------------------------

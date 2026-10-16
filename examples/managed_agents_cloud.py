@@ -17,7 +17,7 @@ def main() -> None:
         # 1. Create a reusable agent (model/system/tools live here, not on the session).
         agent = ma.create_agent(
             name="Example Assistant",
-            model="claude-opus-4-8",
+            model="claude-opus-5-5",
             tools=[{"type": "agent_toolset_20260401"}],
         )
         print("agent:", agent["id"])

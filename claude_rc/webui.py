@@ -1,9 +1,9 @@
 """A tiny, dependency-free web control panel for Remote Control sessions.
 
 Serves a single-page UI that lists your Remote Control sessions, watches the
-live event stream of one, sends messages, and steers it (interrupt / set model /
-set permission mode / archive) — all on top of
-:class:`~claude_rc.client.RemoteControlClient`.
+live event stream of one, sends messages, asks side questions, answers
+permission prompts, and steers it (interrupt / model / permission mode / effort /
+archive) — all on top of :class:`~claude_rc.client.RemoteControlClient`.
 
 It is built on the standard-library :mod:`http.server`, so it adds **no new
 dependencies** beyond what the client already needs. Launch it with::
@@ -26,12 +26,15 @@ HTTP surface (all JSON unless noted):
     GET  /api/whoami                          login / org / token status
     GET  /api/sessions                        {"sessions": [...]}
     GET  /api/sessions/{id}                   session detail
-    GET  /api/sessions/{id}/events?limit=     {"events": [...]} (history, asc)
+    GET  /api/sessions/{id}/events?limit=     {"events": [...]} (the newest, oldest first)
     GET  /api/sessions/{id}/stream?from_seq=  live events as text/event-stream
     POST /api/sessions/{id}/send              {"text": ...}
+    POST /api/sessions/{id}/aside             {"question": ...} → {"answer": ...}
+    POST /api/sessions/{id}/permission        {"request_id", "allow", "tool_input"?, "tool_use_id"?}
     POST /api/sessions/{id}/interrupt
     POST /api/sessions/{id}/model             {"model": ...}
     POST /api/sessions/{id}/permission_mode   {"mode": ...}
+    POST /api/sessions/{id}/effort            {"effort": "low".."max" | null}
     POST /api/sessions/{id}/mark_read         {"sequence_num": ...?}
     POST /api/sessions/{id}/archive
 """
@@ -46,7 +49,7 @@ from pathlib import Path
 from typing import Any, Optional
 from urllib.parse import parse_qs, urlparse
 
-from .client import APIError, RemoteControlClient
+from .client import APIError, ControlRejected, ControlTimeout, RemoteControlClient
 from .credentials import CredentialsError, load_credentials, load_org_uuid
 from .events import Event
 
@@ -59,22 +62,24 @@ _R_SESSION = re.compile(rf"^/api/sessions/{_SID}$")
 _R_EVENTS = re.compile(rf"^/api/sessions/{_SID}/events$")
 _R_STREAM = re.compile(rf"^/api/sessions/{_SID}/stream$")
 _R_SEND = re.compile(rf"^/api/sessions/{_SID}/send$")
+_R_ASIDE = re.compile(rf"^/api/sessions/{_SID}/aside$")
+_R_PERMISSION = re.compile(rf"^/api/sessions/{_SID}/permission$")
 _R_INTERRUPT = re.compile(rf"^/api/sessions/{_SID}/interrupt$")
 _R_MODEL = re.compile(rf"^/api/sessions/{_SID}/model$")
 _R_PERM = re.compile(rf"^/api/sessions/{_SID}/permission_mode$")
+_R_EFFORT = re.compile(rf"^/api/sessions/{_SID}/effort$")
 _R_MARK = re.compile(rf"^/api/sessions/{_SID}/mark_read$")
 _R_ARCHIVE = re.compile(rf"^/api/sessions/{_SID}/archive$")
 
 
 def event_to_dict(ev: Event) -> dict:
     """Flatten an :class:`Event` into the JSON shape the UI consumes."""
-    blocking_subtype = None
-    if ev.type == "control_request":
-        blocking_subtype = (ev.payload.get("request") or {}).get("subtype")
+    request = ev.payload.get("request") or {} if ev.is_blocking_control else {}
     return {
         "type": ev.type,
         "subtype": ev.subtype,
         "role": ev.role,
+        "source": ev.source,
         "text": ev.text(),
         "tool_uses": [
             {"name": t.get("name"), "input": t.get("input"), "id": t.get("id")}
@@ -82,12 +87,17 @@ def event_to_dict(ev: Event) -> dict:
         ],
         "sequence_num": ev.sequence_num,
         "id": ev.id,
-        "timestamp": ev.processed_at,
+        "timestamp": ev.created_at or ev.processed_at,
         "model": ev.payload.get("model") if ev.type == "system" else None,
+        "worker_state": ev.worker_state or None,
         "is_turn_end": ev.is_turn_end,
         "is_terminal": ev.is_terminal,
         "is_blocking_control": ev.is_blocking_control,
-        "blocking_subtype": blocking_subtype,
+        "blocking_subtype": ev.control_subtype if ev.is_blocking_control else None,
+        "request_id": ev.request_id,
+        "tool_name": request.get("tool_name"),
+        "tool_input": request.get("input"),
+        "tool_use_id": request.get("tool_use_id"),
     }
 
 
@@ -148,6 +158,10 @@ class _Handler(BaseHTTPRequestHandler):
             self._json({"error": exc.body[:1000], "status": exc.status}, status=status)
         elif isinstance(exc, CredentialsError):
             self._json({"error": str(exc)}, status=401)
+        elif isinstance(exc, ControlRejected):
+            self._json({"error": str(exc)}, status=502)  # the worker refused it
+        elif isinstance(exc, ControlTimeout):
+            self._json({"error": str(exc)}, status=504)  # the worker never answered
         else:
             self._json({"error": repr(exc)}, status=500)
 
@@ -166,9 +180,11 @@ class _Handler(BaseHTTPRequestHandler):
                 return self._stream(m["sid"])
             m = _R_EVENTS.match(path)
             if m:
+                # The newest `limit` events, oldest first (an `asc` fetch would
+                # return the session's FIRST events instead).
                 limit = self._qint(self._query(), "limit", 200)
-                evs = self.rc.list_events(m["sid"], limit=limit, sort_order="asc")
-                return self._json({"events": [event_to_dict(e) for e in evs]})
+                evs = self.rc.list_events(m["sid"], limit=limit, sort_order="desc")
+                return self._json({"events": [event_to_dict(e) for e in reversed(evs)]})
             m = _R_SESSION.match(path)
             if m:
                 return self._json(self.rc.get_session(m["sid"]))
@@ -192,6 +208,24 @@ class _Handler(BaseHTTPRequestHandler):
                     return self._json({"error": "empty message"}, status=400)
                 self.rc.send_message(m["sid"], text)
                 return self._json({"ok": True})
+            m = _R_ASIDE.match(path)
+            if m:
+                question = (body.get("question") or "").strip()
+                if not question:
+                    return self._json({"error": "empty question"}, status=400)
+                return self._json({"answer": self.rc.side_question(m["sid"], question, timeout=180)})
+            m = _R_PERMISSION.match(path)
+            if m:
+                if not body.get("request_id"):
+                    return self._json({"error": "missing request_id"}, status=400)
+                self.rc.respond_permission(
+                    m["sid"],
+                    body["request_id"],
+                    allow=bool(body.get("allow")),
+                    tool_input=body.get("tool_input"),
+                    tool_use_id=body.get("tool_use_id"),
+                )
+                return self._json({"ok": True})
             m = _R_INTERRUPT.match(path)
             if m:
                 self.rc.interrupt(m["sid"])
@@ -210,6 +244,11 @@ class _Handler(BaseHTTPRequestHandler):
                     return self._json({"error": "missing mode"}, status=400)
                 self.rc.set_permission_mode(m["sid"], mode)
                 return self._json({"ok": True})
+            m = _R_EFFORT.match(path)
+            if m:
+                effort = body.get("effort") or None
+                out = self.rc.set_effort(m["sid"], effort, wait=6.0, command_fallback=True)
+                return self._json({"ok": True, "via": out["via"]})
             m = _R_MARK.match(path)
             if m:
                 seq = body.get("sequence_num")
@@ -261,11 +300,12 @@ class _Handler(BaseHTTPRequestHandler):
 
         # A stream has no Content-Length; close the socket when it ends so the
         # client sees a clean end-of-response instead of a stalled keep-alive.
+        # (No `Connection: keep-alive` header: send_header special-cases it and
+        # would flip close_connection back to False.)
         self.close_connection = True
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream")
         self.send_header("Cache-Control", "no-cache")
-        self.send_header("Connection", "keep-alive")
         self.send_header("X-Accel-Buffering", "no")  # disable proxy buffering
         self.end_headers()
         self.wfile.write(b"retry: 3000\n: connected\n\n")

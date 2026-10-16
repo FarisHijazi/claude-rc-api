@@ -68,16 +68,23 @@ claude-rc list                   # your Remote Control sessions
 claude-rc get   <cse_id>         # session details (JSON)
 claude-rc events <cse_id>        # recent history
 claude-rc watch <cse_id>         # stream live (read-only)
+claude-rc info  <cse_id>         # summary, context, plan usage, git changes
+claude-rc ask   <cse_id> "what are you stuck on?"  # side question
 claude-rc send  <cse_id> "run the tests"   # send a message, print the reply
 claude-rc repl  <cse_id>         # interactive chat
+claude-rc rename <cse_id> "new title"
 claude-rc web                    # browser control panel (all sessions)
 ```
+
+`ask` is claude.ai's "btw": the worker answers from its conversation without
+interrupting a running turn or adding to the transcript (it costs a model call).
 
 ## Web UI
 
 A dependency-free browser control panel for your Remote Control sessions: list
-them, watch the live event stream, send messages, and steer (interrupt / set
-model / set permission mode / archive).
+them (with each one's effort, context use, and status summary), watch the live
+event stream, send messages, ask side questions, allow or deny tool
+permissions, and steer (interrupt / model / permission mode / effort / archive).
 
 ```bash
 claude-rc web                    # serves http://127.0.0.1:8765 and opens it
@@ -104,7 +111,8 @@ rc = RemoteControlClient()                 # reads ~/.claude, refreshes token as
 
 # discover sessions
 for s in rc.sessions():
-    print(s["id"], s["status"], s["title"])
+    meta = s.get("external_metadata") or {}
+    print(s["id"], s["worker_status"], s["title"], meta.get("effort_level"))
 
 sid = rc.sessions()[0]["id"]
 
@@ -121,17 +129,47 @@ for ev in rc.stream_events(sid):
 
 # steer
 rc.interrupt(sid)
-rc.set_model(sid, "claude-opus-4-8")
+rc.set_model(sid, "claude-opus-5-5")
 rc.set_permission_mode(sid, "acceptEdits")
-rc.set_effort(sid, "high")  # low|medium|high|xhigh, or None = auto
+rc.set_effort(sid, "high", wait=6.0)        # low|medium|high|xhigh|max, or None = auto
+rc.rename_session(sid, "release prep")
+
+# answer the worker's prompts
+for ev in rc.stream_events(sid):
+    if ev.is_blocking_control and ev.control_subtype == "can_use_tool":
+        req = ev.payload["request"]
+        rc.respond_permission(sid, ev.request_id, allow=True,
+                              tool_input=req["input"], tool_use_id=req.get("tool_use_id"))
+        break
+
+# ask the worker — each waits for its verdict (ControlRejected / ControlTimeout)
+rc.side_question(sid, "what are you stuck on?")   # "btw": no interruption, not in the transcript
+rc.get_context_usage(sid)                   # {totalTokens, maxTokens, percentage, categories…}
+rc.get_usage(sid)                           # plan limits: rate_limits.limits[{kind, percent, resets_at}]
+rc.get_workspace_diff(sid)                  # {stats: {filesCount, linesAdded, linesRemoved}, …} | None
+rc.stop_task(sid, "b5rkopq8x")              # task_id from a system/task_started event
+
+# withdraw a message before the worker starts on it
+import uuid
+mid = str(uuid.uuid4())
+rc.send_message(sid, "actually, run the linter too", message_uuid=mid)
+rc.cancel_queued_message(sid, mid)          # True while it was still queued
+
+# any other control subtype (see API_REFERENCE.md §3.2)
+rc.request_control(sid, "mcp_status")
 ```
+
+The session object already carries the cheap answers, no round trip needed:
+`external_metadata` has `effort_level`, `context_usage` (`used_tokens` /
+`max_tokens`), `post_turn_summary` (a one-line `status_detail`, plus
+`needs_action` when it waits on you) and the worker's `container_cc_version`.
 
 Cloud (Managed Agents) mode:
 
 ```python
 from claude_rc import ManagedAgentsClient
 ma = ManagedAgentsClient(api_key="sk-ant-...")
-agent = ma.create_agent(name="A", model="claude-opus-4-8",
+agent = ma.create_agent(name="A", model="claude-opus-5-5",
                         tools=[{"type": "agent_toolset_20260401"}])
 env = ma.create_environment(name="e", config={"type": "cloud",
                             "networking": {"type": "unrestricted"}})
@@ -147,8 +185,9 @@ See [`examples/`](./examples).
 ## Events
 
 `Event` normalizes both wire formats. For Remote Control the important payload
-types are `user`, `assistant`, `result` (turn complete), `control_request`
-(steering / permission prompts), and `system` (init). Helpers:
+types are `user`, `assistant`, `result` (turn complete), `control_request` /
+`control_response` (steering, prompts, and their answers), and `system` (`init`,
+`status`, task events). Helpers:
 
 ```python
 ev.type          # payload type
@@ -156,15 +195,25 @@ ev.role          # "user" | "assistant" | None
 ev.text()        # concatenated text blocks (handles str or block-list content)
 ev.tool_uses()   # tool_use content blocks
 ev.sequence_num  # RC ordering/resume cursor (int)
+ev.source        # "client" (a controller) | "worker" (Claude Code)
 ev.is_turn_end   # a `result` (RC) or `session.status_idle` (managed agents)
-ev.is_blocking_control  # a permission prompt waiting on you
+ev.is_blocking_control  # a worker prompt waiting on you (never a controller's own request)
+ev.request_id    # the id a control_request carries / a control_response answers
+ev.worker_state  # system/init|status → {model, effort, permission_mode, claude_code_version}
+ev.attestation   # "UNSPECIFIED" | "VERIFIED" | "ABSENT" … (Trusted Devices)
 ```
 
 ## Safety
 
-- `list`/`get`/`events`/`watch` and all `RemoteControlClient` read methods are
-  read-only. `send`/`repl`/`send_message`/`interrupt` inject into a live
-  session, so only use them on sessions you own.
+- `list`/`get`/`events`/`watch` and the `RemoteControlClient` read methods are
+  read-only. `send`/`repl`/`send_message`/`interrupt` and the other steering
+  calls inject into a live session, so only use them on sessions you own. The
+  worker queries (`ask`, `info`, `side_question`, `get_*`) leave a
+  `control_request` / `control_response` pair in the event log, as claude.ai's
+  own attach does; a side question also costs a model call.
+- Orgs that enforce Trusted Devices can make workers drop unsigned controller
+  events; this library doesn't sign. `ev.attestation` shows what the server
+  recorded, and API_REFERENCE.md §3.4 has the details.
 - Token refresh writes the refreshed token back to
   `~/.claude/.credentials.json` (same as the CLI). Pass `persist_refresh=False`
   to keep refreshes in memory.
@@ -175,8 +224,9 @@ ev.is_blocking_control  # a permission prompt waiting on you
 [`claude-remote-bridge`](https://github.com/ThatCrispyToast/g2-claude-remote)
 (the `server/` half of the Claude Remote glasses app) depends on this package
 straight from git and wraps `RemoteControlClient` in a JSON + SSE HTTP bridge. It
-imports `client`, `credentials`, and `events`, and resolves this repo's default
-branch on each fresh `uv` install — so keep those three backwards-compatible.
+imports `client`, `credentials`, and `events` (prompt answers, side questions,
+the session metadata) and resolves this repo's default branch on each fresh `uv`
+install — so keep those three backwards-compatible.
 
 ## Project layout
 
