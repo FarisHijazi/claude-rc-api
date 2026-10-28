@@ -27,8 +27,14 @@ module that owns the area, or a new mixin module plus one line in the
 | `client.py` | transport, headers (`build_headers`), auth hooks, session list/get/rename/archive, send/stream events, control requests (model, mode, effort, interrupt), `ManagedAgentsClient` |
 | `credentials.py` | OAuth credentials (file / macOS Keychain), refresh with CAS save, trusted devices, `resolve_auth` (the auth chain), cswap slots |
 | `webauth.py` | claude.ai cookie jar: env, state file, Chrome cookie DB, Chrome CDP; Cloudflare detection |
+<<<<<<< HEAD
 | `login.py` | explicit isolated PKCE helpers; never called by auth discovery; live grant exchange still unverified |
 | `lifecycle.py` | create/unarchive/delete/share/tag/mark-read, teleport events |
+||||||| ab77994
+| `lifecycle.py` | create/unarchive/delete/share/tag/mark-read, teleport events |
+=======
+| `lifecycle.py` | create/unarchive/delete/share/tag, filtered/local-title discovery, cookie repo/branch pickers, guarded support/debug export, secret scan, teleport events |
+>>>>>>> feat/02-session-discovery-creation-and-lifecycle
 | `environments.py` | environments (public + private org routes), create/update, self-hosted pools |
 | `triggers.py` | scheduled tasks (routines) |
 | `interaction.py` | pending prompts, permission + AskUserQuestion answers, slash commands, generic controls, `stream_session` (keeps meta frames), account `watch` feed |
@@ -43,6 +49,15 @@ its new tests passing when merging upstream). Offline only, via
 `httpx.MockTransport`. `tests/conftest.py` strips auth env and gives each test
 an empty `$HOME`. Docs: `API_REFERENCE.md` (upstream's protocol write-up),
 `docs/web-api.md` (claude.ai/code shapes and what is live-verified).
+
+Lifecycle integration contracts and per-capability live evidence are in
+`docs/devlog/claude_2026-10-28-group02-lifecycle.json` (deliberately a plain
+path, not an `@` include). Delete uses the code-session route with `{}` only;
+share creation, support sharing and debug export require `confirm=True`.
+Independent lifecycle verification is recorded in
+`docs/devlog/claude_2026-10-28-group02-independent-verification.json` (also a
+plain path). Unarchive state alone is not worker readiness: send a fresh
+message and require a newer worker result when testing usability.
 
 ## Test
 

@@ -363,8 +363,15 @@ class LifecycleMixin:
         """Every session :meth:`query_sessions` matches, following ``next_cursor``
         until it is absent (or ``max_pages``)."""
         cursor = filters.pop("cursor", None)
+        if max_pages is not None and max_pages < 1:
+            raise ValueError("max_pages must be positive")
+        seen_cursors = set()
         page = 0
         while True:
+            if cursor is not None:
+                if cursor in seen_cursors:
+                    raise RuntimeError("Session pagination returned a repeated cursor")
+                seen_cursors.add(cursor)
             body = self.query_sessions(cursor=cursor, **filters)
             rows = body if isinstance(body, list) else (body or {}).get("data") or []
             yield from rows
@@ -372,6 +379,17 @@ class LifecycleMixin:
             cursor = body.get("next_cursor") if isinstance(body, dict) else None
             if not cursor or (max_pages is not None and page >= max_pages):
                 return
+
+    def search_sessions(self, text: str, **filters: Any) -> Iterator[dict]:
+        """Case-insensitive local title search over paginated live sessions.
+
+        No server search parameter has been evidenced. ``max_pages`` and all
+        :meth:`query_sessions` filters are forwarded to :meth:`iter_sessions`.
+        """
+        needle = text.casefold()
+        for session in self.iter_sessions(**filters):
+            if needle in (session.get("title") or "").casefold():
+                yield session
 
     # -- update / tags / archive / delete --------------------------------------
     def tag_session(
@@ -394,20 +412,13 @@ class LifecycleMixin:
         body, unwrapped when it is a session."""
         return _unwrap_session(self._request("POST", self._path(session_id, "unarchive"), json={}))
 
-    def delete_session(self, session_id: str, *, legacy_fallback: bool = True) -> bool:
-        """Delete a session for good. **Route unverified**: the web UI has
-        Delete but no capture shows its request, and the CLI has none (spec
-        §4.4, §13). Tries ``DELETE /v1/code/sessions/{id}``; on 404/405, and when
-        ``legacy_fallback``, ``DELETE /v1/sessions/{id}`` (old family, which takes
-        the ``session_`` spelling). Returns True on 200/202/204."""
-        ok = (200, 202, 204)
-        try:
-            self._send("DELETE", self._path(session_id), accept=ok)
-            return True
-        except _api_error() as exc:
-            if not legacy_fallback or exc.status not in (404, 405):
-                raise
-        self._send("DELETE", f"/v1/sessions/{to_session_id(session_id)}", accept=ok)
+    def delete_session(self, session_id: str, *, legacy_fallback: bool = False) -> bool:
+        """Permanently delete via ``DELETE /v1/code/sessions/{id}`` with ``{}``.
+
+        ``legacy_fallback`` is retained for call compatibility but never enables
+        a second destructive route: 404/405 propagate to the caller.
+        """
+        self._send("DELETE", self._path(session_id), json={}, accept=(200, 202, 204))
         return True
 
     # -- share ------------------------------------------------------------------
@@ -417,14 +428,77 @@ class LifecycleMixin:
         sharing_settings, current_last_sequence_num}``."""
         return self._request("GET", self._path(session_id, "share"))
 
-    def set_share(self, session_id: str, *, method: str = "PUT", **fields: Any) -> Any:
-        """Change who can view a session (the Share dialog's Private / Public).
+    def set_share(
+        self, session_id: str, *, method: str = "POST", confirm: bool = False, **fields: Any
+    ) -> Any:
+        """Create/revoke a transcript share with an empty JSON body.
 
-        **Unverified**: no capture shows the write. This sends ``fields`` as JSON
-        to ``{method} /v1/code/sessions/{id}/share``; the read side suggests a
-        field like ``visibility_type`` (values seen: ``sign_in_only``) or a
-        ``sharing_settings`` object. Check with :meth:`get_share` afterwards."""
-        return self._request(method, self._path(session_id, "share"), json=fields)
+        Creation requires ``confirm=True``: it can expose the whole transcript.
+        No visibility fields or guessed PUT contract are accepted. Revocation
+        (``method='DELETE'``) does not require confirmation.
+        """
+        method = method.upper()
+        if method not in ("POST", "DELETE") or fields:
+            raise ValueError("Sharing supports only POST/DELETE with an empty body")
+        if method == "POST" and not confirm:
+            raise ValueError("Creating a transcript share requires confirm=True")
+        return self._request(method, self._path(session_id, "share"), json={})
+
+    def revoke_share(self, session_id: str) -> Any:
+        """Revoke the session's share; never creates or widens access."""
+        return self.set_share(session_id, method="DELETE")
+
+    def get_shared_session(self, share_id: str) -> dict:
+        """Read an existing share through ``/v1/code/shared-sessions/{share_id}``."""
+        from urllib.parse import quote
+
+        return self._request("GET", f"/v1/code/shared-sessions/{quote(share_id, safe='')}")
+
+    def scan_share_secrets(self, session_id: str, *, fallback_text: str | None = None) -> dict:
+        """Read the server scan; optionally scan caller-supplied text on failure.
+
+        Browser contracts: GET ``/share/secret-scan`` returns ``secret_types``
+        and ``complete``; POST ``/api/organizations/{org}/code/shares/scan_secrets``
+        takes ``{text_content: [text, ...]}`` (live schema validation). No
+        transcript is fetched or uploaded implicitly.
+        Errors propagate unless the caller explicitly supplied fallback text;
+        neither unavailable nor incomplete scans mean 'no secrets'.
+        """
+        try:
+            return self._request("GET", self._path(session_id, "share", "secret-scan"))
+        except _api_error() as exc:
+            if fallback_text is None or exc.status not in (404, 405, 501):
+                raise
+        self._require_repo_cookies()
+        return self._request(
+            "POST", f"/api/organizations/{self.org_uuid}/code/shares/scan_secrets",
+            json={"text_content": [fallback_text]},
+        )
+
+    def create_support_share(self, session_id: str, *, confirm: bool = False) -> dict:
+        """Explicitly share a transcript with support; requires separate approval."""
+        if not confirm:
+            raise ValueError("Support sharing requires confirm=True")
+        return self._request("POST", self._path(session_id, "support-share"), json={})
+
+    def revoke_support_share(self, session_id: str) -> Any:
+        """Revoke support access to this session."""
+        return self._request("DELETE", self._path(session_id, "support-share"), json={})
+
+    def debug_export(
+        self, session_id: str, *, caption: str | None = None, confirm: bool = False
+    ) -> dict:
+        """Create a support debug export only on explicit invocation/approval.
+
+        This is a server-side export, not a safe local file download. It may
+        expose logs and transcript content; no automatic error-handler calls.
+        """
+        if not confirm:
+            raise ValueError("Debug export requires confirm=True")
+        return self._request(
+            "POST", self._path(session_id, "debug-export"),
+            json={"caption": caption} if caption else {},
+        )
 
     # -- liveness ---------------------------------------------------------------
     def heartbeat_check(self, session_ids: Iterable[str]) -> dict:
@@ -540,15 +614,82 @@ class LifecycleMixin:
             json=body, params={"caller": caller} if caller else None, retry=True)
         return (out.get("branch_statuses") if isinstance(out, dict) else None) or []
 
-    def get_code_repo(self, repo: str) -> dict:
-        """``GET /api/oauth/organizations/{org}/code/repos/{owner}/{name}`` (the CLI's
-        bearer route, ``surface.md`` §4.1) -> ``{repo: {default_branch, owner,
-        name}, status: {app_installed} | null}``.
+    def _require_repo_cookies(self) -> None:
+        if self.cookie_jar is None:
+            raise ValueError("Repository/branch pickers require claude.ai cookie authentication")
 
-        The web's repo list (``/api/organizations/{org}/code/repos``) and branch
-        list (``/api/github/organizations/{org}/github/{owner}/{repo}/branches``)
-        are claude.ai cookie routes (HAR #15/#3); whether they accept a bearer
-        is unknown, so they are not wrapped here."""
+    def list_code_repos(
+        self, *, page: int = 1, per_page: int = 100,
+        skip_status: bool = True, include_link_optional: bool = True,
+        sort: str | None = None, affiliation: str | None = None,
+        ghe_configuration_id: int | None = None,
+    ) -> dict:
+        """One cookie-authenticated repo picker page, preserving status and SSO metadata.
+
+        Uses the captured browser fields, not the CLI bearer lookup route.
+        ``is_complete`` and ``next_cursor`` are returned verbatim; they do not
+        imply that a particular cursor request parameter has been captured.
+        """
+        self._require_repo_cookies()
+        if page < 1 or per_page < 1:
+            raise ValueError("page and per_page must be positive")
+        params: dict[str, Any] = {"page": page, "per_page": per_page,
+                                  "skip_status": str(skip_status).lower()}
+        if include_link_optional:
+            params["include_link_optional"] = "true"
+        for key, value in (("sort", sort), ("affiliation", affiliation),
+                           ("ghe_configuration_id", ghe_configuration_id)):
+            if value is not None:
+                params[key] = value
+        return self._request(
+            "GET", f"/api/organizations/{self.org_uuid}/code/repos", params=params,
+        )
+
+    def list_repo_branches(
+        self, repo: str, *, query: str | None = None, ghe_configuration_id: int | None = None
+    ) -> Any:
+        """Read the captured GitHub branch picker (cookie auth).
+
+        ``query`` and ``ghe_configuration_id`` are the browser's optional
+        query fields; the full response preserves paging/default-branch metadata.
+        """
+        from urllib.parse import quote
+
+        self._require_repo_cookies()
+        slug = repo_slug(repo)
+        if slug.count("/") != 1 or not all(slug.split("/")):
+            raise ValueError("repo must identify owner/name")
+        owner, name = (quote(part, safe="") for part in slug.split("/"))
+        params: dict[str, Any] = {}
+        if query is not None:
+            params["query"] = query
+        if ghe_configuration_id is not None:
+            params["ghe_configuration_id"] = ghe_configuration_id
+        return self._request(
+            "GET", f"/api/github/organizations/{self.org_uuid}/github/{owner}/{name}/branches",
+            params=params,
+        )
+
+    def github_installations_status(self, *, include_viewer_install_probe: bool = True) -> dict:
+        """GitHub app installations and viewer linkage (read-only)."""
+        return self._request(
+            "GET", "/v1/code/github/org-connection/installations-status",
+            params={"include_viewer_install_probe": str(include_viewer_install_probe).lower()},
+        )
+
+    def github_auth_status(self) -> dict:
+        """Read the browser GitHub connection status; never starts OAuth."""
+        self._require_repo_cookies()
+        return self._request("GET", f"/api/organizations/{self.org_uuid}/sync/github/auth")
+
+    def get_code_repo(self, repo: str) -> dict:
+        """CLI bearer-only individual repo lookup.
+
+        Cookie callers must use :meth:`list_code_repos`; a cookie-compatible
+        individual lookup route has not been captured or live-established.
+        """
+        if self.cookie_jar is not None:
+            raise ValueError("Individual repository lookup is bearer-only; use list_code_repos")
         owner, _, name = repo_slug(repo).partition("/")
         return self._request(
             "GET", f"/api/oauth/organizations/{self.org_uuid}/code/repos/{owner}/{name}",
