@@ -26,7 +26,7 @@ HTTP surface (all JSON unless noted):
     GET  /api/whoami                          login / org / token status
     GET  /api/sessions                        {"sessions": [...]}
     GET  /api/sessions/{id}                   session detail
-    GET  /api/sessions/{id}/events?limit=     {"events": [...]} (the newest, oldest first)
+    GET  /api/sessions/{id}/events?limit=&sort_order=&cursor=  events + pagination metadata
     GET  /api/sessions/{id}/stream?from_seq=  live events as text/event-stream
     POST /api/sessions/{id}/send              {"text": ...}
     POST /api/sessions/{id}/aside             {"question": ...} → {"answer": ...}
@@ -39,7 +39,7 @@ HTTP surface (all JSON unless noted):
     POST /api/sessions/{id}/archive
     GET  /api/environments                    {"environments": [...]} (variables redacted)
     POST /api/sessions                        {"prompt", "env"?, "model"?, "effort"?, "repo"?,
-                                               "branch"?, "title"?, "permission_mode"?} → session
+                                               "revision"?, "branch"?, "title"?, "permission_mode"?} → session
     POST /api/sessions/{id}/answer            AskUserQuestion: {"request_id", "selections"?:
                                                {index: label | [labels]}, "other"?: {index: text},
                                                "skip"?: bool}
@@ -108,6 +108,7 @@ def event_to_dict(ev: Event) -> dict:
         "model": ev.payload.get("model") if ev.type == "system" else None,
         "worker_state": ev.worker_state or None,
         "is_turn_end": ev.is_turn_end,
+        "is_error": ev.payload.get("is_error") is True,
         "is_terminal": ev.is_terminal,
         "is_blocking_control": ev.is_blocking_control,
         "blocking_subtype": ev.control_subtype if ev.is_blocking_control else None,
@@ -194,7 +195,10 @@ class _Handler(BaseHTTPRequestHandler):
             if path == "/api/whoami":
                 return self._json(self._whoami())
             if path == "/api/sessions":
-                return self._json({"sessions": self.rc.sessions()})
+                q = self._query()
+                page = self.rc.query_sessions(statuses=q.get("statuses"), cursor=q.get("cursor", [None])[0], limit=50)
+                rows = page if isinstance(page, list) else page.get("data") or page.get("sessions") or []
+                return self._json({"sessions": rows, "next_cursor": page.get("next_cursor") if isinstance(page, dict) else None})
             if path == "/api/environments":
                 from .environments import redact_environment
 
@@ -203,6 +207,12 @@ class _Handler(BaseHTTPRequestHandler):
                 return self._json(self.rc.browser_models())
             if path == "/api/permission-policy":
                 return self._json(self.rc.permission_mode_policy())
+            if path == "/api/repos":
+                return self._json(self.rc.list_code_repos(page=self._qint(self._query(), "page", 1)))
+            if path == "/api/branches":
+                return self._json(self.rc.list_repo_branches(self._query().get("repo", [""])[0]))
+            if path == "/api/pools":
+                return self._json({"pools": self.rc.list_self_hosted_pools()})
             m = _R_WORKSPACE.match(path)
             if m:
                 q = self._query()
@@ -218,11 +228,15 @@ class _Handler(BaseHTTPRequestHandler):
                 return self._stream(m["sid"])
             m = _R_EVENTS.match(path)
             if m:
-                # The newest `limit` events, oldest first (an `asc` fetch would
-                # return the session's FIRST events instead).
-                limit = self._qint(self._query(), "limit", 200)
-                evs = self.rc.list_events(m["sid"], limit=limit, sort_order="desc")
-                return self._json({"events": [event_to_dict(e) for e in reversed(evs)]})
+                q = self._query()
+                page = self.rc.history_page(
+                    m["sid"], limit=self._qint(q, "limit", 200),
+                    sort_order=q.get("sort_order", ["desc"])[0],
+                    cursor=q.get("cursor", [None])[0],
+                )
+                events = page.pop("events")
+                events.sort(key=lambda e: e.sequence_num if e.sequence_num is not None else -1)
+                return self._json({**page, "events": [event_to_dict(e) for e in events]})
             m = _R_SESSION.match(path)
             if m:
                 return self._json(self.rc.get_session(m["sid"]))
@@ -245,7 +259,15 @@ class _Handler(BaseHTTPRequestHandler):
             if m:
                 action, sid = m["action"], m["sid"]
                 if action == "command":
-                    return self._json(self.rc.run_command(sid, body.get("name", ""), body.get("args", "")))
+                    handlers = {
+                        "login": lambda _: self._whoami(),
+                        "config": lambda _: self.rc.get_settings(sid),
+                        "settings": lambda _: self.rc.get_settings(sid),
+                        "skills": lambda _: self.rc.list_account_skills(),
+                        "workflows": lambda _: [c.raw for c in self.rc.list_commands(sid) if "workflow" in c.name],
+                        "usage-credits": lambda _: self.rc.get_account_usage(),
+                    }
+                    return self._json(self.rc.run_command(sid, body.get("name", ""), body.get("args", ""), local_handlers=handlers))
                 if action == "rename":
                     return self._json(self.rc.rename_session(sid, body["title"]))
                 if action == "unarchive":
@@ -347,6 +369,7 @@ class _Handler(BaseHTTPRequestHandler):
             title=body.get("title") or None,
             repo=body.get("repo") or None,
             branch=body.get("branch") or None,
+            revision=body.get("revision") or None,
             model=body.get("model") or None,
             effort_level=body.get("effort") or None,
             permission_mode=body.get("permission_mode") or None,
@@ -420,7 +443,8 @@ class _Handler(BaseHTTPRequestHandler):
         self.wfile.flush()
 
         try:
-            for ev in self.rc.stream_session(sid, from_sequence_num=from_seq):
+            for ev in self.rc.stream_session(sid, from_sequence_num=from_seq,
+                                             on_reinitialize=lambda _: self.rc.initialize(sid)):
                 data = json.dumps(event_to_dict(ev))
                 out = ""
                 if ev.sequence_num is not None:

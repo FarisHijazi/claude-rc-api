@@ -158,6 +158,13 @@
   .question { display: flex; flex-direction: column; gap: 3px; }
   .q-text { font-weight: 600; }
   .q-opt { font-weight: normal; cursor: pointer; }
+  dialog { color: var(--text); background: var(--panel); border: 1px solid var(--border); border-radius: 12px; width: min(620px, calc(100vw - 32px)); }
+  dialog::backdrop { background: #0008; }
+  dialog form { display: grid; gap: 12px; }
+  dialog label { display: grid; gap: 4px; }
+  dialog input, dialog textarea { font: inherit; color: var(--text); background: var(--panel-2); border: 1px solid var(--border); padding: 8px; width: 100%; }
+  dialog .actions { display: flex; justify-content: flex-end; gap: 8px; }
+  @media (max-width: 700px) { aside { width: 180px; flex-basis: 180px; } .pane-head { padding: 12px 16px; } }
 </style>
 </head>
 <body>
@@ -176,7 +183,9 @@
         <button class="icon-btn" id="new-session" title="New cloud session">＋</button>
         <button class="icon-btn" id="refresh-sessions" title="Refresh">⟳</button>
       </div>
+      <label style="padding:8px 14px">Show <select id="session-status"><option value="">All statuses</option><option value="active">Active</option><option value="archived">Archived</option></select></label>
       <div id="session-list"></div>
+      <button id="more-sessions" hidden>Load more sessions</button>
     </aside>
 
     <section class="pane" id="pane">
@@ -207,10 +216,7 @@
             <label>permission
               <select id="sel-perm">
                 <option value="">— keep —</option>
-                <option value="default">default</option>
-                <option value="plan">plan</option>
-                <option value="acceptEdits">acceptEdits</option>
-                <option value="bypassPermissions">bypassPermissions</option>
+                <option value="" disabled>Loading permission policy…</option>
               </select>
             </label>
             <label>effort
@@ -226,6 +232,8 @@
             </label>
             <button id="btn-interrupt" title="Interrupt the running turn">⛔ Interrupt</button>
             <span class="spacer"></span>
+            <button id="btn-pin">Pin locally</button>
+            <button id="btn-copy">Copy transcript</button>
             <button id="btn-files">Files</button>
             <button id="btn-changes">Changes</button>
             <button id="btn-rename">Rename</button>
@@ -238,7 +246,14 @@
         <details id="workspace-panel" style="padding: 0 16px">
           <summary>Workspace result</summary>
           <pre id="workspace-result" style="white-space:pre-wrap;overflow-wrap:anywhere"></pre>
+          <div id="file-editor" hidden>
+            <label>Synced write path <input id="file-write-path" placeholder="/working/owned.txt" /></label>
+            <textarea id="file-content" rows="8" style="width:100%;font-family:var(--mono)" aria-label="File content"></textarea>
+            <button id="save-file">Save with CAS</button>
+            <span id="file-save-status" role="status"></span>
+          </div>
         </details>
+        <button id="history-state" hidden></button>
         <div id="log"></div>
 
         <div class="composer">
@@ -250,14 +265,33 @@
     </section>
   </main>
 
+  <dialog id="create-dialog">
+    <form id="create-form">
+      <h2>New cloud session</h2>
+      <div id="create-status" role="status">Loading choices…</div>
+      <label>Title<input name="title" /></label>
+      <label>Environment or runner pool<select name="env" required></select></label>
+      <label>Repository<select name="repo"><option value="">No repository</option></select></label>
+      <button type="button" id="more-repos" hidden>Load more repositories</button>
+      <label>Source revision<input name="revision" list="source-revisions" placeholder="Default branch, branch name, or commit SHA" /><datalist id="source-revisions"></datalist></label>
+      <label>Outcome branch<input name="branch" placeholder="Automatic branch" /></label>
+      <label>Model<select name="model" required></select></label>
+      <label>Initial permission mode<select name="permission_mode" required></select></label>
+      <label>Effort<select name="effort"><option value="">Model default</option><option>low</option><option>medium</option><option>high</option><option>xhigh</option><option>max</option></select></label>
+      <label>First message<textarea name="prompt" rows="3"></textarea></label>
+      <div class="actions"><button type="button" id="cancel-create">Cancel</button><button type="submit" id="submit-create" class="primary" disabled>Create</button></div>
+    </form>
+  </dialog>
   <div id="toast"></div>
 
 <script>
 "use strict";
 const $ = (id) => document.getElementById(id);
+const pinned = new Set();
+try { for (const id of JSON.parse(localStorage.getItem("pinned-sessions") || "[]")) pinned.add(id); } catch {}
 const S = {
   sessions: [], hasLoaded: false, loadError: null, selectedId: null, session: null,
-  seen: new Set(), es: null, lastSeq: 0,
+  seen: new Set(), es: null, lastSeq: 0, selection: 0,
   prompts: new Map(),   // request_id → its "needs you" row, while unanswered
   lastDivider: null,    // {text, count, node} — folds repeated dividers
 };
@@ -328,15 +362,25 @@ async function loadWhoami() {
 }
 
 // ---- sessions list -------------------------------------------------------
-async function loadSessions() {
-  let sessions;
-  try { sessions = (await api("/api/sessions")).sessions || []; }
+async function loadSessions(more = false) {
+  S.listExpanded = more;
+  const status = $("session-status").value;
+  const query = new URLSearchParams();
+  if (status) query.set("statuses", status);
+  if (more && S.sessionsCursor) query.set("cursor", S.sessionsCursor);
+  const generation = S.listGeneration = (S.listGeneration || 0) + 1;
+  let page;
+  try { page = await api("/api/sessions?" + query); }
   catch (e) {
+    if (generation !== S.listGeneration) return;
     S.hasLoaded = true; S.loadError = e.message;
     renderSessions(); toast("List failed: " + e.message); return;
   }
+  if (generation !== S.listGeneration) return;
   S.hasLoaded = true; S.loadError = null;
-  S.sessions = sessions;
+  S.sessions = more ? [...new Map([...S.sessions, ...(page.sessions || [])].map(s => [s.id, s])).values()] : page.sessions || [];
+  S.sessionsCursor = page.next_cursor;
+  $("more-sessions").hidden = !S.sessionsCursor;
   renderSessions();
 }
 function renderSessions() {
@@ -350,11 +394,11 @@ function renderSessions() {
     box.appendChild(el("div", "muted", "  No sessions. Run `claude remote-control`.")).style.padding = "14px";
     return;
   }
-  for (const s of S.sessions) {
+  for (const s of [...S.sessions].sort((a, b) => Number(pinned.has(b.id)) - Number(pinned.has(a.id)))) {
     const row = el("div", "session" + (s.id === S.selectedId ? " active" : ""));
     row.appendChild(el("span", "status-dot " + classifyStatus(s)));
     const meta = el("div", "meta");
-    meta.appendChild(el("div", "title", s.title || "(untitled)"));
+    meta.appendChild(el("div", "title", (pinned.has(s.id) ? "Pinned · " : "") + (s.title || "(untitled)")));
     const model = (s.config && s.config.model) || "";
     const md = s.external_metadata || {};
     const sub = [s.worker_status || s.status, model, md.effort_level, contextLabel(md), timeAgo(s.last_event_at)]
@@ -368,36 +412,59 @@ function renderSessions() {
 
 // ---- select + stream a session ------------------------------------------
 async function selectSession(id) {
+  const selection = ++S.selection;
   if (S.es) { S.es.close(); S.es = null; }
   S.selectedId = id; S.seen = new Set(); S.lastSeq = 0; S.session = null;
   S.prompts = new Map(); S.lastDivider = null;
   $("workspace-result").textContent = ""; $("workspace-panel").open = false;
+  $("file-editor").hidden = true; S.fileEdit = null;
   renderSessions();
   $("empty").style.display = "none";
   $("pane-body").style.display = "flex";
   $("log").innerHTML = "";
+  $("history-state").hidden = false; $("history-state").disabled = true;
+  $("history-state").textContent = "Loading history…"; $("history-state").onclick = null;
   $("s-title").textContent = "loading…";
   $("s-status").textContent = ""; $("s-model").textContent = ""; $("s-summary").textContent = "";
   $("sel-model").value = ""; $("sel-perm").value = ""; $("sel-effort").value = "";
 
   try {
     const s = await api(`/api/sessions/${id}`);
-    if (S.selectedId !== id) return;
+    if (S.selectedId !== id || S.selection !== selection) return;
     S.session = s; renderSessionHeader(s);
   } catch (e) { toast("Load failed: " + e.message); }
 
+  if (S.selectedId !== id || S.selection !== selection) return;
+  const status = $("history-state");
+  status.hidden = false; status.disabled = true; status.textContent = "Loading history…";
+  let cursor = "0";
+  const cursors = new Set();
   try {
-    const { events } = await api(`/api/sessions/${id}/events?limit=200`);
-    if (S.selectedId !== id) return;
-    for (const ev of events) appendEvent(ev, false);
+    while (cursor !== null) {
+      if (cursors.has(cursor)) throw new Error("History cursor did not advance");
+      cursors.add(cursor);
+      const page = await api(`/api/sessions/${id}/events?limit=200&sort_order=asc&cursor=${encodeURIComponent(cursor)}`);
+      if (S.selectedId !== id || S.selection !== selection) return;
+      for (const ev of page.events) appendEvent(ev, false);
+      status.textContent = `Loading history… ${S.seen.size} events`;
+      cursor = page.next_cursor == null ? null : String(page.next_cursor);
+    }
+    status.hidden = true;
     scrollLog(true);
-  } catch (e) { toast("History failed: " + e.message); }
+  } catch (e) {
+    if (S.selectedId !== id || S.selection !== selection) return;
+    status.disabled = false; status.textContent = "History incomplete — retry";
+    status.onclick = () => selectSession(id);
+    toast("History failed: " + e.message);
+    return;
+  }
 
-  if (S.selectedId === id) openStream(id);
+  if (S.selectedId === id && S.selection === selection) openStream(id);
 }
 function renderSessionHeader(s) {
   const meta = s.external_metadata || {};
   $("s-title").textContent = s.title || "(untitled)";
+  $("btn-pin").textContent = pinned.has(s.id) ? "Unpin locally" : "Pin locally";
   $("s-status").textContent = [s.worker_status, contextLabel(meta)].filter(Boolean).join(" · ") || "—";
   const model = (s.config && s.config.model) || "";
   $("s-model").textContent = model || "model ?";
@@ -499,7 +566,7 @@ function eventNode(ev) {
   } else if (ev.type === "system" && ev.subtype === "init") {
     frag.appendChild(el("div", "divider", "session started" + (ev.model ? " · " + ev.model : "")));
   } else if (ev.type === "result") {
-    frag.appendChild(el("div", "divider", "turn complete" + (ev.subtype && ev.subtype !== "success" ? " · " + ev.subtype : "")));
+    frag.appendChild(el("div", "divider", (ev.is_error ? "turn failed" : "turn complete") + (ev.subtype && ev.subtype !== "success" ? " · " + ev.subtype : "")));
   } else if (ev.is_blocking_control) {
     frag.appendChild(promptNode(ev));
   } else if (ev.raw && ev.raw.event) {
@@ -543,6 +610,9 @@ function questionForm(ev) {
       const inp = document.createElement("input");
       inp.type = q.multiSelect ? "checkbox" : "radio";
       inp.name = `q-${ev.request_id}-${i}`; inp.value = o.label; inp.dataset.q = i;
+      inp.onchange = () => {
+        if (!q.multiSelect && inp.checked) box.querySelector('input[data-other]').value = "";
+      };
       lab.appendChild(inp);
       lab.appendChild(document.createTextNode(" " + o.label + (o.description ? " — " + o.description : "")));
       box.appendChild(lab);
@@ -558,6 +628,9 @@ function questionForm(ev) {
     const other = document.createElement("input");
     other.placeholder = q.placeholder || (q.kind === "number" ? "Number…" : q.kind === "text" ? "Your answer…" : "Other…");
     other.dataset.other = i;
+    other.oninput = () => {
+      if (!q.multiSelect && other.value.trim()) box.querySelectorAll('input[data-q]').forEach(inp => { inp.checked = false; });
+    };
     if (q.kind === "number") {
       other.type = "number";
       for (const key of ["min", "max", "step"]) if (q[key] != null) other[key] = q[key];
@@ -579,7 +652,8 @@ function questionForm(ev) {
   });
   const submit = el("button", "primary", "Submit");
   submit.onclick = () => {
-    if ([...form.querySelectorAll('input[type="number"]')].some(inp => !inp.reportValidity())) return;
+    const skippedInputs = new Set([...form.querySelectorAll('input[data-skip]:checked')].map(inp => inp.dataset.skip));
+    if ([...form.querySelectorAll('input[type="number"]')].some(inp => !skippedInputs.has(inp.dataset.other) && !inp.reportValidity())) return;
     const selections = {}, other = {}, notes = {}, previews = {}, skipped = [];
     form.querySelectorAll("input[data-q]:checked").forEach(inp => {
       const q = qs[inp.dataset.q];
@@ -613,24 +687,82 @@ function questionForm(ev) {
   }
   return form;
 }
-async function newSession() {
-  const prompt = window.prompt("First message for the new cloud session:");
-  if (!prompt) return;
-  const repo = window.prompt("GitHub repo (owner/name), blank for none:") || "";
-  try {
-    const envs = (await api("/api/environments")).environments || [];
-    const choices = envs.map(e => (e.environment_id || e.id) + " " + e.name).join("\n");
-    const env = window.prompt("Choose environment id:\n" + choices, envs[0] && (envs[0].environment_id || envs[0].id));
-    if (!env || !envs.some(e => (e.environment_id || e.id) === env)) throw new Error("Select a listed environment id");
-    const allowed = [...$("sel-model").options].map(o => o.value).filter(Boolean);
-    const model = window.prompt("Choose model:\n" + allowed.join("\n"), $("sel-model").value || allowed[0]);
-    if (!allowed.includes(model)) throw new Error("Select a catalog model");
-    const s = await post("/api/sessions", { prompt, repo, model, env });
-    toast("Created " + (s.id || "session"));
-    await loadSessions();
-    if (s.id) selectSession(s.id);
-  } catch (e) { toast("Create failed: " + e.message); }
+let repoPage = 0;
+function policyModes(policy) {
+  const modes = ["default", "plan", "acceptEdits"];
+  if (policy.auto_permissions && policy.auto_permissions.allowed === true) modes.push("auto");
+  if (policy.bypass_permissions && policy.bypass_permissions.allowed === true) modes.push("bypassPermissions");
+  return modes;
 }
+async function loadRepoPage() {
+  const button = $("more-repos");
+  button.disabled = true;
+  try {
+    const page = await api(`/api/repos?page=${repoPage + 1}`);
+    const entries = page.repos || [];
+    const selector = $("create-form").elements.repo;
+    const existing = new Set([...selector.options].map(o => o.value));
+    for (const entry of entries) {
+      const repo = entry.repo || entry;
+      const name = repo.full_name || (repo.owner && repo.owner.login && repo.name ? `${repo.owner.login}/${repo.name}` : null);
+      if (name && !existing.has(name)) { selector.add(new Option(name, name)); existing.add(name); }
+    }
+    repoPage++;
+    button.hidden = page.is_complete === true || (!page.next_cursor && entries.length < 100);
+  } catch (e) {
+    button.hidden = false;
+    $("create-status").textContent = "Repository picker unavailable: " + e.message + ". You can still create without a repository.";
+  } finally { button.disabled = false; }
+}
+async function newSession() {
+  const form = $("create-form");
+  form.reset(); repoPage = 0;
+  form.elements.repo.replaceChildren(new Option("No repository", ""));
+  $("submit-create").disabled = true;
+  $("create-status").textContent = "Loading choices…";
+  $("create-dialog").showModal();
+  try {
+    const [environments, catalog, policy, poolResult] = await Promise.all([
+      api("/api/environments"), api("/api/models"), api("/api/permission-policy"),
+      api("/api/pools").then(data => ({data})).catch(error => ({error}))
+    ]);
+    const targets = (environments.environments || []).map(e => new Option(e.name || e.environment_id || e.id, e.environment_id || e.id));
+    for (const pool of (poolResult.data && poolResult.data.pools) || []) targets.push(new Option("Pool: " + (pool.name || pool.pool_id), pool.pool_id));
+    form.elements.env.replaceChildren(...targets);
+    form.elements.model.replaceChildren(...(catalog.model_selector_config || []).flatMap(g => g.models || []).map(m => new Option(m.display_name || m.name || m.id, m.id)));
+    form.elements.permission_mode.replaceChildren(...policyModes(policy).map(mode => new Option(mode, mode)));
+    form.elements.permission_mode.value = "plan";
+    $("create-status").textContent = poolResult.error ? "Runner pools unavailable; cloud environments loaded." : "Choices loaded.";
+    $("submit-create").disabled = !targets.length || !form.elements.model.options.length;
+    await loadRepoPage();
+  } catch (e) { $("create-status").textContent = "Could not load choices: " + e.message; }
+}
+$("more-repos").onclick = loadRepoPage;
+$("cancel-create").onclick = () => $("create-dialog").close();
+$("create-form").elements.repo.onchange = async (event) => {
+  const repo = event.target.value;
+  $("create-form").elements.revision.value = "";
+  $("source-revisions").replaceChildren();
+  if (!repo) return;
+  try {
+    const result = await api(`/api/branches?repo=${encodeURIComponent(repo)}`);
+    if ($("create-form").elements.repo.value !== repo) return;
+    $("source-revisions").replaceChildren(...(Array.isArray(result) ? result : result.branches || []).map(branch => new Option(typeof branch === "string" ? branch : branch.name)));
+  } catch (e) { toast("Branches unavailable; enter an explicit revision: " + e.message); }
+};
+$("create-form").onsubmit = async (event) => {
+  event.preventDefault();
+  const button = $("submit-create");
+  button.disabled = true;
+  try {
+    const body = Object.fromEntries(new FormData(event.target));
+    const session = await post("/api/sessions", body);
+    $("create-dialog").close();
+    await loadSessions();
+    if (session.id) await selectSession(session.id);
+  } catch (e) { $("create-status").textContent = "Create failed: " + e.message; }
+  finally { button.disabled = false; }
+};
 function argPreview(input) {
   if (input == null) return "";
   let s;
@@ -669,6 +801,15 @@ async function sendMessage() {
         document.documentElement.dataset.theme = words[0];
         document.documentElement.style.colorScheme = words[0];
         toast("Theme set locally");
+      } else if (name === "copy") {
+        await copyTranscript();
+      } else if (name === "logout") {
+        if (S.es) { S.es.close(); S.es = null; }
+        S.selectedId = null; S.session = null; S.selection++;
+        $("log").replaceChildren();
+        $("pane-body").style.display = "none"; $("empty").style.display = "block";
+        setStreamState("dead", "detached locally");
+        toast("Panel detached. Browser login and shared credentials were not changed.");
       } else {
         const out = await post(`/api/sessions/${S.selectedId}/command`, {name, args: words.join(" ")});
         if (out.via !== "worker") showWorkspace(out);
@@ -702,7 +843,12 @@ async function steer(kind, path, body, okMsg) {
 function autoGrow(ta) { ta.style.height = "42px"; ta.style.height = Math.min(180, ta.scrollHeight) + "px"; }
 
 // ---- wire up -------------------------------------------------------------
-$("refresh-sessions").onclick = loadSessions;
+$("refresh-sessions").onclick = () => loadSessions();
+$("more-sessions").onclick = () => loadSessions(true);
+$("session-status").onchange = () => {
+  S.sessions = []; S.hasLoaded = false; S.loadError = null; S.sessionsCursor = null;
+  renderSessions(); loadSessions();
+};
 $("new-session").onclick = newSession;
 $("btn-send").onclick = sendMessage;
 $("btn-aside").onclick = askAside;
@@ -736,7 +882,22 @@ $("sel-effort").onchange = (e) => {
   if (effort) steer("Set effort", "effort", { effort: effort === "auto" ? null : effort }, "Effort → " + effort);
 };
 
+async function copyTranscript() {
+  if (!S.selectedId) return;
+  await navigator.clipboard.writeText([...$("log").querySelectorAll(".msg")].map(node => node.innerText).join("\n\n"));
+  toast("Loaded transcript copied locally");
+}
+$("btn-copy").onclick = () => copyTranscript().catch(error => toast("Copy failed: " + error.message));
+$("btn-pin").onclick = () => {
+  if (!S.selectedId) return;
+  if (pinned.has(S.selectedId)) pinned.delete(S.selectedId); else pinned.add(S.selectedId);
+  try { localStorage.setItem("pinned-sessions", JSON.stringify([...pinned])); }
+  catch { toast("Pin works for this page only; browser storage unavailable"); }
+  renderSessions();
+  if (S.session) renderSessionHeader(S.session);
+};
 function showWorkspace(value) {
+  $("file-editor").hidden = true; S.fileEdit = null;
   $("workspace-panel").open = true;
   $("workspace-result").textContent = JSON.stringify(value, null, 2);
 }
@@ -745,17 +906,49 @@ $("btn-files").onclick = async () => {
   const sid = S.selectedId;
   const path = window.prompt("Workspace directory (blank for default), or absolute file path:", "");
   if (path === null) return;
+  $("file-editor").hidden = true; S.fileEdit = null;
   $("workspace-panel").open = true;
   $("workspace-result").textContent = "Loading workspace…";
   try {
     const file = path && !path.endsWith("/") && window.confirm("Read this as a file? Cancel lists the directory.");
     const out = await api(`/api/sessions/${sid}/${file ? "file" : "directory"}?path=${encodeURIComponent(path)}`);
-    if (S.selectedId === sid) showWorkspace(out);
+    if (S.selectedId === sid) {
+      showWorkspace(out);
+      if (file && out.content_sha256 && typeof out.content === "string") {
+        try {
+          const bytes = Uint8Array.from(atob(out.content), c => c.charCodeAt(0));
+          $("file-content").value = new TextDecoder("utf-8", {fatal: true}).decode(bytes);
+          $("file-write-path").value = path.startsWith("/mnt/user-data/working/") ? path.slice("/mnt/user-data".length) : "";
+          S.fileEdit = {sid, hash: out.content_sha256};
+          $("file-save-status").textContent = "UTF-8 text loaded; writes require this server CAS token.";
+          $("file-editor").hidden = false;
+        } catch { $("file-save-status").textContent = "Binary file; text editing unavailable."; }
+      }
+    }
   } catch (e) { if (S.selectedId === sid) $("workspace-result").textContent = "Workspace error: " + e.message; }
+};
+$("save-file").onclick = async () => {
+  const edit = S.fileEdit;
+  if (!edit || edit.sid !== S.selectedId) return;
+  const path = $("file-write-path").value.trim();
+  if (!path.startsWith("/")) { $("file-save-status").textContent = "Enter an absolute synced-file write path."; return; }
+  $("save-file").disabled = true;
+  $("file-save-status").textContent = "Saving…";
+  try {
+    const out = await post(`/api/sessions/${edit.sid}/sync_file`, {path, content: $("file-content").value, if_match_sha256: edit.hash});
+    if (S.fileEdit !== edit) return;
+    if (!out.content_sha256) throw new Error("Server did not return the next CAS token; reopen file before saving again");
+    edit.hash = out.content_sha256;
+    $("file-save-status").textContent = "Saved with CAS.";
+    $("workspace-result").textContent = JSON.stringify(out, null, 2);
+  } catch (e) {
+    if (S.fileEdit === edit) $("file-save-status").textContent = "Save failed; edits retained. Reopen to resolve a conflict. " + e.message;
+  } finally { $("save-file").disabled = false; }
 };
 $("btn-changes").onclick = async () => {
   if (!S.selectedId) return;
   const sid = S.selectedId;
+  $("file-editor").hidden = true; S.fileEdit = null;
   $("workspace-result").textContent = "Loading changes…";
   $("workspace-panel").open = true;
   try { const out = await api(`/api/sessions/${sid}/changes`); if (S.selectedId === sid) showWorkspace(out); }
@@ -782,7 +975,7 @@ async function loadModels() {
   try {
     const catalog = await api("/api/models");
     const models = (catalog.model_selector_config || []).flatMap(g => g.models || []);
-    selector.replaceChildren(new Option("— keep —", ""), ...models.map(m => new Option(m.display_name || m.id, m.id)));
+    selector.replaceChildren(new Option("— keep —", ""), ...models.map(m => new Option(m.display_name || m.name || m.id, m.id)));
     selector.disabled = false;
     if (S.session) renderSessionHeader(S.session);
   } catch (e) {
@@ -791,12 +984,23 @@ async function loadModels() {
   }
 }
 
+async function loadPermissionPolicy() {
+  const selector = $("sel-perm");
+  selector.disabled = true;
+  try {
+    const policy = await api("/api/permission-policy");
+    selector.replaceChildren(new Option("— keep —", ""), ...policyModes(policy).map(mode => new Option(mode, mode)));
+    selector.disabled = false;
+  } catch (e) { selector.replaceChildren(new Option("Permission policy unavailable", "")); toast(e.message); }
+}
+
 // ---- boot ----------------------------------------------------------------
+loadPermissionPolicy();
 loadModels();
 renderSessions();
 loadWhoami();
 loadSessions();
-setInterval(loadSessions, 6000);
+setInterval(() => { if (!S.listExpanded) loadSessions(); }, 6000);
 setInterval(() => { if (S.selectedId) { /* keep list times fresh */ renderSessions(); } }, 30000);
 </script>
 </body>

@@ -1,0 +1,43 @@
+{
+  "run": "panel-f59c7fdbb141",
+  "checks": [
+    {
+      "name": "automatic_browser_auth",
+      "status": "passed",
+      "source": "cookies:cdp"
+    },
+    {
+      "name": "rendered_create_form",
+      "status": "passed",
+      "session": "cse_0154EsXTW5uAb2uReUSoUUxq",
+      "persisted_model": true,
+      "initial_mode": "plan"
+    },
+    {
+      "name": "rendered_initial_reply",
+      "status": "passed",
+      "actual_marker": true
+    },
+    {
+      "name": "rendered_send_and_stream",
+      "status": "passed",
+      "actual_marker": true
+    },
+    {
+      "name": "flow_failure",
+      "status": "failed",
+      "error_class": "AssertionError",
+      "http_status": null
+    }
+  ],
+  "created_sessions": [
+    "cse_0154EsXTW5uAb2uReUSoUUxq"
+  ],
+  "cleanup": [
+    {
+      "session": "cse_0154EsXTW5uAb2uReUSoUUxq",
+      "status": "passed",
+      "real_get_404": true
+    }
+  ]
+}

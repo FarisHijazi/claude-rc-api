@@ -1,0 +1,223 @@
+#!/usr/bin/env python3
+"""Opt-in real-service panel acceptance in isolated Chrome; only owned sessions mutate.
+
+Run with uv run --extra web --with playwright python scripts/claude-rc-panel-smoke
+--output <redacted-evidence.json>. Requires installed google-chrome and signed-in
+CDP for the API client, but never drives the user's browser or copies cookies.
+"""
+from __future__ import annotations
+
+import argparse
+import base64
+import json
+import sys
+import threading
+import uuid
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from claude_rc import APIError, RemoteControlClient
+from claude_rc.webui import _Handler, _RCServer
+
+
+def main():
+    from playwright.sync_api import sync_playwright
+
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--output', type=Path, required=True)
+    parser.add_argument('--screenshot', type=Path)
+    args = parser.parse_args()
+    proof = {'run': 'panel-' + uuid.uuid4().hex[:12], 'checks': [], 'created_sessions': [], 'cleanup': []}
+    def save():
+        args.output.write_text(json.dumps(proof, indent=2) + '\n')
+    def record(name, status='passed', **fields):
+        row = {'name': name, 'status': status, **fields}
+        proof['checks'].append(row)
+        save()
+        print(json.dumps(row), flush=True)
+    class Handler(_Handler):
+        def _create(self, body):
+            session = super()._create(body)
+            proof['created_sessions'].append(session['id'])
+            save()
+            return session
+
+    rc = RemoteControlClient(direct=True, timeout=30)
+    server = _RCServer(('127.0.0.1', 0), Handler, rc, False)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    deleted = set()
+    try:
+        rc.list_sessions(limit=1)
+        record('automatic_browser_auth', source=rc._auth.origin)
+        with sync_playwright() as p:
+            browser = p.chromium.launch(executable_path='/usr/bin/google-chrome', args=['--no-sandbox'], headless=True)
+            try:
+                page = browser.new_page(viewport={'width': 1400, 'height': 1000}, permissions=['clipboard-read', 'clipboard-write'])
+                errors = []
+                page.on('pageerror', lambda error: errors.append(type(error).__name__))
+                page.goto(f'http://127.0.0.1:{server.server_port}', wait_until='domcontentloaded')
+                page.locator('#new-session').click()
+                page.wait_for_function("!document.getElementById('submit-create').disabled", timeout=45000)
+                form = page.locator('#create-form')
+                form.locator('[name=title]').fill(proof['run'])
+                default_env = next(e['environment_id'] for e in rc.list_environments() if e.get('name') == 'Default')
+                form.locator('[name=env]').select_option(default_env)
+                form.locator('[name=model]').select_option('claude-haiku-5-5')
+                form.locator('[name=permission_mode]').select_option('plan')
+                form.locator('[name=prompt]').fill('Reply exactly PANEL_OK')
+                form.locator('[type=submit]').click()
+                page.wait_for_function('S.selectedId !== null && S.es !== null', timeout=60000)
+                sid = page.evaluate('S.selectedId')
+                assert sid in proof['created_sessions']
+                persisted = rc.get_session(sid)
+                assert persisted['config']['model'] == 'claude-haiku-5-5'
+                record('rendered_create_form', session=sid, persisted_model=True, initial_mode='plan')
+
+                page.wait_for_function("[...document.querySelectorAll('#log .msg.assistant')].some(n => n.textContent.includes('PANEL_OK') || n.textContent.includes('limit'))", timeout=130000)
+                if not page.locator('#log .msg.assistant').filter(has_text='PANEL_OK').count():
+                    record('rendered_initial_reply', 'blocked', reason='worker returned limit output, not marker')
+                    return 1
+                record('rendered_initial_reply', actual_marker=True)
+                page.locator('#composer-text').fill('Reply exactly PANEL_SEND_OK')
+                page.locator('#btn-send').click()
+                page.locator('#log .msg.assistant').filter(has_text='PANEL_SEND_OK').wait_for(timeout=130000)
+                record('rendered_send_and_stream', actual_marker=True)
+
+                for model in ['claude-sonnet-5-5', 'claude-haiku-5-5']:
+                    with page.expect_response(lambda response: response.url.endswith('/model') and response.request.method == 'POST') as response:
+                        page.locator('#sel-model').select_option(model)
+                    assert response.value.ok
+                    applied = rc.get_settings(sid, timeout=30).get('applied', {})
+                    record('model_readback_' + model, 'passed' if applied.get('model') == model else 'failed', requested=model, applied=applied.get('model'))
+                    assert applied.get('model') == model
+                record('rendered_model_switches', settings_readback=True, inference_on_alternative=False)
+                for mode in ['acceptEdits', 'plan']:
+                    with page.expect_response(lambda response: response.url.endswith('/permission_mode') and response.request.method == 'POST') as response:
+                        page.locator('#sel-perm').select_option(mode)
+                    assert response.value.ok
+                    assert rc.initialize(sid, timeout=30).get('current_permission_mode') == mode
+                record('rendered_mode_switches', initialize_readback=True)
+
+                page.locator('#composer-text').fill('Call AskUserQuestion once with exactly two questions: Colour? single-select Blue/Red, Toppings? multiSelect Ham/Egg. After my answer repeat the exact supplied values. No other tools.')
+                page.locator('#btn-send').click()
+                page.locator('#log .attention:not(.settled) input[data-q="0"]').first.wait_for(timeout=130000)
+                card = page.locator('#log .attention:not(.settled)').last
+                card.locator('input[data-other="0"]').fill('Violet')
+                card.locator('input[data-q="0"][value="Blue"]').check()
+                assert card.locator('input[data-other="0"]').input_value() == ''
+                card.locator('input[data-q="1"][value="Ham"]').check()
+                card.locator('input[data-q="1"][value="Egg"]').check()
+                card.locator('input[data-notes="0"]').fill('panel note')
+                with page.expect_response(lambda response: response.url.endswith('/answer')) as response:
+                    card.get_by_role('button', name='Submit', exact=True).click()
+                assert response.value.ok
+                page.wait_for_function('S.prompts.size === 0', timeout=60000)
+                # The worker tool_result must contain the answer, not just a POST ack.
+                events = list(rc.iter_history(sid))
+                tool_results = [block for event in events for block in event._content_blocks() if isinstance(block, dict) and block.get('type') == 'tool_result']
+                assert any(all(value in json.dumps(block) for value in ['Blue', 'Ham', 'Egg']) for block in tool_results)
+                record('rendered_question_answer', actual_worker_tool_result=True, stale_other_cleared=True)
+
+                with page.expect_response(lambda response: response.url.endswith('/changes')) as response:
+                    page.locator('#btn-changes').click()
+                assert response.value.ok
+                record('rendered_changes', service_response=True)
+                target = '/working/' + proof['run'] + '.txt'
+                rc.put_synced_file(sid, target, b'PANEL_FILE')
+                fetched = rc.get_session_file(sid, '/mnt/user-data' + target)
+                assert base64.b64decode(fetched['content']) == b'PANEL_FILE'
+                def file_dialog(dialog):
+                    dialog.accept('/mnt/user-data' + target) if dialog.type == 'prompt' else dialog.accept()
+                page.on('dialog', file_dialog)
+                with page.expect_response(lambda response: '/file?path=' in response.url) as response:
+                    page.locator('#btn-files').click()
+                page.remove_listener('dialog', file_dialog)
+                assert response.value.ok
+                assert base64.b64decode(response.value.json()['content']) == b'PANEL_FILE'
+                record('rendered_files', decoded_bytes_match=True)
+                page.locator('#file-content').wait_for(state='visible')
+                page.locator('#file-content').fill('PANEL_EDITED')
+                with page.expect_response(lambda response: response.url.endswith('/sync_file')) as response:
+                    page.locator('#save-file').click()
+                assert response.value.ok
+                after = rc.get_session_file(sid, '/mnt/user-data' + target)
+                assert base64.b64decode(after['content']) == b'PANEL_EDITED'
+                rc.put_synced_file(sid, target, b'PANEL_EXTERNAL_EDIT', if_match_sha256=after['content_sha256'])
+                page.locator('#file-content').fill('PANEL_UNSAVED')
+                with page.expect_response(lambda response: response.url.endswith('/sync_file')) as response:
+                    page.locator('#save-file').click()
+                assert response.value.status == 409
+                assert page.locator('#file-content').input_value() == 'PANEL_UNSAVED'
+                assert base64.b64decode(rc.get_session_file(sid, '/mnt/user-data' + target)['content']) == b'PANEL_EXTERNAL_EDIT'
+                record('rendered_file_editor_cas', actual_byte_readback=True, real_conflict_409=True, conflict_did_not_overwrite=True, draft_retained=True)
+
+                page.locator('#btn-pin').click()
+                assert page.locator('#btn-pin').inner_text() == 'Unpin locally'
+                page.locator('#btn-copy').click()
+                page.wait_for_function("document.getElementById('toast').textContent.includes('copied locally')")
+                assert 'PANEL_OK' in page.evaluate('navigator.clipboard.readText()')
+                record('local_pin_copy', clipboard_contains_owned_transcript=True)
+                page.evaluate('S.es.close(); openStream(S.selectedId)')
+                page.locator('#composer-text').fill('Reply exactly PANEL_RECONNECTED')
+                page.locator('#btn-send').click()
+                page.locator('#log .msg.assistant').filter(has_text='PANEL_RECONNECTED').wait_for(timeout=130000)
+                record('rendered_reconnect', actual_marker=True, trigger='test-owned EventSource close')
+                if args.screenshot:
+                    page.locator('#pane').screenshot(path=str(args.screenshot))
+                page.once('dialog', lambda dialog: dialog.accept())
+                with page.expect_response(lambda response: response.url.endswith('/archive')) as response:
+                    page.locator('#btn-archive').click()
+                assert response.value.ok and rc.get_session(sid)['status'] == 'archived'
+                page.locator('#session-status').select_option('archived')
+                page.locator('.session').filter(has_text=proof['run']).click(timeout=30000)
+                with page.expect_response(lambda response: response.url.endswith('/unarchive')) as response:
+                    page.locator('#btn-unarchive').click()
+                assert response.value.ok
+                page.locator('#composer-text').fill('Reply exactly PANEL_RESTORED')
+                page.locator('#btn-send').click()
+                page.locator('#log .msg.assistant').filter(has_text='PANEL_RESTORED').wait_for(timeout=130000)
+                record('rendered_archive_restore', restored_worker_executed=True)
+                page.once('dialog', lambda dialog: dialog.accept())
+                with page.expect_response(lambda response: response.url.endswith('/delete')) as response:
+                    page.locator('#btn-delete').click()
+                assert response.value.ok
+                try:
+                    rc.get_session(sid)
+                except APIError as error:
+                    assert error.status == 404
+                else:
+                    raise AssertionError('deleted session still accessible')
+                deleted.add(sid)
+                record('rendered_delete', real_get_404=True)
+                assert not errors
+                record('browser_javascript_errors', count=0)
+            finally:
+                browser.close()
+    except Exception as error:
+        record('flow_failure', 'failed', error_class=type(error).__name__, http_status=getattr(error, 'status', None))
+    finally:
+        for sid in proof['created_sessions']:
+            try:
+                if sid not in deleted:
+                    rc.archive_session(sid)
+                    rc.delete_session(sid)
+                try:
+                    rc.get_session(sid)
+                except APIError as error:
+                    assert error.status == 404
+                else:
+                    raise AssertionError('cleanup not proven')
+                proof['cleanup'].append({'session': sid, 'status': 'passed', 'real_get_404': True})
+            except Exception as error:
+                proof['cleanup'].append({'session': sid, 'status': 'failed', 'error_class': type(error).__name__})
+        save()
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=5)
+        rc.close()
+    return int(any(row['status'] != 'passed' for row in proof['checks'] + proof['cleanup']))
+
+
+if __name__ == '__main__':
+    raise SystemExit(main())

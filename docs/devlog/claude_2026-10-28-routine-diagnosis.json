@@ -1,0 +1,70 @@
+{
+  "run": "routine-diagnosis-1246c54f",
+  "checks": [
+    {
+      "name": "routine_execution",
+      "status": "failed"
+    }
+  ],
+  "created": {
+    "sessions": [
+      "cse_0154EsXR27bmjmsPenApxwwR"
+    ],
+    "triggers": [
+      "trig_01QHDWYBKvFJHjkZH9mPhdWY"
+    ]
+  },
+  "cleanup": [
+    {
+      "session": "cse_0154EsXR27bmjmsPenApxwwR",
+      "deleted": true,
+      "get_404": true
+    },
+    {
+      "trigger": "trig_01QHDWYBKvFJHjkZH9mPhdWY",
+      "deleted": true,
+      "get_404": true
+    }
+  ],
+  "usage": {
+    "five_hour": {
+      "utilization": 0.0,
+      "resets_at": null,
+      "limit_dollars": null,
+      "used_dollars": null,
+      "remaining_dollars": null,
+      "locked_reason": null
+    },
+    "seven_day": {
+      "utilization": 100.0,
+      "resets_at": "2026-11-01T08:00:00.036562+00:00",
+      "limit_dollars": null,
+      "used_dollars": null,
+      "remaining_dollars": null,
+      "locked_reason": null
+    },
+    "seven_day_opus": null,
+    "seven_day_sonnet": null
+  },
+  "configured_model": "claude-haiku-5-5",
+  "session_config_model": "claude-haiku-5-5",
+  "worker_states": [
+    {
+      "model": "claude-haiku-5-5",
+      "permission_mode": "auto",
+      "claude_code_version": "2.1.312"
+    }
+  ],
+  "results": [
+    {
+      "subtype": "success",
+      "is_error": true,
+      "error_types": []
+    }
+  ],
+  "assistant_texts": [
+    "You've hit your weekly limit \u00b7 resets Nov 1, 8am (UTC)"
+  ],
+  "routine_ok": false,
+  "run_history_contains_session": true
+}

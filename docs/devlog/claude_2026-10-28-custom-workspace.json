@@ -1,0 +1,37 @@
+{
+  "run": "custom-workspace-4e7bbbe5",
+  "created": {
+    "environment": "env_015p1t77VZMz7hrLxP1QbTgd",
+    "session": "cse_0154EsXTDEtL9YR7TKT3oCXo"
+  },
+  "checks": [
+    {
+      "name": "custom_environment_CAS",
+      "status": "passed",
+      "read_path": "/mnt/user-data/working/custom-owned/proof.txt",
+      "write_path": "/working/custom-owned/proof.txt",
+      "byte_readback": true,
+      "stale_write_409": true,
+      "scope": "custom cloud environment, explicit /mnt/user-data/working cwd; not arbitrary cwd namespaces"
+    }
+  ],
+  "cleanup": [
+    {
+      "session": "cse_0154EsXTDEtL9YR7TKT3oCXo",
+      "status": "passed",
+      "get_404": true
+    },
+    {
+      "environment": "env_015p1t77VZMz7hrLxP1QbTgd",
+      "status": "passed",
+      "excluded_from_list": true
+    }
+  ],
+  "worker_bash_executed": true,
+  "turn_complete": true,
+  "root_listing": [
+    "absPath",
+    "entries",
+    "truncated"
+  ]
+}

@@ -1,0 +1,201 @@
+{
+  "version": "0.7.0",
+  "baseline": "ee338fb",
+  "full_web_parity": false,
+  "summary": "Fixed verified question defects and lost panel history; added policy-aware creation, local menu subset, status navigation, local pin/copy, UTF-8 CAS editor and replacement-handshake consumers. Qualified core rendered live workflow, 233-event real history and a scoped custom environment. Remaining development work is distinguished from platform, consent and fixture limitations.",
+  "tests": {
+    "full_with_playwright": "699 passed, 5 warnings; isolated Chrome included",
+    "default_without_playwright": "694 passed, 5 optional browser skips, 3 existing deprecation warnings",
+    "warnings": "Existing multiprocessing fork-in-thread and legacy fire_routine deprecations",
+    "live_panel": "claude_2026-10-28-panel-live-cas.json",
+    "live_long_history": "claude_2026-10-28-panel-long-live-rerun.json",
+    "custom_workspace": "claude_2026-10-28-custom-workspace.json",
+    "routine_diagnosis": "claude_2026-10-28-routine-diagnosis.json"
+  },
+  "scope_and_safety": {
+    "worktree": "worktrees/completeness-fixes",
+    "preserved_existing_worktrees": true,
+    "shared_OAuth_refreshes": 0,
+    "browser_credential_writes": 0,
+    "existing_session_mutations": 0,
+    "user_browser_input": false,
+    "headless_browser": "Separate isolated Chrome, real localhost panel and cookie-auth service client",
+    "cleanup": "Every resource created in these live evidence files was deleted or archived; session GET 404 or environment list exclusion asserted",
+    "public_shares_feedback_tokens_network_writes": "Not performed"
+  },
+  "review_gaps": [
+    {
+      "id": "single_choice_other",
+      "status": "fixed_live_and_offline",
+      "evidence": "Both selection directions tested in panel_browser_test.py; rendered Other-to-Blue flow returned Blue in a real worker tool_result in panel-live-cas evidence.",
+      "remaining": []
+    },
+    {
+      "id": "numeric_skip",
+      "status": "fixed_offline",
+      "evidence": "Out-of-range 99 with a skipped 1..5 numeric question submits; active numbers still validate. Native numeric schema remains fixture-only, not claimed live.",
+      "remaining": ["Native worker numeric generator is unavailable"]
+    },
+    {
+      "id": "panel_history",
+      "status": "fixed_live_and_offline",
+      "evidence": "history_page retains service cursors; panel pages oldest-first until EOF, then streams at the newest loaded sequence. 451-event fixture and 233 real durable events both retain the oldest anchor without duplicates. Real 105-control batch was rejected HTTP 400; batches of 35 succeeded.",
+      "remaining": []
+    },
+    {
+      "id": "routine_execution",
+      "status": "diagnosed_platform_quota_block",
+      "evidence": "Routine configuration, created session and worker init all applied claude-haiku-5-5. Account seven_day utilization was 100.0. Worker returned the weekly-limit message; result subtype was success but is_error was true. Run history contained the session. No ROUTINE_OK. All resources cleaned up.",
+      "remaining": ["Actual marker execution", "Cron firing", "Active-run cancellation", "Mode and alternative-model execution", "Live tag filtering"],
+      "next": "After routine quota is available, run the missing cases on disabled future-scheduled disposable routines; do not change models blindly or count terminal success as execution.",
+      "estimate": "30-60 min after quota is available",
+      "important_distinction": "Normal Haiku panel inference succeeded in the same follow-up; do not generalize routine denial to all Haiku requests. Panel now honors result.is_error when rendering completion."
+    },
+    {
+      "id": "genuine_permissions",
+      "status": "unverified_missing_live_generator",
+      "evidence": "Independent prior live Bash executed without can_use_tool. No synthetic permission response is counted as acceptance. This follow-up did not alter worker or shared harness permission configuration.",
+      "remaining": ["Allow once with file effect", "Deny with no file effect", "Permanent exact-rule reuse without another prompt"],
+      "next": "Provide an isolated authorized worker/tool fixture that deterministically asks for one exact harmless operation, then verify all three execution outcomes.",
+      "estimate": "4-8 hours for fixture and acceptance"
+    },
+    {
+      "id": "auth_qualification",
+      "status": "partial_live_with_explicit_constraints",
+      "evidence": "Default cookies:cdp auth works in every new live run. Prior independent real-401/source-reread proof remains valid. No shared CLI/cswap/proxy refresh token was consumed.",
+      "remaining": ["Natural month-scale cookie expiry/rotation", "Non-CDP source live variants", "Explicit isolated PKCE enrollment", "Owned refresh/restart/concurrent rotation", "Trusted-device recovery", "macOS/Windows locking"],
+      "unsupported": ["Client-generated event-attestation signatures"],
+      "next": "Use an explicitly approved separate owned OAuth grant for refresh tests and observe natural cookie rotation without changing the browser login. Keep non-CDP and cross-platform variants distinct.",
+      "estimate": "1-2 hours per owned-grant/platform run; natural rotation requires elapsed service time",
+      "constraint": "No-copy-cookie auth still requires signed-in Chrome and reachable CDP; it cannot silently renew a revoked browser login."
+    },
+    {
+      "id": "rendered_browser_acceptance",
+      "status": "core_flow_live_qualified",
+      "evidence": "panel-live-cas: rendered create form, exact initial reply/send, real question tool_result, model settings readback, mode initialize readback, Files byte decoding and CAS edit/conflict, Changes, actual clipboard text, local pin, owned EventSource reconnect with a fresh reply, archive, archived navigation, usable restore, delete GET 404, zero JavaScript errors.",
+      "remaining": ["Genuine permission choices", "Native text/number/dialog schemas", "Every additional menu variant"],
+      "next": "Extend the same real browser harness when dedicated generators exist; do not substitute fixtures for those missing cases.",
+      "estimate": "1-2 hours after generators are available"
+    },
+    {
+      "id": "local_slash_behaviors",
+      "status": "implemented_subset_development_backlog",
+      "evidence": "Panel now supplies handlers for login status, config/settings, account skills, advertised workflows and account usage. Copy and local detach execute in the browser, theme remains local. Offline adapter tests prove implemented handlers do not dispatch chat.",
+      "remaining": ["Actual enrollment/login rather than status", "Browser logout rather than panel detach", "Sandbox", "Design/slides", "Other host menus such as agents/output-style/channels"],
+      "next": "Capture each menu's actual host behavior and implement a renderer or explicit unsupported state. Existing absent handlers remain fail-closed, never ordinary text.",
+      "estimate": "1 day; not a platform limitation or completed parity"
+    },
+    {
+      "id": "panel_selection",
+      "status": "implemented_and_partly_live_qualified",
+      "evidence": "Prompt dialogs replaced by environment/pool/repository/revision/outcome-branch/model/effort/mode controls. Optional auto/bypass modes require actual permission-policy allowed:true. Offline test covers pool and revision/branch mapping; live browser uses a real default environment, Haiku and plan. Live repository item shapes confirmed owner.login/name/default_branch.",
+      "remaining": ["Live pool-backed execution", "Exhaustive repository enumeration", "All repository/environment-dependent variants"],
+      "next": "Use an authorized disposable self-hosted pool and exhaust captured page/per_page responses; do not invent a cursor query contract.",
+      "estimate": "1-2 hours with a usable pool"
+    },
+    {
+      "id": "panel_management",
+      "status": "partly_implemented_development_backlog",
+      "evidence": "UTF-8 workspace editing with CAS, local pin/copy and session status/page navigation are now implemented. Live browser proves editing and conflict-safe drafts.",
+      "remaining": ["Environment editing screens", "Routine management screens", "Network management screens", "Remaining navigation parity", "Binary editor operations"],
+      "next": "Add focused management forms on existing owners' library APIs, preserving redacted environment values and explicit write approvals; live-test only created resources.",
+      "estimate": "1-2 days; these are development gaps, not service rejections"
+    },
+    {
+      "id": "question_dialog_variants",
+      "status": "native_variants_unverified",
+      "evidence": "Single/multi real browser continuation passes. Native text/number/default/unit/follow-up forms remain fixture-only. Dialog/elicitation/hook serializers are not counted as live renderers.",
+      "remaining": ["Native schema generator", "Actual dialog renderer", "Actual elicitation renderer", "Actual hook continuation generator"],
+      "next": "Use current supported worker/integration schemas to generate each request and assert returned values and execution continuation, keeping rejected schemas unsupported.",
+      "estimate": "1 day for fixtures and renderers"
+    },
+    {
+      "id": "attachments_and_files",
+      "status": "legacy_routes_rejected_new_browser_contract_candidate_captured",
+      "evidence": "Prior OAuth attachment route returned 401 and Files API upload returned 404. Public captured browser bundles 33.js/42.js show org multipart POST /api/{org}/upload with field file; bundle 33.js shows GET /api/organizations/{org}/files/{uuid}/contents. This follow-up did not implement or call these candidate contracts, and has no captured standalone org-upload deletion contract.",
+      "remaining": ["Accepted authorized upload/download/hash/delete roundtrip", "Nonempty prefetch effect", "Files mount", "Seed bundle", "Working upload integration in Code, not merely unrelated Chat uploads"],
+      "next": "Trace the Code browser's uploader lineage and cleanup contract, then test generated harmless files end-to-end before modifying the existing OAuth adapter.",
+      "estimate": "2-4 hours; candidate source routes are not live acceptance"
+    },
+    {
+      "id": "custom_workspace",
+      "status": "scoped_custom_environment_live_qualified",
+      "evidence": "Fresh environment with explicit /mnt/user-data/working cwd and harmless init setup; actual Bash tool_result verified setup. GET /mnt/user-data/working/custom-owned/proof.txt and PUT /working/custom-owned/proof.txt passed byte readback and stale 409 without overwrite. Session deleted, environment archived and excluded.",
+      "remaining": ["Arbitrary custom cwd and repository namespace mappings"],
+      "next": "Capture mappings from actual browser/session metadata for other cwd values rather than assuming the qualified tuple is universal.",
+      "estimate": "30-60 min per captured mapping"
+    },
+    {
+      "id": "MCP",
+      "status": "unverified_missing_authorized_fixture",
+      "evidence": "Existing ephemeral mcp_status correlation remains live-qualified; no new connector or server mutation was made.",
+      "remaining": ["Toggle/reconnect execution effects", "Permission override reuse", "Actual askForTools calls", "Staged input/output/expiry", "Result exclusion restrictions", "Session MCP REST mutations"],
+      "next": "Build an explicitly authorized harmless MCP fixture with owned files; assert tool replies, staged bytes and expiry effects rather than request serialization.",
+      "estimate": "4-8 hours after fixture authorization"
+    },
+    {
+      "id": "queue_tasks",
+      "status": "unqualified_live_outcomes",
+      "evidence": "Existing task output/stop proofs do not establish queue races or task messaging. No new queue mutation acceptance is claimed.",
+      "remaining": ["Queued cancel/send-now/priority races", "Capability-matched interrupt receipts", "Task messaging", "Control cancellation"],
+      "next": "Hold an exact owned worker at a genuine question/task boundary, record message/task UUIDs, and assert processing receipts and eventual transcript/file outcomes after each control.",
+      "estimate": "2-4 hours"
+    },
+    {
+      "id": "recovery",
+      "status": "consumer_handshake_integrated_natural_events_unverified",
+      "evidence": "Panel and send-and-collect now initialize through the existing writer when stream_session detects a replacement. Offline test proves the handshake occurs without resending the prompt. Live panel reconnect produced an actual fresh reply; it is explicitly a test-owned EventSource close.",
+      "remaining": ["Natural worker replacement/reinitialization", "Natural watch 410/remint"],
+      "next": "Observe these naturally on an owned long-lived fixture; never kill a shared worker/browser to manufacture the event.",
+      "estimate": "1 hour instrumentation plus natural service event latency"
+    },
+    {
+      "id": "control_variants",
+      "status": "partial_live",
+      "evidence": "Real panel Sonnet/Haiku model switches verified with applied settings; plan/acceptEdits verified with initialize. No alternative-model inference or blanket flag readback claim.",
+      "remaining": ["Fast/advisor/thinking/view variants with independent readback", "Full cost/plan/settings/hooks/rules/version/suggestions/read-state method-specific qualification"],
+      "next": "Capture accepted enum/value contracts, record one applied/readback assertion per method and restore fixture state; report model quota rejections honestly.",
+      "estimate": "2-4 hours"
+    },
+    {
+      "id": "discovery_environments",
+      "status": "partial_live",
+      "evidence": "Live repository shape and scoped custom environment setup/CAS qualified. Existing cookie environment CRUD proof retained.",
+      "remaining": ["Exhaustive repository pages", "Pool execution", "Effort/multi-source creation variants", "Successful last-used-environment shape", "Bearer write lineage", "Editable environment-secret effects"],
+      "next": "Use dedicated pool/bearer/secret fixtures and captured variants; do not borrow shared grants or modify existing environment secrets.",
+      "estimate": "3-6 hours with authorized fixtures"
+    },
+    {
+      "id": "approval_blocked_surfaces",
+      "status": "not_executed_without_explicit_approval",
+      "remaining": ["Public share/revocation", "Support/debug exports", "Feedback/rating/survey", "Network profile/binding/credential writes", "Routine tokens/webhooks", "Connector changes"],
+      "next": "After explicit authorization, test only harmless generated data and exact disposable resources, revoke any issued access, and verify cleanup.",
+      "estimate": "2-4 hours after authorization"
+    },
+    {
+      "id": "uncaptured_contracts",
+      "status": "unsupported_until_contract_capture",
+      "remaining": ["Session fork", "Spaces/grouping/templates", "SCM commit/PR actions", "Integration-fire route"],
+      "evidence": "Read-only source strings compare-refs/get-commit/get-file-content were noticed in public bundle 29.js; exact request/response application contracts were not captured or implemented in this follow-up.",
+      "next": "Capture exact method/body/readback from the browser before implementing. Keep permanent environment deletion and service-owned/cloud-rejected controls unsupported.",
+      "estimate": "1 day of contract capture; write actions require approval"
+    },
+    {
+      "id": "media_variants",
+      "status": "unqualified_variants",
+      "evidence": "Existing generated-audio cookie dictation and pre-audio injected retry proof retained, not relabeled as mid-audio or natural reconnect.",
+      "remaining": ["Keepalive over time", "Natural dictation reconnect", "Bearer-media variants"],
+      "unsupported": ["Desktop dictation tickets", "Automatic replay after partial audio"],
+      "next": "Use finite generated audio on a dedicated supported transport and record actual service reconnect behavior without microphone capture.",
+      "estimate": "1-2 hours plus natural service timing"
+    },
+    {
+      "id": "overall_verification",
+      "status": "partial_completion_not_full_parity",
+      "evidence": "699 offline/headless tests pass and core rendered live acceptance passes. Earlier verifier failures are preserved, not erased. Routine acceptance still fails because the real worker reports quota exhaustion. Development backlog, missing fixtures, unknown contracts and approval blocks remain explicit.",
+      "remaining": ["All rows above that are not fully qualified"],
+      "next": "Follow the per-row acceptance plan; do not report every capability complete from a green default suite.",
+      "estimate": "Several days plus authorization, quota and natural-rotation waits"
+    }
+  ]
+}

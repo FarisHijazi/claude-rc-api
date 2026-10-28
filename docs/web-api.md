@@ -1,4 +1,4 @@
-# Web controller: contracts and evidence (0.6.0)
+# Web controller: contracts and evidence (0.7.0)
 
 This is the canonical `claude_rc` implementation. All eight feature branches
 are merged. It is **not full browser parity**: a captured request builder,
@@ -31,7 +31,12 @@ Evidence files are deliberately plain paths, not force-loaded includes:
 | E | `claude_2026-10-28-group06-independent-evidence.json`, `claude_2026-10-28-group06-contracts.json` |
 | F | `group07-independent-2026-10-28.json` |
 | R | `claude_2026-10-28-group08-independent-evidence.json` |
-| T | `tests/integration_adapters_test.py`, `tests/panel_browser_test.py` and the area-specific offline suites |
+| T | `tests/integration_adapters_test.py`, `tests/panel_browser_test.py`, `tests/panel_history_test.py`, `tests/panel_features_test.py`, `tests/recovery_consumers_test.py` and the area-specific offline suites |
+| P | `claude_2026-10-28-panel-live-cas.json` (rendered live flow), `claude_2026-10-28-panel-live-rerun.json`; initial `claude_2026-10-28-panel-live.json` preserves the verifier's incorrect initialize-model assertion, corrected to settings readback |
+| H | `claude_2026-10-28-panel-long-live-rerun.json` (233 real events, two panel pages); earlier `claude_2026-10-28-panel-long-live.json` retains rejected 105-event batch attempt |
+| D | `claude_2026-10-28-routine-diagnosis.json` (actual model, quota response and result error flag) |
+| C2 | `claude_2026-10-28-custom-workspace.json` (owned custom environment, exact namespace, CAS bytes and conflict) |
+| G | `claude_2026-10-28-completeness-followup.json` (all review gaps, terminal status and next acceptance step) |
 
 Branch evidence records the feature branch at the time it ran; claims that those
 branches were not yet integrated are historical, not the current main state.
@@ -82,12 +87,12 @@ ignore proxy/CA environment only for that HTTP client, not the whole machine.
 | Capability | Implementation | Verification / boundary |
 |---|---|---|
 | Send, processing receipts and own-turn collection | Implemented | Live I/S: exact reply and turn completion; unrelated queued result rejected offline |
-| Paginated durable history (page size ≤500) | Implemented | Live I/S, including pages of two events |
+| Paginated durable history (page size ≤500) | Implemented | Live I/S; panel H renders all 233 real durable events through two ascending pages, oldest anchor once; T also covers 451 events. Metadata is retained by `history_page`, and incomplete/error history is not labeled complete |
 | Metadata-preserving stream and legacy `stream_events` delegate | Implemented | Live I/S; unknown/meta/ephemeral vocabulary retained |
 | Disconnect/resume, ordering and deduplication | Implemented | Live I/S: replay payloads equal paginated history |
 | Truncated catch-up backfill | Implemented | Fault-injected live S: synthetic truncation, real GET history; natural truncation not observed |
 | EOF/read failures and bounded reconnect/backoff | Implemented | Fault-injected live S; absolute stream deadline bounds reads/backoff, not synchronous callbacks/history requests |
-| Worker replacement / reinitialize callback | Implemented callback | Offline; caller must explicitly integrate its handshake; natural replacement unobserved |
+| Worker replacement / reinitialize callback | Implemented and integrated | Panel and send-and-collect reinitialize on replacement via the existing control writer; offline T verifies handshake without resending the prompt. Generic read-only streams remain read-only. Natural replacement remains unobserved |
 | Ephemeral MCP liveReply correlation | Implemented | Live S; merged `mcp_status(live_reply=True)` uses this correlator. Missed ephemeral replies cannot be replayed |
 | Account watch mint/resume/rename/archive | Implemented | Live S; notifications may be `added` snapshots, not always `changed` |
 | Watch 410/remint/resync | Implemented | Offline; natural 410 not observed |
@@ -106,10 +111,10 @@ responses; tests do not signal browser, worker or proxy processes.
 | Authoritative permission allow-once | Implemented | Offline T; harmless live Bash ran without a prompt, so genuine allow execution remains unverified |
 | Deny/interrupt and permanent exact-rule reuse | Implemented | Offline T; no genuine live generator; no fabricated approval counted |
 | Single/multi-select, including one-item multi | Implemented | Live Q; single/multi also through panel answer HTTP adapter I |
-| Other alone and combined with selected labels | Implemented | Live Q/I; duplicate aliases rejected before posting |
+| Other alone and combined with selected labels | Implemented | Live Q/I; duplicate aliases rejected before posting. P confirms Other → single option clears stale text and the worker receives the selection; T tests both directions and preserves multi-select + Other |
 | One-to-four question cards | Implemented | Live Q four-card; I three-card |
 | Option previews, notes and answer-preview annotations | Implemented | Live Q/I tool-result assertions; panel fixtures T |
-| Native text/number/default/unit/follow-up forms | Implemented validators/renderers | Offline T; cloud worker did not emit native kinds. Other text is not native-field proof |
+| Native text/number/default/unit/follow-up forms | Implemented validators/renderers | Offline T; explicit skipped numeric fields bypass invalid-range validation. Cloud worker did not emit native kinds. Other text is not native-field proof |
 | Partial/whole skip, dismiss and replied-in-chat | Implemented | Live Q distinct browser sentinels; panel/CLI encoding adapters offline T |
 | User dialogs, elicitation and hook callbacks | Implemented API | Offline; dedicated generators absent; panel does not claim these renderers |
 
@@ -126,7 +131,7 @@ min/max/step; no missing defaults are invented.
 | Capability | Implementation | Verification / boundary |
 |---|---|---|
 | Initialize commands/capabilities | Implemented | Live I/W |
-| Authoritative pre-session model catalog and permission policy | Implemented | Live I/W; panel models load from catalog, not a hardcoded list |
+| Authoritative pre-session model catalog and permission policy | Implemented | Live I/W/P; panel create form selects environment/pool, repository, revision, outcome branch, model, effort and initial mode. Optional auto/bypass choices require policy `allowed: true`; unavailable policy disables selection. Full repo paging/pool execution remain unqualified |
 | Model/mode changes and `/model`, `/plan` | Implemented | Live I/W worker verdicts and settings/initialize readback; alternative model restored before inference |
 | Effort / `/effort` | Implemented | Live I/W settings readback |
 | Fast/advisor/thinking/view flags | Implemented | Fast-off/advisor-off worker verdicts W; independent flag readback and other variants remain offline |
@@ -134,7 +139,7 @@ min/max/step; no missing defaults are invented.
 | Cost, plan, settings, hooks, permission rules, version, suggestions/read state | Implemented | Mixed W query evidence; full method-specific live response qualification remains incomplete |
 | Worker-advertised prompt commands | Implemented | Live W `/recap` actual completion; unadvertised names rejected |
 | Local `/help` and panel `/theme light|dark` | Implemented local | Help live CLI process I; theme and menus tested against local fixtures, no worker turn |
-| Login/config/sandbox/skills/workflows/design/slides and other host menus | Guarded, renderer absent | Unsupported in this host; `LocalCommandRequired`, never sent as chat. Account skill discovery is a separate API |
+| Host-local account/settings/skills/workflow/usage presentation | Implemented subset | Panel passes local handlers for `/login` auth status, `/config`/`settings` effective worker settings, `/skills` account discovery, `/workflows` advertised workflow names and `/usage-credits` account usage; `/copy` copies loaded transcript and `/logout` detaches this panel without revoking browser/shared auth. This is not PKCE enrollment or browser logout parity; unimplemented sandbox/design/slides/other menus still fail closed |
 | Directory/file/diff worker controls | Implemented | Live W owned marker reads; I Changes HTTP adapter; response can legitimately be null |
 | Guarded rewind | Implemented | Live W matching target; unguarded rewind failed earlier independent assertion |
 | Task output/stop/end-session | Implemented | Live W marker output, stopped-task notification and worker verdict |
@@ -177,7 +182,7 @@ and panel now wait for the worker verdict before reporting application.
 | Files API upload/download/delete | Implemented | Rejected F: upload 404; no accepted roundtrip/deletion |
 | Attachment prefetch | Implemented | Empty replacement acknowledged F; nonempty effect blocked by upload failure |
 | Mount/seed bundles | Implemented | Offline; file upload unavailable; not cookie-qualified |
-| Controller workspace GET/CAS PUT and stale-write protection | Implemented | Live C/F default workspace: byte readback and 409 without overwrite; custom-environment path behavior failed I and remains unqualified |
+| Controller workspace GET/CAS PUT and stale-write protection | Implemented | Live C/F default workspace; P browser text editor saves UTF-8, verifies bytes, retains draft on actual 409 without overwrite. C2 also qualifies a fresh custom environment with explicit `/mnt/user-data/working` cwd; arbitrary custom cwd mappings remain unqualified |
 | TTS/Ogg mux/CLI output | Implemented | Live F valid Opus/Ogg decoding and real CLI process; no playback required |
 | Cookie dictation final transcript | Implemented | Live F generated audio only; no microphone |
 | Dictation pre-audio reconnect | Implemented | Fault-injected live F, two attempts and nonzero backoff |
@@ -197,18 +202,18 @@ A 409 propagates; do not refetch-and-overwrite automatically.
 | Routine create/get/name/prompt/model/schedule updates | Implemented | Live R; I create/name readback. CLI preserves unspecified nested job fields |
 | Enable/disable, fork, nonempty paging and deletion | Implemented | Live R; fork/delete also I; exact owned IDs GET 404 |
 | Manual run and run history | Implemented | Live R/I submission and history only |
-| Actual routine worker response | Not qualified | R/I: no `ROUTINE_OK`, limit-related output despite terminal `success`; not successful execution |
+| Actual routine worker response | Blocked by observed quota | D proves configured/session/worker model all Haiku 5.5, seven-day utilization 100%, actual weekly-limit text, and `result {subtype:success,is_error:true}`. No `ROUTINE_OK`. Normal panel Haiku inference succeeds P; the observed routine denial must not be generalized to all Haiku traffic. Panel renders the error flag as a failed turn |
 | Cron execution/mode update/alternative routine model/live tag filters | Implemented subset | Offline or unqualified live variants |
 | Active routine cancellation | Implemented | Offline; useful active-run fixture absent |
 | Routine API tokens/webhook creation | Implemented | Captured/offline; permission blocked, no token issued; intentionally no secret-printing CLI |
 | Integration fire route / legacy `fire_routine` | Unsupported/deprecated | No captured integration-fire contract; legacy function retained with warning, not recommended |
 | CLI feature helper registration and result rendering | Implemented | Live I real processes: whoami/models/dispatch/history/account; T parser/request tests; specialized unlisted CLI paths remain library-only |
-| Panel auth/question continuation/model application/Changes adapters | Implemented | Live I HTTP-to-real-service checks; actual browser interaction against live workers not asserted |
+| Panel auth/question continuation/model application/Changes adapters | Implemented | Rendered real-service P: form create, initial reply, send, single/multi question worker tool-result, model settings readback and mode initialize readback, Changes HTTP result; alternative model restored before inference |
 | Panel native question variants and loading guards | Implemented | Isolated headless browser T: single/multi/Other/text/number/defaults/unit/skip/notes/previews/dismiss/chat encodings; fixtures, not live native-form proof |
-| Panel Files inspection and lifecycle controls | Implemented | HTTP contract tests T; C library CAS proof is not a live Files-button claim |
-| Panel end-to-end stream reconnect, permission rule reuse and all-click coverage | Not fully qualified | Library stream recovery is live; whole-browser live scenario remains pending |
-| Panel environment/routine/network-management menus and full workspace editor | Not implemented | APIs/CLI cover portions; panel only inspects Files/Changes and exposes core session controls |
-| Browser-local pinning/copy and complete navigation parity | Not implemented | Local UI work, not invented server grouping routes |
+| Panel Files inspection and lifecycle controls | Implemented | Rendered P: exact decoded file bytes, CAS save/conflict, archive, archived navigation, restore with a new worker reply, delete followed by GET 404 |
+| Panel stream reconnect, permission reuse and all-click coverage | Qualified subset | P closes only its own EventSource, reconnects and receives an actual fresh reply. Genuine permissions, dialog/native schemas and every menu variant remain unqualified |
+| Panel environment/routine/network-management menus | Not implemented | APIs/CLI cover portions; dedicated management screens remain development backlog G, not a platform limitation |
+| Browser-local pinning/copy and status/page navigation | Implemented subset | P verifies local pin, actual clipboard text and archived-session navigation; T covers selection controls. Pins are per-browser conveniences, not server grouping; full navigation parity is not claimed |
 | Managed Agents public API | Separate legacy client | Outside this web-controller acceptance; no paid-key test or parity claim |
 
 ## Captured endpoint map
@@ -263,6 +268,7 @@ uv run --extra test --extra web --extra cli pytest -q
 uv run --extra test --extra web --extra cli --with playwright pytest -q
 uv run --extra web python scripts/claude-rc-integration-smoke --output ./integration-evidence.json
 uv run --extra web python scripts/claude-rc-stream-smoke --direct --timeout 90
+uv run --extra web --with playwright python scripts/claude-rc-panel-smoke --output ./panel-evidence.json
 ```
 
 The integration smoke returns nonzero for **any** unqualified check, including
@@ -275,20 +281,23 @@ qualify a real worker.
 
 ## Remaining acceptance plan
 
-1. Supply a dedicated owned permission/MCP/dialog fixture and verify allow,
+1. Supply a dedicated owned permission/MCP/dialog fixture (~1 day) and verify allow,
    deny, permanent-rule reuse, elicitation and staged files against execution.
-2. Diagnose routine-run limit output with the routine's actual worker model and
-   account limit state; then require a real marker, cron firing and active cancel.
-   Do not classify terminal `success` as that marker.
-3. Capture a cookie-authorized upload contract; only then qualify attachment
+2. After routine quota is available, require an actual marker, cron firing and
+   active cancellation (~30 min plus waiting for service quota). D already
+   diagnosed Haiku + weekly-limit output + `is_error:true`; terminal `success`
+   must never substitute for execution.
+3. Capture a cookie-authorized upload contract (~2 hours); only then qualify attachment
    roundtrip, nonempty prefetch, Files mount/seed/delete and staged MCP effects.
-4. Capture custom-environment workspace namespace behavior. Keep the default
-   workspace CAS proof separate from those failed custom-path checks.
-5. Enroll an explicitly approved isolated OAuth grant and qualify refresh/restart,
+4. Extend C2 to arbitrary custom cwd mappings (~30 min). Its explicit
+   `/mnt/user-data/working` environment passed byte readback and stale-write 409;
+   do not assume that proves every environment's namespace.
+5. Enroll an explicitly approved isolated OAuth grant (~1 hour after approval) and qualify refresh/restart,
    concurrent rotation and trusted-device recovery without touching shared grants.
-6. Complete host-local menus, browser-only conveniences and remaining management
-   screens; run the entire real-browser continuation/reconnect/lifecycle flow on
-   owned resources. Rendering fixtures and live HTTP adapters are separate proof.
-7. Obtain explicit approval before public shares, support/debug exports,
+6. Complete environment/routine/network management screens and remaining local
+   slash renderers (development backlog, ~1–2 days). P now qualifies the rendered
+   core continuation/reconnect/lifecycle/CAS flow; fixture-only native dialogs,
+   permissions and additional menu variants still need separate acceptance.
+7. Obtain explicit approval before public shares, support/debug exports (~2 hours after approval),
    feedback/log uploads, network bindings, tokens or webhook writes. Capture
    unsupported fork/grouping/SCM/integration-fire contracts before implementation.

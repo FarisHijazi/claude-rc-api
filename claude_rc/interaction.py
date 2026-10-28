@@ -568,7 +568,7 @@ class InteractionMixin(PromptsMixin, CommandsMixin):
 
     # Stream implementation is shared with legacy stream_events consumers.
     from .streaming import (
-        iter_history, stream_session, stream_control, mint_resume_token, watch,
+        history_page, iter_history, stream_session, stream_control, mint_resume_token, watch,
         request_control_live,
     )
 

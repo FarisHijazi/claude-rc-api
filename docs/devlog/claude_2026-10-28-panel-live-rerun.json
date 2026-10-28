@@ -1,0 +1,102 @@
+{
+  "run": "panel-7e78abeee6ae",
+  "checks": [
+    {
+      "name": "automatic_browser_auth",
+      "status": "passed",
+      "source": "cookies:cdp"
+    },
+    {
+      "name": "rendered_create_form",
+      "status": "passed",
+      "session": "cse_0154EsXUABcB1z7zdsRftcj2",
+      "persisted_model": true,
+      "initial_mode": "plan"
+    },
+    {
+      "name": "rendered_initial_reply",
+      "status": "passed",
+      "actual_marker": true
+    },
+    {
+      "name": "rendered_send_and_stream",
+      "status": "passed",
+      "actual_marker": true
+    },
+    {
+      "name": "model_readback_claude-sonnet-5-5",
+      "status": "passed",
+      "requested": "claude-sonnet-5-5",
+      "applied": "claude-sonnet-5-5"
+    },
+    {
+      "name": "model_readback_claude-haiku-5-5",
+      "status": "passed",
+      "requested": "claude-haiku-5-5",
+      "applied": "claude-haiku-5-5"
+    },
+    {
+      "name": "rendered_model_switches",
+      "status": "passed",
+      "settings_readback": true,
+      "inference_on_alternative": false
+    },
+    {
+      "name": "rendered_mode_switches",
+      "status": "passed",
+      "initialize_readback": true
+    },
+    {
+      "name": "rendered_question_answer",
+      "status": "passed",
+      "actual_worker_tool_result": true,
+      "stale_other_cleared": true
+    },
+    {
+      "name": "rendered_changes",
+      "status": "passed",
+      "service_response": true
+    },
+    {
+      "name": "rendered_files",
+      "status": "passed",
+      "decoded_bytes_match": true
+    },
+    {
+      "name": "local_pin_copy",
+      "status": "passed",
+      "clipboard_contains_owned_transcript": true
+    },
+    {
+      "name": "rendered_reconnect",
+      "status": "passed",
+      "actual_marker": true,
+      "trigger": "test-owned EventSource close"
+    },
+    {
+      "name": "rendered_archive_restore",
+      "status": "passed",
+      "restored_worker_executed": true
+    },
+    {
+      "name": "rendered_delete",
+      "status": "passed",
+      "real_get_404": true
+    },
+    {
+      "name": "browser_javascript_errors",
+      "status": "passed",
+      "count": 0
+    }
+  ],
+  "created_sessions": [
+    "cse_0154EsXUABcB1z7zdsRftcj2"
+  ],
+  "cleanup": [
+    {
+      "session": "cse_0154EsXUABcB1z7zdsRftcj2",
+      "status": "passed",
+      "real_get_404": true
+    }
+  ]
+}

@@ -47,6 +47,28 @@ class RetryBudget:
         self.attempts += 1
 
 
+def history_page(self, session_id: str, *, limit: int = 200,
+                 sort_order: str = "asc", cursor: str | None = None) -> dict:
+    """One durable history page, retaining the service's pagination metadata."""
+    if not 1 <= limit <= 500 or sort_order not in ("asc", "desc"):
+        raise ValueError("history limit must be 1..500 and order asc or desc")
+    params = {"limit": limit, "sort_order": sort_order}
+    if cursor is not None:
+        params["cursor"] = cursor
+    body = self._request("GET", self._path(session_id, "events"), params=params)
+    rows = body if isinstance(body, list) else body.get("data") or body.get("events") or []
+    events = [Event.from_wire(row) for row in rows]
+    metadata = {} if isinstance(body, list) else {k: v for k, v in body.items() if k not in ("data", "events")}
+    # Older responses omit metadata. A full page needs one more fetch to prove EOF.
+    if "next_cursor" not in metadata and "has_more" not in metadata and len(rows) == limit:
+        metadata["next_cursor"] = str(events[-1].sequence_num) if events else None
+    if metadata.get("has_more") and metadata.get("next_cursor") is None:
+        if not events or events[-1].sequence_num is None:
+            raise ValueError("history has_more without a usable continuation cursor")
+        metadata["next_cursor"] = str(events[-1].sequence_num)
+    return {**metadata, "events": events}
+
+
 def iter_history(self, session_id: str, *, after_sequence_num: int = 0,
                  page_size: int = 500) -> Iterator[Event]:
     """Page ascending durable history, preserving the complete wire envelope.
@@ -356,7 +378,7 @@ def send_and_collect(self, session_id: str, text: str, *, print_stream: bool = F
     with closing(stream_session(
         self, session_id, from_sequence_num=start, reconnect=reconnect,
         max_reconnects=max_reconnects, deadline=time.monotonic() + timeout,
-        on_ready=send,
+        on_ready=send, on_reinitialize=lambda _: self.initialize(session_id),
     )) as stream:
         for event in stream:
             collected.append(event)

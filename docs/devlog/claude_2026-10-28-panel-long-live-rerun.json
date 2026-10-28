@@ -1,0 +1,22 @@
+{
+  "run": "long-history-3023bfaf",
+  "checks": [
+    {
+      "name": "long_real_transcript_rendering",
+      "status": "passed",
+      "durable_events": 233,
+      "history_HTTP_pages": 2,
+      "all_sequences_equal": true,
+      "oldest_anchor_rendered_once": true,
+      "generator": "105 real get_binary_version controls and worker replies, no synthesized transcript"
+    }
+  ],
+  "cleanup": [
+    {
+      "session": "cse_0154EsXU7TuMFUP4Eoq6ofLu",
+      "status": "passed",
+      "get_404": true
+    }
+  ],
+  "session": "cse_0154EsXU7TuMFUP4Eoq6ofLu"
+}

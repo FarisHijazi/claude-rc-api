@@ -1,0 +1,19 @@
+{
+  "run": "long-history-505b10d5",
+  "checks": [
+    {
+      "name": "live_long_history",
+      "status": "failed",
+      "error_class": "APIError",
+      "http_status": 400
+    }
+  ],
+  "cleanup": [
+    {
+      "session": "cse_0154EsXSwoScmFMFJdvWUFcb",
+      "status": "passed",
+      "get_404": true
+    }
+  ],
+  "session": "cse_0154EsXSwoScmFMFJdvWUFcb"
+}

@@ -13,7 +13,7 @@ uses.
 > break at any time. Use your own account, at your own risk. Full protocol
 > writeup in [`API_REFERENCE.md`](./API_REFERENCE.md).
 
-## This fork (0.6.0): Claude Code on the web
+## This fork (0.7.0): Claude Code on the web
 
 `FarisHijazi/claude-rc-api` extends upstream 0.4.0 with cloud session
 lifecycle, environments, routines, typed model/mode/effort controls, question
@@ -149,11 +149,15 @@ claude-rc web                    # serves http://127.0.0.1:8765 and opens it
 claude-rc web --port 9000 --no-open
 ```
 
-The panel also provides model-catalog selection, typed slash dispatch, local
-`/theme light|dark`, question annotations/partial skips/dismissal, and Files /
-Changes inspection. Native text/number forms are fixture-tested, not emitted by
-the live cloud worker in acceptance. Management of routines/network profiles is
-still CLI/library work, not a completed panel feature.
+The panel provides a policy-aware creation form (environment/pool, repository,
+revision, outcome branch, model, effort and initial mode), paged transcript and
+session-status navigation, question annotations/partial skips/dismissal, local
+pin/copy, and a UTF-8 Files editor with server-token CAS and conflict-safe drafts.
+The rendered create/send/question/model/mode/Files/Changes/reconnect/archive/
+restore/delete flow is live-qualified on disposable resources. Native text/number
+forms remain fixture-tested, not emitted by the live cloud worker in acceptance.
+Environment/routine/network-management screens and several local slash menus
+remain incomplete; library coverage is not panel parity.
 
 It's a standard-library `http.server` (no new dependencies) that proxies the
 `RemoteControlClient`. It speaks to the private API with *your* OAuth token and

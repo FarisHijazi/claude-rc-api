@@ -64,12 +64,26 @@ def test_headless_question_variants_and_first_load(tmp_path):
                 page.locator('#toy-form input[data-other="1"]').fill('Basil')
                 page.locator('#toy-form input[data-notes="0"]').fill('toy note')
                 page.locator('#toy-form input[data-preview="0"]').fill('toy annotation')
+                page.locator('#toy-form input[data-other="3"]').fill('99')
                 page.locator('#toy-form input[data-skip="3"]').check()
                 page.locator('#toy-form button').filter(has_text='Submit').click()
                 page.wait_for_timeout(100)
                 assert seen[-1]=={'request_id':'toy-question','selections':{'0':'Blue','1':['Ham']},
                     'other':{'1':'Basil','2':'Ada'},'notes':{'0':'toy note'},
                     'previews':{'0':'toy annotation'},'skipped':[3]}
+                page.locator('#toy-form input[data-other="0"]').fill('Violet')
+                assert not page.locator('#toy-form input[data-q="0"]').is_checked()
+                page.locator('#toy-form button').filter(has_text='Submit').click()
+                page.wait_for_function("document.getElementById('toast').textContent === 'Answered'")
+                page.wait_for_timeout(100)
+                assert seen[-1]['other']['0'] == 'Violet'
+                assert '0' not in seen[-1]['selections']
+                page.locator('#toy-form input[data-q="0"]').check()
+                assert page.locator('#toy-form input[data-other="0"]').input_value() == ''
+                page.locator('#toy-form button').filter(has_text='Submit').click()
+                page.wait_for_timeout(100)
+                assert seen[-1]['selections']['0'] == 'Blue'
+                assert '0' not in seen[-1]['other']
                 for label, flag in [('Dismiss','dismissed'),('Replied in chat','replied_in_chat')]:
                     page.locator('#toy-form button').filter(has_text=label).click()
                     page.wait_for_timeout(100)

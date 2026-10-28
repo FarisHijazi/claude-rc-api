@@ -10,7 +10,7 @@ dependency (its `pyproject.toml`), so there is no second copy to keep in sync.
 - `origin` = `git@github.com:FarisHijazi/claude-rc-api.git` (push here; `main`).
 - `upstream` = `ThatCrispyToast/claude-rc-api`, **read-only**: fetch and merge
   `upstream/main` into `main`; never push there, never open upstream PRs/issues.
-- Version: ours is `0.6.0`+ (upstream already used 0.4.0). Bump the minor for a
+- Version: ours is `0.7.0`+ (upstream already used 0.4.0). Bump the minor for a
   new surface.
 
 ## Layout
@@ -194,9 +194,9 @@ These are deliberately plain paths, not `@` includes.
   delegates streams to their owner. Live control correlation must enforce the
   same admission gate as durable controls before opening HTTP.
 - `content_sha256` is an opaque server CAS token, not necessarily the digest of
-  decoded content. Default workspace GET/PUT namespaces are qualified; custom
-  environment paths are not. Never derive the token locally or retry a conflict
-  as an overwrite.
+  decoded content. Default namespaces and a fresh custom environment explicitly
+  using `/mnt/user-data/working` are qualified; arbitrary custom cwd mappings are
+  not. Never derive the token locally or retry a conflict as an overwrite.
 - Routine enqueue/terminal success is not execution: require the actual expected
   assistant marker. Genuine permission prompts, owned OAuth enrollment/refresh,
   cookie uploads and full live-browser parity remain incomplete.
@@ -204,3 +204,17 @@ These are deliberately plain paths, not `@` includes.
   `tests/panel_browser_test.py` optionally runs isolated headless Chrome via
   `uv run --extra test --extra web --extra cli --with playwright pytest -q`.
   Tests only collect `tests/`, never the preserved feature worktrees.
+- `history_page` retains cursors; the panel pages ascending to EOF before attaching
+  its stream. Never restore the newest-200-only transcript. Single-choice Other
+  and radio inputs are mutually exclusive; skipped numeric fields bypass validation.
+- `scripts/claude-rc-panel-smoke` drives isolated headless Chrome against the real
+  service, records exact owned resources and verifies deletion. Its latest evidence
+  is `docs/devlog/claude_2026-10-28-panel-live-cas.json`; long real history is in
+  `docs/devlog/claude_2026-10-28-panel-long-live-rerun.json`. These are plain paths.
+- Panel and collection consumers use the existing initialize control on a replacement
+  handshake. Generic read-only streams do not acquire a new write path.
+- Routine diagnosis: `docs/devlog/claude_2026-10-28-routine-diagnosis.json` proves
+  Haiku was applied but the routine returned a weekly-limit message with
+  `subtype: success, is_error: true`. Respect the error flag; do not equate turn
+  completion with successful execution. All remaining review gaps and next acceptance
+  steps are in `docs/devlog/claude_2026-10-28-completeness-followup.json` (plain path).
