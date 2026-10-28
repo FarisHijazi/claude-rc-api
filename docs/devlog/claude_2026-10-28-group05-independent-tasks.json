@@ -1,0 +1,81 @@
+{
+  "checks": [
+    {
+      "name": "created",
+      "status": "verified",
+      "result": "cse_0154EsXQAZKioD5WqBo5vmWh"
+    },
+    {
+      "name": "queue_receipts",
+      "status": "not_verified",
+      "result": {
+        "capabilities": [
+          "start_shell_task_v1"
+        ],
+        "reason": "interrupt receipt capabilities absent; no claim of queue execution from enqueue ACK"
+      }
+    },
+    {
+      "name": "task_output_marker",
+      "status": "verified",
+      "result": {
+        "marker_matched": true
+      }
+    },
+    {
+      "name": "stop_owned_task",
+      "status": "verified",
+      "result": null
+    },
+    {
+      "name": "task_stop_notification",
+      "status": "verified",
+      "result": {
+        "status": "stopped"
+      }
+    },
+    {
+      "name": "rewind_reply",
+      "status": "verified",
+      "result": {
+        "precedingAssistantUuid": null,
+        "prefillText": "Use Bash once with command \"printf INDEPENDENT_TASK_OK; sleep 45\" and run_in_background true. Do nothing else. Reply with task id.",
+        "rewound": true,
+        "targetMessageUuid": "9c282361-c7e3-4a8f-b60a-3b6d71ff2860"
+      }
+    },
+    {
+      "name": "rewind_effect",
+      "status": "verified",
+      "result": {
+        "rewound": true,
+        "target_matches": true
+      }
+    },
+    {
+      "name": "end_owned_session_verdict",
+      "status": "verified",
+      "result": {}
+    },
+    {
+      "name": "archive",
+      "status": "verified",
+      "result": true
+    },
+    {
+      "name": "delete",
+      "status": "verified",
+      "result": {}
+    },
+    {
+      "name": "cleanup",
+      "status": "verified",
+      "result": {
+        "http_status": 404
+      }
+    }
+  ],
+  "created_sessions": [
+    "cse_0154EsXQAZKioD5WqBo5vmWh"
+  ]
+}

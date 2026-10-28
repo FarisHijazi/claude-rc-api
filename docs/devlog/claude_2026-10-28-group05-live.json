@@ -1,0 +1,1658 @@
+{
+  "date": "2026-10-28",
+  "group": "05",
+  "created_sessions": [
+    "cse_0154EsXSW1excRBdU9QxHzp1",
+    "cse_0154EsXRcYYVtSgpPiNoSDva",
+    "cse_0154EsXSkyKcJ3UHM4t8STcB",
+    "cse_0154EsXT5S5zptSkwADCwX6Y"
+  ],
+  "checks": [
+    {
+      "name": "list_one_session",
+      "status": "live_accepted",
+      "result": {
+        "count": 1
+      }
+    },
+    {
+      "name": "environments",
+      "status": "live_accepted",
+      "result": {
+        "count": 4
+      }
+    },
+    {
+      "name": "browser_models",
+      "status": "live_accepted",
+      "result": {
+        "models": [
+          "claude-opus-5-5",
+          "claude-fable-5-1",
+          "claude-sonnet-5-5",
+          "claude-haiku-5-5",
+          "claude-haiku-4-5-20251001",
+          "claude-sonnet-5",
+          "claude-opus-5",
+          "claude-fable-5",
+          "claude-opus-4-8",
+          "claude-opus-4-7",
+          "claude-opus-4-6",
+          "claude-sonnet-4-6"
+        ]
+      }
+    },
+    {
+      "name": "permission_mode_policy",
+      "status": "live_accepted",
+      "result": {
+        "auto_permissions": {
+          "allowed": true,
+          "managed": false
+        },
+        "bypass_permissions": {
+          "allowed": true,
+          "managed": false
+        }
+      }
+    },
+    {
+      "name": "create_owned_idle_session",
+      "status": "live_accepted",
+      "result": {
+        "id": "cse_0154EsXSW1excRBdU9QxHzp1"
+      }
+    },
+    {
+      "name": "initialize",
+      "status": "live_accepted",
+      "result": {
+        "claude_code_version": "2.1.312",
+        "current_model": null,
+        "current_permission_mode": "plan",
+        "capabilities": [
+          "start_shell_task_v1"
+        ],
+        "commands": [
+          {
+            "name": "startup-hook-skill",
+            "aliases": [
+              "session-start-hook"
+            ],
+            "builtin": false
+          },
+          {
+            "name": "deep-research",
+            "aliases": [],
+            "builtin": true
+          },
+          {
+            "name": "design",
+            "aliases": [],
+            "builtin": true
+          },
+          {
+            "name": "slides",
+            "aliases": [],
+            "builtin": true
+          },
+          {
+            "name": "design-sync",
+            "aliases": [],
+            "builtin": true
+          },
+          {
+            "name": "dataviz",
+            "aliases": [],
+            "builtin": true
+          },
+          {
+            "name": "artifact-diagramming",
+            "aliases": [],
+            "builtin": true
+          },
+          {
+            "name": "artifact-capabilities",
+            "aliases": [],
+            "builtin": true
+          },
+          {
+            "name": "update-config",
+            "aliases": [],
+            "builtin": true
+          },
+          {
+            "name": "verify",
+            "aliases": [],
+            "builtin": true
+          },
+          {
+            "name": "debug",
+            "aliases": [],
+            "builtin": true
+          },
+          {
+            "name": "code-review",
+            "aliases": [
+              "review"
+            ],
+            "builtin": true
+          },
+          {
+            "name": "simplify",
+            "aliases": [],
+            "builtin": true
+          },
+          {
+            "name": "batch",
+            "aliases": [],
+            "builtin": true
+          },
+          {
+            "name": "fewer-permission-prompts",
+            "aliases": [],
+            "builtin": true
+          },
+          {
+            "name": "doctor",
+            "aliases": [
+              "checkup"
+            ],
+            "builtin": true
+          },
+          {
+            "name": "loop",
+            "aliases": [
+              "proactive"
+            ],
+            "builtin": true
+          },
+          {
+            "name": "claude-api",
+            "aliases": [],
+            "builtin": true
+          },
+          {
+            "name": "workflow-authoring",
+            "aliases": [],
+            "builtin": true
+          },
+          {
+            "name": "run",
+            "aliases": [],
+            "builtin": true
+          },
+          {
+            "name": "run-skill-generator",
+            "aliases": [],
+            "builtin": true
+          },
+          {
+            "name": "plugin-authoring",
+            "aliases": [],
+            "builtin": true
+          },
+          {
+            "name": "add-dir",
+            "aliases": [],
+            "builtin": true
+          },
+          {
+            "name": "advisor",
+            "aliases": [],
+            "builtin": true
+          },
+          {
+            "name": "agents",
+            "aliases": [],
+            "builtin": true
+          },
+          {
+            "name": "autocompact",
+            "aliases": [],
+            "builtin": true
+          },
+          {
+            "name": "clear",
+            "aliases": [
+              "reset",
+              "new"
+            ],
+            "builtin": true
+          },
+          {
+            "name": "color",
+            "aliases": [],
+            "builtin": true
+          },
+          {
+            "name": "compact",
+            "aliases": [],
+            "builtin": true
+          },
+          {
+            "name": "config",
+            "aliases": [
+              "settings"
+            ],
+            "builtin": true
+          },
+          {
+            "name": "output-style",
+            "aliases": [],
+            "builtin": true
+          },
+          {
+            "name": "context",
+            "aliases": [],
+            "builtin": true
+          },
+          {
+            "name": "effort",
+            "aliases": [],
+            "builtin": true
+          },
+          {
+            "name": "fast",
+            "aliases": [],
+            "builtin": true
+          },
+          {
+            "name": "focus",
+            "aliases": [],
+            "builtin": true
+          },
+          {
+            "name": "heapdump",
+            "aliases": [],
+            "builtin": true
+          },
+          {
+            "name": "init",
+            "aliases": [],
+            "builtin": true
+          },
+          {
+            "name": "mcp",
+            "aliases": [],
+            "builtin": true
+          },
+          {
+            "name": "import",
+            "aliases": [],
+            "builtin": true
+          },
+          {
+            "name": "model",
+            "aliases": [],
+            "builtin": true
+          },
+          {
+            "name": "__remote-workflow",
+            "aliases": [],
+            "builtin": true
+          },
+          {
+            "name": "workflow-launch-exec",
+            "aliases": [],
+            "builtin": true
+          },
+          {
+            "name": "reload-plugins",
+            "aliases": [],
+            "builtin": true
+          },
+          {
+            "name": "reload-skills",
+            "aliases": [],
+            "builtin": true
+          },
+          {
+            "name": "rename",
+            "aliases": [
+              "name"
+            ],
+            "builtin": true
+          },
+          {
+            "name": "security-review",
+            "aliases": [],
+            "builtin": true
+          },
+          {
+            "name": "usage",
+            "aliases": [
+              "cost",
+              "stats"
+            ],
+            "builtin": true
+          },
+          {
+            "name": "insights",
+            "aliases": [],
+            "builtin": true
+          },
+          {
+            "name": "recap",
+            "aliases": [],
+            "builtin": true
+          },
+          {
+            "name": "skill-doctor",
+            "aliases": [],
+            "builtin": true
+          },
+          {
+            "name": "goal",
+            "aliases": [],
+            "builtin": true
+          },
+          {
+            "name": "design-consent",
+            "aliases": [],
+            "builtin": true
+          },
+          {
+            "name": "design-revoke",
+            "aliases": [],
+            "builtin": true
+          },
+          {
+            "name": "list-agents",
+            "aliases": [
+              "peers"
+            ],
+            "builtin": true
+          },
+          {
+            "name": "team-onboarding",
+            "aliases": [],
+            "builtin": true
+          }
+        ]
+      }
+    },
+    {
+      "name": "model_claude-sonnet-5-5",
+      "status": "live_accepted",
+      "result": {
+        "via": "control",
+        "command": "model",
+        "result": {
+          "model": "claude-sonnet-5-5"
+        }
+      }
+    },
+    {
+      "name": "model_readback_claude-sonnet-5-5",
+      "status": "unverified",
+      "result": {
+        "model": null
+      },
+      "reason": "initialize does not return current_model; use get_settings.applied.model"
+    },
+    {
+      "name": "model_claude-haiku-5-5",
+      "status": "live_accepted",
+      "result": {
+        "via": "control",
+        "command": "model",
+        "result": {
+          "model": "claude-haiku-5-5"
+        }
+      }
+    },
+    {
+      "name": "model_readback_claude-haiku-5-5",
+      "status": "unverified",
+      "result": {
+        "model": null
+      },
+      "reason": "initialize does not return current_model; use get_settings.applied.model"
+    },
+    {
+      "name": "mode_plan",
+      "status": "live_accepted",
+      "result": {
+        "via": "control",
+        "command": "plan",
+        "result": {
+          "mode": "plan"
+        }
+      }
+    },
+    {
+      "name": "mode_readback_plan",
+      "status": "live_accepted",
+      "result": {
+        "mode": "plan"
+      }
+    },
+    {
+      "name": "mode_acceptEdits",
+      "status": "live_accepted",
+      "result": {
+        "via": "control",
+        "command": "plan",
+        "result": {
+          "mode": "acceptEdits"
+        }
+      }
+    },
+    {
+      "name": "mode_readback_acceptEdits",
+      "status": "live_accepted",
+      "result": {
+        "mode": "acceptEdits"
+      }
+    },
+    {
+      "name": "mode_plan",
+      "status": "live_accepted",
+      "result": {
+        "via": "control",
+        "command": "plan",
+        "result": {
+          "mode": "plan"
+        }
+      }
+    },
+    {
+      "name": "mode_readback_plan",
+      "status": "live_accepted",
+      "result": {
+        "mode": "plan"
+      }
+    },
+    {
+      "name": "dispatch_effort",
+      "status": "live_accepted",
+      "result": {
+        "via": "control",
+        "result_keys": [],
+        "result_present": true
+      }
+    },
+    {
+      "name": "dispatch_context",
+      "status": "live_accepted",
+      "result": {
+        "via": "control",
+        "result_keys": [
+          "agents",
+          "apiUsage",
+          "autoCompactThreshold",
+          "autocompactSource",
+          "categories",
+          "gridRows",
+          "isAutoCompactEnabled",
+          "maxTokens",
+          "mcpTools",
+          "memoryFiles",
+          "messageBreakdown",
+          "model",
+          "percentage",
+          "rawMaxTokens",
+          "skills",
+          "slashCommands",
+          "totalTokens"
+        ],
+        "result_present": true
+      }
+    },
+    {
+      "name": "dispatch_usage",
+      "status": "live_accepted",
+      "result": {
+        "via": "control",
+        "result_keys": [
+          "behaviors",
+          "rate_limits",
+          "rate_limits_available",
+          "session",
+          "subscription_type"
+        ],
+        "result_present": true
+      }
+    },
+    {
+      "name": "dispatch_btw",
+      "status": "live_accepted",
+      "result": {
+        "via": "control",
+        "result_keys": null,
+        "result_present": true
+      }
+    },
+    {
+      "name": "settings_readback",
+      "status": "live_accepted",
+      "result": {
+        "applied": {
+          "advisor": null,
+          "effort": "low",
+          "model": "claude-haiku-5-5",
+          "ultracode": false,
+          "ultracodeAvailable": true,
+          "ultracodeRequested": false
+        }
+      }
+    },
+    {
+      "name": "mcp_status",
+      "status": "live_accepted",
+      "result": {
+        "count": 9
+      }
+    },
+    {
+      "name": "workspace_list",
+      "status": "live_accepted",
+      "result": {
+        "keys": [
+          "absPath",
+          "entries",
+          "truncated"
+        ]
+      }
+    },
+    {
+      "name": "local_gate_start_shell_task",
+      "status": "local_rejected_before_http"
+    },
+    {
+      "name": "local_gate_mcp_read_resource",
+      "status": "local_rejected_before_http"
+    },
+    {
+      "name": "local_gate_mcp_authenticate",
+      "status": "local_rejected_before_http"
+    },
+    {
+      "name": "local_gate_stage_file",
+      "status": "local_rejected_before_http"
+    },
+    {
+      "name": "archive_owned_session",
+      "status": "unverified",
+      "error_class": "AttributeError",
+      "reason": "archive returned None; the evidence summarizer raised AttributeError after POST"
+    },
+    {
+      "name": "delete_owned_session",
+      "status": "live_accepted",
+      "result": {
+        "acknowledged": true
+      }
+    },
+    {
+      "name": "cleanup_readback",
+      "status": "live_accepted",
+      "http_status": 404
+    },
+    {
+      "name": "verified_model_claude-sonnet-5-5",
+      "status": "live_accepted",
+      "result": {
+        "worker_verdict": {
+          "model": "claude-sonnet-5-5"
+        },
+        "readback_model": "claude-sonnet-5-5"
+      }
+    },
+    {
+      "name": "verified_model_claude-haiku-5-5",
+      "status": "live_accepted",
+      "result": {
+        "worker_verdict": {
+          "model": "claude-haiku-5-5"
+        },
+        "readback_model": "claude-haiku-5-5"
+      }
+    },
+    {
+      "name": "fast_off",
+      "status": "live_accepted",
+      "result": {
+        "worker_verdict": {}
+      }
+    },
+    {
+      "name": "advisor_off",
+      "status": "live_accepted",
+      "result": {
+        "worker_verdict": {}
+      }
+    },
+    {
+      "name": "thinking_on",
+      "status": "live_accepted",
+      "result": {
+        "worker_verdict": {}
+      }
+    },
+    {
+      "name": "verified_effort",
+      "status": "live_accepted",
+      "result": {
+        "effort": "low"
+      }
+    },
+    {
+      "name": "tiny_owned_turn",
+      "status": "live_accepted",
+      "result": {
+        "turn_end": true,
+        "marker_matched": true,
+        "event_count": 10
+      }
+    },
+    {
+      "name": "verified_btw",
+      "status": "live_accepted",
+      "result": {
+        "via": "control",
+        "exact_marker_matched": true
+      }
+    },
+    {
+      "name": "advertised_recap_dispatch",
+      "status": "live_accepted",
+      "result": {
+        "via": "worker",
+        "worker_types": [
+          "assistant",
+          "result"
+        ],
+        "worker_output_seen": true
+      }
+    },
+    {
+      "name": "workspace_diff",
+      "status": "live_accepted",
+      "result": {
+        "response_type": "NoneType"
+      }
+    },
+    {
+      "name": "plan_read",
+      "status": "live_accepted",
+      "result": {
+        "response_type": "dict"
+      }
+    },
+    {
+      "name": "binary_version",
+      "status": "live_accepted",
+      "result": {
+        "response_type": "dict"
+      }
+    },
+    {
+      "name": "hooks_listing",
+      "status": "live_accepted",
+      "result": {
+        "response_type": "dict"
+      }
+    },
+    {
+      "name": "permission_rules",
+      "status": "live_accepted",
+      "result": {
+        "response_type": "dict"
+      }
+    },
+    {
+      "name": "mcp_status_ephemeral_liveReply",
+      "status": "unverified",
+      "error_class": "TypeError"
+    },
+    {
+      "name": "queue_cancel_send_now_receipts",
+      "status": "capability_unavailable",
+      "capabilities": [
+        "start_shell_task_v1"
+      ],
+      "reason": "worker does not advertise interrupt receipts/send-now/cancel-queued; no false receipt claim"
+    },
+    {
+      "name": "interrupt_legacy_worker_verdict",
+      "status": "live_accepted",
+      "result": {
+        "still_queued": []
+      }
+    },
+    {
+      "name": "end_owned_session",
+      "status": "live_accepted",
+      "result": {}
+    },
+    {
+      "name": "archive_owned_session_second",
+      "status": "live_accepted",
+      "result": {
+        "returned_none": false
+      }
+    },
+    {
+      "name": "delete_owned_session_second",
+      "status": "live_accepted",
+      "result": {}
+    },
+    {
+      "name": "cleanup_second_readback",
+      "status": "live_accepted",
+      "result": {
+        "status": 404
+      }
+    },
+    {
+      "name": "mcp_status_ephemeral_with_group03_parser",
+      "status": "unverified",
+      "error_class": "ControlTimeout",
+      "error_detail": "no live mcp_status response within 25s"
+    },
+    {
+      "name": "owned_background_task_created",
+      "status": "live_accepted",
+      "task_id": "bz01ilimk"
+    },
+    {
+      "name": "owned_task_output",
+      "status": "live_accepted",
+      "result": {
+        "keys": [
+          "output",
+          "total_bytes",
+          "truncated"
+        ]
+      }
+    },
+    {
+      "name": "owned_task_stop",
+      "status": "live_accepted",
+      "result": null
+    },
+    {
+      "name": "owned_workspace_file_read",
+      "status": "worker_rejected",
+      "error_class": "ControlRejected",
+      "error_detail": "read denied: /tmp/group05-2d34279c.txt"
+    },
+    {
+      "name": "owned_rewind",
+      "status": "live_accepted",
+      "result": {
+        "rewound": true,
+        "target_matched": true
+      }
+    },
+    {
+      "name": "archive_owned_session_third",
+      "status": "live_accepted",
+      "result": {
+        "returned_none": false
+      }
+    },
+    {
+      "name": "delete_owned_session_third",
+      "status": "live_accepted",
+      "result": {}
+    },
+    {
+      "name": "cleanup_third_readback",
+      "status": "live_accepted",
+      "http_status": 404
+    },
+    {
+      "name": "ephemeral_retry_diagnostic",
+      "status": "unverified",
+      "error_class": "ControlTimeout",
+      "error_detail": "no live mcp_status response within 8s"
+    },
+    {
+      "name": "ephemeral_frame_shapes",
+      "status": "observed_schema",
+      "frames": [
+        {
+          "frame": "session_update",
+          "keys": [
+            "connection_status"
+          ]
+        },
+        {
+          "frame": "client_event",
+          "keys": [
+            "created_at",
+            "event_id",
+            "event_type",
+            "payload",
+            "processed_at",
+            "processing_at",
+            "received_at",
+            "sequence_num",
+            "source"
+          ],
+          "payload_keys": [
+            "request",
+            "request_id",
+            "type",
+            "uuid"
+          ],
+          "payload_type": "control_request"
+        },
+        {
+          "frame": "client_event",
+          "keys": [
+            "created_at",
+            "event_id",
+            "event_type",
+            "payload",
+            "processed_at",
+            "processing_at",
+            "received_at",
+            "sequence_num",
+            "source"
+          ],
+          "payload_keys": [
+            "request",
+            "request_id",
+            "type",
+            "uuid"
+          ],
+          "payload_type": "control_request"
+        },
+        {
+          "frame": "client_event",
+          "keys": [
+            "created_at",
+            "event_id",
+            "event_type",
+            "payload",
+            "sequence_num",
+            "source"
+          ],
+          "payload_keys": [
+            "response",
+            "type",
+            "uuid"
+          ],
+          "payload_type": "control_response"
+        },
+        {
+          "frame": "client_event",
+          "keys": [
+            "created_at",
+            "event_id",
+            "event_type",
+            "payload",
+            "sequence_num",
+            "source"
+          ],
+          "payload_keys": [
+            "response",
+            "type",
+            "uuid"
+          ],
+          "payload_type": "control_response"
+        },
+        {
+          "frame": "client_event",
+          "keys": [
+            "created_at",
+            "event_id",
+            "event_type",
+            "payload",
+            "sequence_num",
+            "source"
+          ],
+          "payload_keys": [
+            "request",
+            "request_id",
+            "type",
+            "uuid"
+          ],
+          "payload_type": "control_request"
+        },
+        {
+          "frame": "delivery_update",
+          "keys": [
+            "event_id",
+            "status",
+            "timestamp"
+          ]
+        },
+        {
+          "frame": "delivery_update",
+          "keys": [
+            "event_id",
+            "status",
+            "timestamp"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "queued_uuid_cancellation",
+      "status": "unverified",
+      "reason": "worker did not emit the scoped blocking Bash permission"
+    },
+    {
+      "name": "owned_in_workspace_file_read",
+      "status": "live_accepted",
+      "result": {
+        "marker_matched": true,
+        "keys": [
+          "absPath",
+          "contents"
+        ]
+      }
+    },
+    {
+      "name": "owned_file_suggestions",
+      "status": "live_accepted",
+      "result": {
+        "count": 0
+      }
+    },
+    {
+      "name": "archive_owned_session_fourth",
+      "status": "live_accepted",
+      "result": {
+        "returned_none": false
+      }
+    },
+    {
+      "name": "delete_owned_session_fourth",
+      "status": "live_accepted",
+      "result": {}
+    },
+    {
+      "name": "cleanup_fourth_readback",
+      "status": "live_accepted",
+      "http_status": 404
+    }
+  ],
+  "auth_source": "cookies:cdp",
+  "dispatch_table": [
+    {
+      "name": "__remote-workflow",
+      "route": "unsupported",
+      "target": "service-owned workflow entry point"
+    },
+    {
+      "name": "add-dir",
+      "route": "unsupported",
+      "target": "add_directory is rejected in cloud sessions"
+    },
+    {
+      "name": "advisor",
+      "route": "control",
+      "target": "apply_flag_settings"
+    },
+    {
+      "name": "agents",
+      "route": "local",
+      "target": "host renderer required"
+    },
+    {
+      "name": "artifact-capabilities",
+      "route": "worker",
+      "target": "post-text"
+    },
+    {
+      "name": "artifact-diagramming",
+      "route": "worker",
+      "target": "post-text"
+    },
+    {
+      "name": "autocompact",
+      "route": "worker",
+      "target": "post-text"
+    },
+    {
+      "name": "batch",
+      "route": "worker",
+      "target": "post-text"
+    },
+    {
+      "name": "btw",
+      "route": "control",
+      "target": "side_question"
+    },
+    {
+      "name": "channels",
+      "route": "local",
+      "target": "host renderer required"
+    },
+    {
+      "name": "claude-api",
+      "route": "worker",
+      "target": "post-text"
+    },
+    {
+      "name": "clear",
+      "route": "unsupported",
+      "target": "session creation belongs to lifecycle, not post-text"
+    },
+    {
+      "name": "code-review",
+      "route": "worker",
+      "target": "post-text"
+    },
+    {
+      "name": "color",
+      "route": "unsupported",
+      "target": "set_color is rejected in cloud sessions"
+    },
+    {
+      "name": "compact",
+      "route": "worker",
+      "target": "post-text"
+    },
+    {
+      "name": "config",
+      "route": "local",
+      "target": "host renderer required"
+    },
+    {
+      "name": "context",
+      "route": "control",
+      "target": "get_context_usage"
+    },
+    {
+      "name": "copy",
+      "route": "local",
+      "target": "host renderer required"
+    },
+    {
+      "name": "cost",
+      "route": "control",
+      "target": "get_session_cost"
+    },
+    {
+      "name": "dataviz",
+      "route": "worker",
+      "target": "post-text"
+    },
+    {
+      "name": "debug",
+      "route": "worker",
+      "target": "post-text"
+    },
+    {
+      "name": "deep-research",
+      "route": "worker",
+      "target": "post-text"
+    },
+    {
+      "name": "design",
+      "route": "local",
+      "target": "host renderer required"
+    },
+    {
+      "name": "design-consent",
+      "route": "local",
+      "target": "host renderer required"
+    },
+    {
+      "name": "design-revoke",
+      "route": "local",
+      "target": "host renderer required"
+    },
+    {
+      "name": "design-sync",
+      "route": "worker",
+      "target": "post-text"
+    },
+    {
+      "name": "diff",
+      "route": "control",
+      "target": "get_workspace_diff"
+    },
+    {
+      "name": "doctor",
+      "route": "local",
+      "target": "host renderer required"
+    },
+    {
+      "name": "effort",
+      "route": "control",
+      "target": "apply_flag_settings"
+    },
+    {
+      "name": "fast",
+      "route": "control",
+      "target": "apply_flag_settings"
+    },
+    {
+      "name": "feedback",
+      "route": "unsupported",
+      "target": "requires explicit feedback submission"
+    },
+    {
+      "name": "fewer-permission-prompts",
+      "route": "worker",
+      "target": "post-text"
+    },
+    {
+      "name": "focus",
+      "route": "local",
+      "target": "host renderer required"
+    },
+    {
+      "name": "fork",
+      "route": "unsupported",
+      "target": "cloud fork contract not captured"
+    },
+    {
+      "name": "goal",
+      "route": "local",
+      "target": "host renderer required"
+    },
+    {
+      "name": "heapdump",
+      "route": "local",
+      "target": "host renderer required"
+    },
+    {
+      "name": "help",
+      "route": "local",
+      "target": "command_table"
+    },
+    {
+      "name": "hooks",
+      "route": "control",
+      "target": "get_hooks_listing"
+    },
+    {
+      "name": "import",
+      "route": "local",
+      "target": "host renderer required"
+    },
+    {
+      "name": "init",
+      "route": "worker",
+      "target": "post-text"
+    },
+    {
+      "name": "insights",
+      "route": "local",
+      "target": "host renderer required"
+    },
+    {
+      "name": "list-agents",
+      "route": "worker",
+      "target": "post-text"
+    },
+    {
+      "name": "login",
+      "route": "local",
+      "target": "host renderer required"
+    },
+    {
+      "name": "logout",
+      "route": "local",
+      "target": "host renderer required"
+    },
+    {
+      "name": "loop",
+      "route": "worker",
+      "target": "post-text"
+    },
+    {
+      "name": "mcp",
+      "route": "control",
+      "target": "mcp_status"
+    },
+    {
+      "name": "model",
+      "route": "control",
+      "target": "set_model"
+    },
+    {
+      "name": "new",
+      "route": "unsupported",
+      "target": "use lifecycle to create a session"
+    },
+    {
+      "name": "output-style",
+      "route": "local",
+      "target": "host renderer required"
+    },
+    {
+      "name": "permissions",
+      "route": "control",
+      "target": "list_permission_rules"
+    },
+    {
+      "name": "plan",
+      "route": "control",
+      "target": "set_permission_mode"
+    },
+    {
+      "name": "plugin-authoring",
+      "route": "worker",
+      "target": "post-text"
+    },
+    {
+      "name": "recap",
+      "route": "worker",
+      "target": "post-text"
+    },
+    {
+      "name": "reload-plugins",
+      "route": "control",
+      "target": "reload_plugins"
+    },
+    {
+      "name": "reload-skills",
+      "route": "control",
+      "target": "reload_skills"
+    },
+    {
+      "name": "rename",
+      "route": "control",
+      "target": "rename_session"
+    },
+    {
+      "name": "reset",
+      "route": "unsupported",
+      "target": "use lifecycle to create a session"
+    },
+    {
+      "name": "rewind",
+      "route": "control",
+      "target": "rewind_conversation"
+    },
+    {
+      "name": "run",
+      "route": "worker",
+      "target": "post-text"
+    },
+    {
+      "name": "run-skill-generator",
+      "route": "worker",
+      "target": "post-text"
+    },
+    {
+      "name": "sandbox",
+      "route": "local",
+      "target": "host renderer required"
+    },
+    {
+      "name": "security-review",
+      "route": "worker",
+      "target": "post-text"
+    },
+    {
+      "name": "settings",
+      "route": "local",
+      "target": "host renderer required"
+    },
+    {
+      "name": "simplify",
+      "route": "worker",
+      "target": "post-text"
+    },
+    {
+      "name": "skill-doctor",
+      "route": "local",
+      "target": "host renderer required"
+    },
+    {
+      "name": "skills",
+      "route": "local",
+      "target": "host renderer required"
+    },
+    {
+      "name": "slides",
+      "route": "local",
+      "target": "host renderer required"
+    },
+    {
+      "name": "startup-hook-skill",
+      "route": "worker",
+      "target": "post-text"
+    },
+    {
+      "name": "tasks",
+      "route": "control",
+      "target": "task_menu"
+    },
+    {
+      "name": "team-onboarding",
+      "route": "local",
+      "target": "host renderer required"
+    },
+    {
+      "name": "theme",
+      "route": "local",
+      "target": "host renderer required"
+    },
+    {
+      "name": "update-config",
+      "route": "worker",
+      "target": "post-text"
+    },
+    {
+      "name": "usage",
+      "route": "control",
+      "target": "get_usage"
+    },
+    {
+      "name": "usage-credits",
+      "route": "local",
+      "target": "host renderer required"
+    },
+    {
+      "name": "verify",
+      "route": "worker",
+      "target": "post-text"
+    },
+    {
+      "name": "workflow-authoring",
+      "route": "worker",
+      "target": "post-text"
+    },
+    {
+      "name": "workflow-launch-exec",
+      "route": "unsupported",
+      "target": "service-owned workflow entry point"
+    },
+    {
+      "name": "workflows",
+      "route": "local",
+      "target": "host renderer required"
+    }
+  ],
+  "live_streaming_dependency": "group03 worktree streaming.py, read-only integration; not included in group05 commit",
+  "offline_tests": {
+    "baseline_passed": 265,
+    "baseline_skipped": 1,
+    "final_passed": 409,
+    "final_skipped": 1,
+    "command": "uv run --extra test --extra web --extra cli pytest -q"
+  },
+  "sources": [
+    {
+      "source": "CLI native 2.1.312",
+      "contracts": [
+        "cloud admission switch hc/Svs",
+        "MCP call and staging schema",
+        "askForTools max 32 and name regex",
+        "browser hints",
+        "survey feedback"
+      ]
+    },
+    {
+      "source": "downloaded browser core bundle 29.js",
+      "contracts": [
+        "PUT /v1/code/sessions/{id}/mcp-servers {mcp_servers:[{name,...config}]}",
+        "POST /v1/code/sessions/{id}/mcp-approvals {tool_name,scope,tool_use_id}"
+      ]
+    },
+    {
+      "source": "live claude.ai cookie reads",
+      "contracts": [
+        "GET /api/organizations/{org}/model_selector/cc",
+        "GET /api/claude_code/organizations/{org}/permission_mode_policy"
+      ]
+    }
+  ],
+  "integration_contracts": {
+    "public_methods": [
+      "RemoteControlClient.browser_models() -> dict",
+      "RemoteControlClient.permission_mode_policy() -> dict",
+      "RemoteControlClient.set_model(session_id, model, *, wait=None) -> dict",
+      "RemoteControlClient.set_permission_mode(session_id, mode, *, wait=None) -> dict",
+      "RemoteControlClient.run_command(session_id, name, args=\"\", *, strict=False, timeout=15, local_handlers=None, commands=None, **send_options) -> dict",
+      "RemoteControlClient.set_session_mcp_servers(session_id, servers) -> dict",
+      "RemoteControlClient.approve_session_mcp_tool(session_id, tool_name, scope, tool_use_id) -> dict",
+      "RemoteControlClient.set_chrome_browser_hints(session_id, local_device_ids, *, preferred_device_id=None, host_platform=None, timeout=15) -> dict",
+      "RemoteControlClient.submit_survey_feedback(session_id, description, appearance_id, *, survey_response, survey_type=\"session\", surface=\"ccr\", timeout=30) -> dict"
+    ],
+    "cli": [
+      "commands.register_command_cli(subparsers) -> None",
+      "commands.dispatch_command_cli(client, args) -> dict",
+      "commands.command_table(commands=()) -> list[dict]"
+    ],
+    "ownership": "No edits to cli.py, webui.py, static, top-level exports, streaming.py or prompts.py. Existing prompt/stream definitions retained for compatibility; integration owner performs extraction.",
+    "control_profile": "cloud by default for cookie auth, bridge by default for bearer; explicit override required when worker kind differs. Raw send_events remains an escape hatch.",
+    "command_results": "via=control carries worker result; via=worker carries enqueue ack only; via=local carries renderer result. A local handler is callable(args_string). Errors never silently become user messages.",
+    "local_host_work": "CLI/panel owner must supply actual renderers/navigation for menu commands and render dispatch results instead of the legacy sent /name message.",
+    "streaming": "mcp_status(live_reply=True) delegates only to request_control_live(session_id, subtype, timeout=..., **fields). Absence fails locally; no history-poll fallback. Group03 parser must be merged with its correlator.",
+    "remote_result_exclusion": "mcp_call(result_not_for_model=True) fails locally: CLI honors it only on worker-owned local pipes, never this remote transport."
+  },
+  "capability_ledger": [
+    {
+      "capability": "pre_session_models_and_policy",
+      "status": "live_verified",
+      "evidence": "Browser catalog and permission policy fetched using cookies:cdp."
+    },
+    {
+      "capability": "initialize_commands_capabilities",
+      "status": "live_verified",
+      "evidence": "2.1.312 worker; advertised commands captured as names/aliases, not private skill bodies."
+    },
+    {
+      "capability": "model_switch",
+      "status": "live_verified",
+      "evidence": "Sonnet alternative and restoration to Haiku confirmed via get_settings.applied.model; initialize current_model is absent."
+    },
+    {
+      "capability": "permission_modes",
+      "status": "live_verified",
+      "evidence": "plan -> acceptEdits -> plan worker verdicts and initialize readback."
+    },
+    {
+      "capability": "effort",
+      "status": "live_verified",
+      "evidence": "typed /effort low and get_settings.applied.effort=low."
+    },
+    {
+      "capability": "fast_advisor_thinking",
+      "status": "worker_verdict_verified",
+      "evidence": "fast off, advisor off and always-thinking on returned worker success; not inference-level verification."
+    },
+    {
+      "capability": "view_flags",
+      "status": "offline_only",
+      "evidence": "Existing viewMode typed flag; exact accepted view values remain unverified."
+    },
+    {
+      "capability": "side_question",
+      "status": "live_verified",
+      "evidence": "/btw produced CONTROL_OK after a tiny GROUP05_OK transcript."
+    },
+    {
+      "capability": "context_usage",
+      "status": "live_verified",
+      "evidence": "Typed /context and /usage returned actual worker results, no enqueue-only pass."
+    },
+    {
+      "capability": "session_cost",
+      "status": "offline_only",
+      "evidence": "Existing get_session_cost and /cost typed dispatch tested offline."
+    },
+    {
+      "capability": "plan_read",
+      "status": "live_verified",
+      "evidence": "Actual get_plan worker response; no plan content was copied to evidence."
+    },
+    {
+      "capability": "interrupt",
+      "status": "worker_verdict_verified",
+      "evidence": "Legacy interrupt returned worker verdict. interrupt_receipt_v1 not advertised."
+    },
+    {
+      "capability": "queue_priority_uuid_cancel_send_now",
+      "status": "offline_only",
+      "evidence": "Wire tests pass. Live queue test never reached its scoped blocking Bash permission, so no cancellation or send-now success claim. v1 receipts not advertised."
+    },
+    {
+      "capability": "end_session",
+      "status": "worker_verdict_verified",
+      "evidence": "Ended only the second created test session and awaited worker verdict."
+    },
+    {
+      "capability": "control_cancellation",
+      "status": "offline_only",
+      "evidence": "Existing control_cancel_request builder; no live in-flight cancellation generator exercised."
+    },
+    {
+      "capability": "rewind_conversation",
+      "status": "live_verified",
+      "evidence": "rewound=true and targetMessageUuid matched the owned user message."
+    },
+    {
+      "capability": "task_inspection",
+      "status": "live_verified",
+      "evidence": "Observed task_started id from the third owned worker."
+    },
+    {
+      "capability": "task_output",
+      "status": "live_schema_verified",
+      "evidence": "get_task_output returned output,total_bytes,truncated for exact owned task; output contents were not asserted."
+    },
+    {
+      "capability": "task_stop",
+      "status": "worker_verdict_verified",
+      "evidence": "stop_task returned worker success for owned task; stopped task_notification was not asserted."
+    },
+    {
+      "capability": "task_message",
+      "status": "offline_only",
+      "evidence": "Existing wrapper retained; message field remains unverified against live worker."
+    },
+    {
+      "capability": "start_shell_task",
+      "status": "controller_rejected",
+      "evidence": "Captured cloud host admission rejects this subtype even when worker advertises start_shell_task_v1. No fake parity."
+    },
+    {
+      "capability": "workspace_reads_list_suggestions_diff",
+      "status": "live_verified",
+      "evidence": "In-workspace marker read matched WORKSPACE_OK. Directory, suggestions and diff queried. /tmp marker read was rejected by worker read policy."
+    },
+    {
+      "capability": "workspace_read_state",
+      "status": "offline_only",
+      "evidence": "seed_read_state retained and tested offline."
+    },
+    {
+      "capability": "settings_hooks_rules_binary",
+      "status": "live_verified",
+      "evidence": "Live settings applied readback plus hook listing, permission rules and binary version worker responses."
+    },
+    {
+      "capability": "feedback_rating_survey",
+      "status": "permission_blocked_live",
+      "evidence": "Typed builders tested offline, survey shape captured. No feedback/log/transcript upload or rating submitted."
+    },
+    {
+      "capability": "browser_hints",
+      "status": "offline_only",
+      "evidence": "Exact captured fields validated; no browser selection or user Chrome state changed."
+    },
+    {
+      "capability": "slash_controls",
+      "status": "live_verified",
+      "evidence": "/model /plan /effort /context /usage /btw dispatch typed requests and await verdicts. Broader command routing covered offline."
+    },
+    {
+      "capability": "worker_advertised_commands",
+      "status": "live_verified",
+      "evidence": "Harmless advertised /recap sent through post-text dispatch and worker output observed."
+    },
+    {
+      "capability": "local_slash_presentation_navigation",
+      "status": "host_integration_required",
+      "evidence": "Local handler execution and help table tested offline; default UI-only calls fail without posting. Real theme/login/config/sandbox/skills/workflows/usage-credits/design/slides renderers belong to CLI/panel integration."
+    },
+    {
+      "capability": "cloud_admission_direction",
+      "status": "source_and_offline_verified",
+      "evidence": "Every captured rejected subtype, unknown subtype, service/agent-originated request, flag settings keys and plugin-add case fails locally before HTTP under cloud profile."
+    },
+    {
+      "capability": "mcp_status_history",
+      "status": "live_verified",
+      "evidence": "Actual worker mcp_status returned 9 server entries; no server names/credentials logged."
+    },
+    {
+      "capability": "mcp_status_ephemeral",
+      "status": "unverified_live_timeout",
+      "evidence": "Attempts with group03 correlator+parser timed out. Diagnostic control-only SSE showed durable client_event and delivery_update only, no ephemeral frame. The first integration attempt also lacked the matching parser and raised TypeError."
+    },
+    {
+      "capability": "mcp_toggle_reconnect_calls_staging",
+      "status": "offline_only",
+      "evidence": "No dedicated harmless test server was available/approved; existing connectors were not toggled or invoked. Input/output/expiry/CAS fields preserve exact captured contract."
+    },
+    {
+      "capability": "mcp_ask_for_tools",
+      "status": "offline_only",
+      "evidence": "Corrected to objects [{name:...}], max 32 captured tool-name regex; no existing connector permission override changed."
+    },
+    {
+      "capability": "mcp_result_not_for_model",
+      "status": "outside_remote_scope",
+      "evidence": "Captured CLI says local pipes only; remote method rejects true rather than promise unsupported exclusion."
+    },
+    {
+      "capability": "mcp_reload",
+      "status": "offline_only",
+      "evidence": "Reload skills/plugins/output styles wrappers retained; safe typed slash registration for reloads."
+    },
+    {
+      "capability": "mcp_rest_servers_approvals",
+      "status": "captured_offline_only",
+      "evidence": "Web PUT and POST contract captured and tested; writes alter connector configuration/approval, so no live mutation without explicit authorization."
+    },
+    {
+      "capability": "mcp_ui_resource_auth",
+      "status": "controller_rejected",
+      "evidence": "Captured cloud gate rejects mcp_read_resource, authentication callbacks and SDK MCP messages before enqueueing."
+    },
+    {
+      "capability": "hosting_operational_memory_scm_bridge",
+      "status": "outside_controller_scope",
+      "evidence": "Existing HQ/runner/worker services own hosting, memory and SCM/bridge operations. No parallel host registry or invented controller endpoints added."
+    }
+  ],
+  "remaining_plan": [
+    {
+      "owner": "group08",
+      "action": "Wire register_command_cli and dispatch_command_cli; render actual results and implement host-local menus/navigation. Run browser/CLI live presentation checks.",
+      "status": "integration_required"
+    },
+    {
+      "owner": "group03 plus integration",
+      "action": "Merge its parser and correlator together. Diagnose absent liveReply ephemeral delivery using the captured frame-shape evidence before claiming MCP liveReply support. Add admission validation to any correlator path that writes controls directly.",
+      "status": "live_timeout"
+    },
+    {
+      "owner": "controls acceptance",
+      "action": "Retry queue/cancel/send-now during an observed active tool turn; verify UUID transcript effects and only claim capability-matched receipts. Verify task stopped notification and task-output marker.",
+      "status": "unverified"
+    },
+    {
+      "owner": "MCP acceptance",
+      "action": "Use an explicitly authorized dedicated harmless MCP server to test override/toggle/reconnect, staged input/output/CAS/expiry and REST approvals/configuration. Do not use existing user connectors as test fixtures.",
+      "status": "blocked_fixture_and_authorization"
+    },
+    {
+      "owner": "controls acceptance",
+      "action": "Exercise view flags, session cost, read-state and task messaging when their exact worker contracts are confirmed. Feedback/survey/rating and external uploads stay blocked without explicit approval.",
+      "status": "offline_only_or_permission_blocked"
+    }
+  ],
+  "cleanup": {
+    "exact_created_session_count": 4,
+    "all_deleted_and_get_404": true,
+    "shared_credentials_refreshed": false,
+    "existing_sessions_mutated": false,
+    "connector_writes_or_feedback_submitted": false
+  }
+}

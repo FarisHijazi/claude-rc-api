@@ -316,3 +316,21 @@ OAuth and no proxy. Dev's home IP passes Cloudflare with plain httpx.
   unverified live. Details and integration contracts:
   `devlog/claude_2026-10-28-group01-auth-foundation.md`.
 - The page's endpoint map was captured in a private research handoff; the routes this client uses are above.
+
+### Independent controls verification
+
+Three owned cloud sessions were independently exercised and deleted (GET 404
+confirmed for each). Model changes were checked against `get_settings.applied.model`;
+plan/acceptEdits transitions against initialize state; effort against
+`get_settings.applied.effort`. Typed context/usage, exact btw output, a worker
+`/recap` completion, an owned marker-file read, task-output marker, stopped-task
+notification and a guarded rewind with matching target were verified. Fast-off
+and advisor-off received worker verdicts, not independent state readback.
+
+Full controls acceptance is **not complete**. This branch lacks the ephemeral
+MCP correlator and host-local menu renderers. Queue cancellation/send-now outcomes,
+MCP fixture/staging effects, task messaging and control cancellation remain
+unverified. An unguarded rewind after recap failed the independent assertion;
+only the subsequent guarded rewind is confirmed. Feedback/survey/rating and
+connector writes were not submitted. The raw checks and follow-up plan are indexed
+in `devlog/claude_2026-10-28-group05-independent-summary.json`.
