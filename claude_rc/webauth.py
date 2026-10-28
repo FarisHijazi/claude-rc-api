@@ -45,6 +45,7 @@ import json
 import os
 import sys
 import threading
+import tempfile
 import time
 import urllib.request
 from email.utils import parsedate_to_datetime
@@ -226,22 +227,24 @@ class CookieJar:
             self.seed = _seed(self.session_key)
         path = state_path()
         path.parent.mkdir(parents=True, exist_ok=True)
-        tmp = path.with_suffix(".tmp")
-        fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-        with os.fdopen(fd, "w") as f:
-            json.dump({"seed": self.seed, "updated": int(time.time()), "cookies": self.cookies}, f)
-        os.chmod(tmp, 0o600)
-        os.replace(tmp, path)
+        fd, name = tempfile.mkstemp(prefix="cookies.", dir=path.parent)
+        tmp = Path(name)
+        try:
+            with os.fdopen(fd, "w") as f:
+                json.dump({"seed": self.seed, "updated": int(time.time()), "cookies": self.cookies}, f)
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(tmp, path)
+        finally:
+            if tmp.exists():
+                tmp.unlink()
 
     def reread(self) -> bool:
         """Re-read the cookie source after an auth failure (another process or
-        Chrome may hold a newer jar). ``True`` if the jar changed. A stale state
-        file falls through to the browser sources."""
-        if self.source == EXPLICIT:
-            return False
-        fresh = load_jar()
-        if self.source == STATE and (fresh is None or fresh.cookies == self.cookies):
-            fresh = load_jar(use_state=False)
+        Chrome may hold a newer jar). ``True`` if the jar changed. Never switch
+        to another source implicitly; identity is validated by the client."""
+        loader = {ENV: from_env, STATE: from_state, CDP: from_cdp, CHROME: from_chrome}.get(self.source)
+        fresh = loader() if loader else None
         if fresh is None or fresh.cookies == self.cookies:
             return False
         with self._lock:

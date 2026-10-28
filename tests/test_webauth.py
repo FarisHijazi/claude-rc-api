@@ -70,7 +70,12 @@ def chrome(tmp_path, monkeypatch):
 
 
 def _client(handler, **kw):
-    return RemoteControlClient(transport=httpx.MockTransport(handler), **kw)
+    def route(request):
+        # Account preflight/recovery is covered independently in test_auth.py.
+        if request.url.path == "/api/account":
+            return httpx.Response(200, json={"uuid": "account-test"})
+        return handler(request)
+    return RemoteControlClient(transport=httpx.MockTransport(route), **kw)
 
 
 def _write_state(cookies, seed=None):
@@ -203,7 +208,8 @@ def test_set_cookie_not_persisted_for_chrome_cookies(chrome):
 def test_set_cookie_from_other_hosts_ignored(monkeypatch):
     monkeypatch.setenv("CLAUDE_AI_SESSION_KEY", "sk")
     with _client(_rotating, org_uuid="o") as rc:
-        rc._request("GET", "https://api.anthropic.com/x")
+        with pytest.raises(CredentialsError, match="cross-origin"):
+            rc._request("GET", "https://api.anthropic.com/x")
         assert rc.cookie_jar.session_key == "sk"
 
 
@@ -267,12 +273,12 @@ def test_keepalive_only_when_we_own_refresh(chrome, monkeypatch):
 
     def handler(req):
         hits.append(req.url.path)
-        return httpx.Response(200, json={})
+        return httpx.Response(200, json={"uuid": "account-test"})
 
     with _client(handler, org_uuid="o") as rc:
         assert webauth.keepalive(rc, 0.01).is_set()  # Chrome-sourced: not ours
     monkeypatch.setenv("CLAUDE_AI_SESSION_KEY", "sk")
-    with _client(handler, org_uuid="o") as rc:
+    with RemoteControlClient(org_uuid="o", transport=httpx.MockTransport(handler)) as rc:
         assert webauth.touch(rc) == 200
         stop = webauth.keepalive(rc, 0.01)
         deadline = time.time() + 2

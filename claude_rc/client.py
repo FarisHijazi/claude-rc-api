@@ -25,6 +25,7 @@ from contextlib import closing
 import uuid
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
+from functools import wraps
 from typing import Any, Iterable, Iterator, Mapping, Optional, Sequence
 
 import httpx
@@ -45,7 +46,7 @@ from .credentials import (
     load_org_uuid,
     org_uuid_from_profile,
     refresh_credentials,
-    default_credentials_path,
+    shared_credentials,
     resolve_auth,
 )
 from .environments import EnvironmentsMixin
@@ -255,6 +256,18 @@ def _unwrap_session(body: Any) -> Any:
     return body
 
 
+def _auth_serialized(method):
+    """A keepalive thread must not send during another thread's identity check.
+
+    Streaming response bodies are consumed after _send returns, outside this lock.
+    """
+    @wraps(method)
+    def send(self, *args, **kwargs):
+        with self._auth_lock:
+            return method(self, *args, **kwargs)
+    return send
+
+
 class APIError(RuntimeError):
     """A non-accepted HTTP status. ``error`` is the Anthropic error envelope's
     ``error`` object when the body was one (``{type, message, resource?,
@@ -264,7 +277,9 @@ class APIError(RuntimeError):
         self.status = status
         self.body = body
         self.request_id = request_id
-        super().__init__(f"HTTP {status}{f' [{request_id}]' if request_id else ''}: {body[:300]}")
+        # Bodies can echo credentials or environment values. Keep the explicit
+        # .body inspection API, but never put that content into logs/tracebacks.
+        super().__init__(f"HTTP {status}{f' [{request_id}]' if request_id else ''}")
 
     @property
     def error(self) -> dict:
@@ -284,6 +299,25 @@ class APIError(RuntimeError):
     def resource(self) -> Optional[str]:
         """``error.resource``, e.g. ``untrusted_device`` / ``session_stale_relogin`` (403)."""
         return self.error.get("resource")
+
+    @property
+    def failure_kind(self) -> str:
+        """Machine-readable auth versus policy failure; raw body stays opt-in."""
+        if self.resource == "untrusted_device":
+            return "trusted_device"
+        if self.status == 401:
+            return "authentication"
+        if self.status == 403:
+            message = str(self.error.get("message", "")).lower()
+            # The account endpoint uses permission_error for an expired/invalid
+            # session cookie too; this observed auth denial is not org policy.
+            if message.strip().rstrip(".") == "invalid authorization":
+                return "authentication"
+            if (self.error_type in ("permission_error", "permission_denied", "authorization_error")
+                    or "authentication method not allowed" in message):
+                return "policy"
+            return "authentication_or_policy"
+        return "http"
 
 
 class ControlRejected(RuntimeError):
@@ -339,6 +373,8 @@ class RemoteControlClient(
         client_id: str | None = None,
         client_platform: str = CLIENT_PLATFORM,
         timeout: float = 30.0,
+        direct: bool = False,
+        allow_device_enrollment: bool = False,
     ):
         """Credentials come from :func:`~claude_rc.credentials.resolve_auth`
         (``credentials`` / ``token`` / ``session_key`` / ``cswap_slot``, then the
@@ -351,6 +387,10 @@ class RemoteControlClient(
         env, else the ``lastActiveOrg`` cookie (cookie auth) or
         ``~/.claude.json`` (bearer), else looked up on first use
         (:attr:`org_uuid`)."""
+        self._auth_lock = threading.RLock()
+        self._account_uuid = None
+        self._checking_identity = False
+        self._allow_device_enrollment = allow_device_enrollment
         self._auth = auth or resolve_auth(
             token,
             credentials=credentials,
@@ -379,9 +419,10 @@ class RemoteControlClient(
         # A stable per-instance id for presence, like the web client.
         self.client_id = client_id or str(uuid.uuid4())
         self._http = httpx.Client(
-            timeout=httpx.Timeout(timeout, read=timeout), transport=transport, mounts=claude_ai_mounts(transport)
+            timeout=httpx.Timeout(timeout, read=timeout), transport=transport,
+            trust_env=not direct, mounts=None if direct else claude_ai_mounts(transport)
         )
-        self._refresher = httpx.Client(timeout=30.0, transport=transport)
+        self._refresher = httpx.Client(timeout=30.0, transport=transport, trust_env=not direct)
 
     # -- context management ------------------------------------------------
     def __enter__(self) -> "RemoteControlClient":
@@ -421,6 +462,8 @@ class RemoteControlClient(
             fresh = reload()
         except CredentialsError:
             return False
+        if self._creds.account_uuid and fresh.account_uuid != self._creds.account_uuid:
+            raise CredentialsError("credential account identity changed; create a new client explicitly")
         stale = self._creds.stale_refresh_token
         if stale and fresh.refresh_token in (stale, ""):
             return False  # the store is behind an unsaved refresh: ours are the live tokens
@@ -429,13 +472,19 @@ class RemoteControlClient(
             and fresh.refresh_token == self._creds.refresh_token
         ):
             return False
+        if not self._creds.account_uuid:
+            # An unchanged refresh grant proves lineage; an access-only slot or
+            # rotated unidentified login does not. Fail closed rather than
+            # silently following a different account in a shared store.
+            if not self._creds.refresh_token or fresh.refresh_token != self._creds.refresh_token:
+                raise CredentialsError("cannot verify account continuity of changed legacy credentials")
         self._creds = self._auth.credentials = fresh
         return True
 
     def _refresh(self) -> None:
         # The CLI owns these rotating grants; even a persisted refresh would
         # invalidate another consumer's in-memory credential.
-        if self._creds.source_keychain or self._creds.source_path == default_credentials_path():
+        if shared_credentials(self._creds):
             raise CredentialsError(
                 "shared CLI credentials are read-only; use Chrome CDP cookie auth "
                 "or credentials_path pointing to a client-owned OAuth login"
@@ -468,7 +517,7 @@ class RemoteControlClient(
             return False
         if self._reload_credentials():
             return True
-        if not self._creds.refresh_token:
+        if not self._creds.refresh_token or shared_credentials(self._creds):
             return False
         try:
             self._refresh()
@@ -508,7 +557,8 @@ class RemoteControlClient(
             return False
         if stored and stored != refused:
             creds.trusted_device_token = stored
-        elif may_enroll and self._persist_refresh and _may_try_enrolling():
+        elif (may_enroll and self._allow_device_enrollment and not shared_credentials(creds)
+              and self._persist_refresh and _may_try_enrolling()):
             enroll_trusted_device(creds, base_url=self.base_url, client=self._refresher, after_refusal=True)
         return bool(creds.trusted_device_token) and creds.trusted_device_token != refused
 
@@ -536,6 +586,35 @@ class RemoteControlClient(
             except (APIError, CredentialsError, httpx.HTTPError):
                 self._org_uuid = None
         return self._org_uuid
+
+    def _check_cookie_identity(self) -> None:
+        """Pin the browser account before first use and validate after rereads.
+
+        A changed login is never used for the caller's operation. Organization
+        remains the original explicit/cookie selection, not the new browser tab's.
+        """
+        if self._checking_identity:
+            return
+        self._checking_identity = True
+        try:
+            try:
+                body = self._request("GET", "/api/account", org=False, web=False, retry=False)
+            except APIError as exc:
+                # A new client may start with stale cookies. Establish its first
+                # identity from the original source before sending any operation.
+                if (self._account_uuid is not None or not self._auto_refresh
+                        or exc.failure_kind not in ("authentication", "authentication_or_policy")
+                        or not self.cookie_jar.reread()):
+                    raise
+                body = self._request("GET", "/api/account", org=False, web=False, retry=False)
+            account = body.get("uuid") if isinstance(body, dict) else None
+            if not account:
+                raise CredentialsError("could not establish cookie account identity")
+            if self._account_uuid is not None and account != self._account_uuid:
+                raise CredentialsError("cookie account identity changed; create a new client explicitly")
+            self._account_uuid = account
+        finally:
+            self._checking_identity = False
 
     def _headers(
         self,
@@ -577,6 +656,7 @@ class RemoteControlClient(
         return path if path.startswith(("http://", "https://")) else self.base_url + "/" + path.lstrip("/")
 
     # -- the narrow waist ---------------------------------------------------
+    @_auth_serialized
     def _send(
         self,
         method: str,
@@ -617,6 +697,20 @@ class RemoteControlClient(
         With ``stream=True`` the body is left unread: iterate it, then close the
         response (``with contextlib.closing(client._send(..., stream=True)) as resp:``).
         """
+        # Reject a cross-origin URL before constructing auth headers.
+        target, base = httpx.URL(self._abs(path)), httpx.URL(self.base_url)
+        if (target.scheme, target.host, target.port) != (base.scheme, base.host, base.port):
+            raise CredentialsError("authenticated cross-origin requests are not allowed")
+        jar = self._auth.jar
+        if jar is not None and jar.source != webauth.EXPLICIT and self._account_uuid is None and not self._checking_identity:
+            self._check_cookie_identity()
+        if files is not None:
+            entries = files.items() if isinstance(files, Mapping) else files
+            files = list(entries)
+            for _, value in files:
+                payload = value[1] if isinstance(value, tuple) else value
+                if not isinstance(payload, (bytes, str)):
+                    raise ValueError("multipart replay requires bytes or str, not file objects")
         method = method.upper()
         idempotent = method in _IDEMPOTENT if retry is None else retry
         json_body = files is None and data is None and content is None
@@ -652,14 +746,42 @@ class RemoteControlClient(
                     resp.close()
                     raise webauth.challenge_error(resp)
             again = None
-            if status == 401 and not renewed and self._renew_after_401():
+            bearer_renewed = False
+            if status == 401 and not renewed:
+                try:
+                    bearer_renewed = self._renew_after_401()
+                except Exception:
+                    resp.close()
+                    raise
+            if bearer_renewed:
                 renewed, again = True, 0.0
-            elif status in (401, 403) and jar is not None and not renewed and jar.reread():
-                renewed, again = True, 0.0
+            elif status in (401, 403) and jar is not None and not renewed and not self._checking_identity:
+                # Snapshot first: a rejected identity must not poison future calls.
+                if status == 403:
+                    body = resp.read().decode(errors="replace") if stream else resp.text
+                    if APIError(status, body).failure_kind in ("policy", "trusted_device"):
+                        if status in accept:
+                            return resp
+                        resp.close()
+                        raise APIError(status, body, resp.headers.get("request-id"))
+                old = (dict(jar.cookies), jar.source, jar.detail, jar.seed)
+                if self._auto_refresh:
+                    try:
+                        if jar.reread():
+                            self._check_cookie_identity()
+                            renewed, again = True, 0.0
+                    except Exception:
+                        jar.cookies, jar.source, jar.detail, jar.seed = old
+                        resp.close()
+                        raise
             elif status == 403 and jar is None and not device_renewed:
                 body = resp.read().decode(errors="replace") if stream else resp.text
-                if self._renew_device_token(body):
-                    device_renewed, again = True, 0.0
+                try:
+                    if self._renew_device_token(body):
+                        device_renewed, again = True, 0.0
+                except Exception:
+                    resp.close()
+                    raise
             elif status == 429 and attempt < _MAX_RETRIES:
                 attempt += 1
                 again = _retry_delay(attempt, resp)

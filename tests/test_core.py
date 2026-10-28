@@ -164,7 +164,7 @@ def test_resolve_auth_without_any_source_raises():
         resolve_auth()
 
 
-def test_cswap_slot_is_reread_when_expired(monkeypatch):
+def test_cswap_slot_change_without_identity_fails_closed(monkeypatch):
     tokens = iter([("slot-old", 1), ("slot-new", 9999999999999)])
     auth = resolve_auth(cswap_slot="2", slot_token=lambda s: next(tokens))
     seen = []
@@ -172,18 +172,14 @@ def test_cswap_slot_is_reread_when_expired(monkeypatch):
         lambda r: seen.append(r.headers["authorization"]) or httpx.Response(200, json={})
     )) as rc:
         monkeypatch.setattr(client_mod, "refresh_credentials", lambda *a, **k: pytest.fail("cswap owns refresh"))
-        rc.get_session("cse_1")
-    assert seen == ["Bearer slot-new"]
+        with pytest.raises(CredentialsError, match="account continuity"):
+            rc.get_session("cse_1")
+    assert seen == []
 
 
-def test_load_slot_token_reuses_account_inject_without_side_effects():
-    from claude_rc.credentials import _account_inject_path
-
-    if _account_inject_path() is None:
-        pytest.skip("cc-proxy (scripts/account_inject.py) is not installed here")
+def test_load_slot_token_is_lazy_and_read_only():
     slot_token = load_slot_token()
-    assert slot_token.__name__ == "slot_token"
-    assert slot_token.__globals__["MARGIN_MS"] == 5 * 60 * 1000
+    assert callable(slot_token)
     # claude_swap is not installed here: the reader fails as a credentials error.
     from claude_rc.credentials import cswap_credentials
     try:
@@ -349,6 +345,8 @@ def test_cookie_mode_moves_to_claude_ai(monkeypatch):
     seen = []
 
     def handler(req):
+        if req.url.path == "/api/account":
+            return httpx.Response(200, json={"uuid": "account-test"})
         seen.append(req)
         return httpx.Response(401 if req.url.path.endswith("/archive") else 200, json={})
 
@@ -378,8 +376,9 @@ def test_cookie_mode_org_lookup_unverified_route():
 def test_absolute_urls_pass_through():
     seen = []
     with _client(lambda r: seen.append(str(r.url)) or httpx.Response(200, json={"ok": True})) as rc:
-        assert rc._request("POST", "https://claude.ai/api/x", json={}) == {"ok": True}
-    assert seen == ["https://claude.ai/api/x"]
+        with pytest.raises(CredentialsError, match="cross-origin"):
+            rc._request("POST", "https://claude.ai/api/x", json={})
+    assert seen == []
 
 
 # --- streaming through the waist ----------------------------------------------------

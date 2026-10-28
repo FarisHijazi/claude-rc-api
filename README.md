@@ -73,17 +73,31 @@ uv sync --extra cli --extra test    # + pytest
 
 ## Prerequisites
 
-1. Log in to Claude Code with a claude.ai account (Pro/Max/Team/Enterprise):
-   `claude` → `/login`. (API-key logins can't use Remote Control.)
+1. Sign into claude.ai in Chrome (cookie mode), or use an existing Claude Code
+   subscription login (bearer mode). API-key logins cannot use Remote Control.
 2. Have a session to drive: run `claude remote-control` (or
    `claude --remote-control`) in some project. That registers a session you can
    then control from here.
 
-Credentials load automatically: the OAuth token from `~/.claude/.credentials.json`
-(on macOS, first from the login Keychain item `Claude Code-credentials`, as the
-CLI does) and the `organizationUuid` from `~/.claude.json`. Override them with
-`CLAUDE_RC_ACCESS_TOKEN` / `CLAUDE_CODE_OAUTH_TOKEN` and `CLAUDE_RC_ORG_UUID`,
-and the Trusted Devices token with the CLI's `CLAUDE_TRUSTED_DEVICE_TOKEN`.
+## Authentication
+
+Credentials resolve through `credentials.resolve_auth`: explicit arguments first,
+then env/CDP/state/Chrome cookies, an isolated client-owned file at
+`$XDG_CONFIG_HOME/claude-rc/credentials.json` (default `~/.config/claude-rc/`),
+then bearer env overrides and read-only cswap/CLI/Keychain sources.
+`credentials_path=` explicitly selects a file even when a browser is available.
+Cookie clients pin `/api/account` before use, re-read their original source once
+on an auth failure, and verify the same account before replaying the operation;
+the selected organization stays fixed. Known policy denials and Cloudflare
+challenges are not treated as expired cookies. Unidentified legacy bearer/slot
+changes fail closed unless an unchanged nonempty refresh grant proves lineage;
+use the default cookie path for continuously re-readable browser authentication.
+
+Use `RemoteControlClient(direct=True)` to ignore proxy/CA environment variables
+for that client's HTTP transports without changing the process environment.
+Explicit PKCE enrollment helpers live in `claude_rc.login`; see
+`docs/devlog/claude_2026-10-28-group01-auth-foundation.md` for their signatures
+and the distinction between offline coverage and live verification.
 
 ## CLI
 
@@ -132,7 +146,7 @@ serve_webui(host="127.0.0.1", port=8765, open_browser=True)
 ```python
 from claude_rc import RemoteControlClient
 
-rc = RemoteControlClient()                 # reads ~/.claude, refreshes token as needed
+rc = RemoteControlClient()                 # signed-in Chrome first; no copied cookie
 
 # discover sessions
 for s in rc.sessions():
@@ -236,22 +250,20 @@ ev.attestation   # "UNSPECIFIED" | "VERIFIED" | "ABSENT" … (Trusted Devices)
   worker queries (`ask`, `info`, `side_question`, `get_*`) leave a
   `control_request` / `control_response` pair in the event log, as claude.ai's
   own attach does; a side question also costs a model call.
-- Orgs that require Trusted Devices refuse an unenrolled machine with a 403
-  `untrusted_device`. The client then enrolls it as the CLI does
-  (`enroll_trusted_device`, which emails the account owner), saves the token
-  as `trustedDeviceToken` next to the login that enrolled, and retries, with
-  the CLI's guards against enrolling in a loop. Workers can still drop
-  controller events that carry no device signature; this library doesn't
-  sign. `ev.attestation` shows what the server recorded, and
-  API_REFERENCE.md §3.4 has the details.
-- Token refresh writes the new tokens back where they came from (the
-  credentials file or the macOS Keychain item) the way the CLI's own refresh
-  does: only over the login it refreshed, keeping the rest of the document.
-  Neither that nor an enrollment takes the CLI's lock files, so a write
-  racing one of the CLI's can lose one side. `persist_refresh=False` keeps
-  refreshes in memory and turns lazy enrollment off, but the refresh token a
-  refresh spends is the CLI's too, so the CLI must sign in again.
-- This project never prints or transmits your tokens.
+- Trusted-device enrollment is **opt-in**: `allow_device_enrollment=True` only
+  permits it for a client-owned credential source. Default requests never enroll
+  or email the owner. Existing device tokens can still be re-read and retried.
+  The upstream refusal cooldowns remain; this library does not sign events, so
+  `served_call_unsigned` cannot be repaired by enrolling again. See
+  `API_REFERENCE.md` §3.4.
+- Shared CLI/Keychain/cswap/proxy credentials are never refreshed, including an
+  explicit path or symlink into a known shared store. Client-owned refreshes
+  serialize the complete exchange and compare-and-swap write using a sidecar
+  OS lock; token files are atomically replaced with mode 0600. A new client-owned
+  enrollment is always explicit and cannot overwrite an existing file.
+- Credential reprs and exception messages do not include secret values or raw
+  response bodies. `APIError.body` is available for deliberate inspection and
+  may contain sensitive data; do not log it.
 
 ## Used by
 

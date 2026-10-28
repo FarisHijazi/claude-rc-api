@@ -254,7 +254,7 @@ def _write_creds(p: Path, token: str, refresh: str, expires_at_ms: int) -> None:
     p.write_text(json.dumps({"claudeAiOauth": {
         "accessToken": token, "refreshToken": refresh,
         "expiresAt": expires_at_ms, "scopes": ["user:inference"],
-        "subscriptionType": "max"}}))
+        "subscriptionType": "max"}, "claudeRcAccountUuid": "account-test"}))
 
 
 def _client_for(p: Path):
@@ -519,6 +519,7 @@ def test_send_message_message_uuid(monkeypatch):
 def _keychain_doc(token: str, refresh: str, expires_at_ms: int) -> str:
     return json.dumps({
         "mcpOAuth": {"srv": {"accessToken": "mcp"}},
+        "claudeRcAccountUuid": "account-test",
         "claudeAiOauth": {
             "accessToken": token, "refreshToken": refresh,
             "expiresAt": expires_at_ms, "scopes": ["user:inference"],
@@ -561,24 +562,12 @@ def test_explicit_path_skips_keychain(fake_keychain, tmp_path: Path):
     assert load_credentials(p).access_token == "file-token"
 
 
-def test_refresh_persists_back_to_keychain(fake_keychain):
-    """A refresh spends the single-use refresh token, so the rotated pair must
-    land back in the Keychain — or the CLI itself is logged out — without
-    clobbering the document's other keys."""
-    import httpx
+def test_shared_keychain_refresh_is_refused(fake_keychain):
     from claude_rc.credentials import KEYCHAIN_SERVICE, refresh_credentials
-    fake_keychain[KEYCHAIN_SERVICE] = _keychain_doc("old-token", "old-refresh", 1)
-    transport = httpx.MockTransport(lambda req: httpx.Response(200, json={
-        "access_token": "new-token", "refresh_token": "new-refresh", "expires_in": 3600}))
-    with httpx.Client(transport=transport) as http:
-        new = refresh_credentials(load_credentials(), client=http)
-    assert new.access_token == "new-token"
-    doc = json.loads(fake_keychain[KEYCHAIN_SERVICE])
-    assert doc["mcpOAuth"] == {"srv": {"accessToken": "mcp"}}
-    block = doc["claudeAiOauth"]
-    assert (block["accessToken"], block["refreshToken"]) == ("new-token", "new-refresh")
-    assert block["rateLimitTier"] == "tier"
-    assert "refreshTokenExpiresAt" not in block
+    fake_keychain[KEYCHAIN_SERVICE] = before = _keychain_doc("old-token", "old-refresh", 1)
+    with _token_endpoint() as http, pytest.raises(CredentialsError, match="read-only"):
+        refresh_credentials(load_credentials(), client=http)
+    assert fake_keychain[KEYCHAIN_SERVICE] == before
 
 
 def test_client_reloads_rotated_keychain_tokens(fake_keychain, monkeypatch):
@@ -709,7 +698,7 @@ def test_refresh_does_not_spend_the_token_when_the_keychain_is_unreadable(fake_k
     creds = load_credentials()
     monkeypatch.setattr(cr, "_keychain_read", _locked_keychain)
     posts = []
-    with _token_endpoint(posts) as http, pytest.raises(CredentialsError, match="exited 36"):
+    with _token_endpoint(posts) as http, pytest.raises(CredentialsError, match="read-only"):
         cr.refresh_credentials(creds, client=http)
     assert posts == [] and fake_keychain[cr.KEYCHAIN_SERVICE] == before
 
@@ -774,25 +763,6 @@ def test_refresh_that_loses_a_race_keeps_the_new_tokens(tmp_path: Path, caplog):
     assert "kept in memory only" in caplog.text
 
 
-def test_refresh_returns_the_new_tokens_when_saving_fails(fake_keychain, monkeypatch, caplog):
-    """Once the refresh token is spent the new pair is the only valid one, so a
-    failed save logs instead of dropping it, even where warnings are errors."""
-    import warnings
-    from claude_rc import credentials as cr
-    fake_keychain[cr.KEYCHAIN_SERVICE] = _keychain_doc("old-token", "old-refresh", 1)
-    creds = load_credentials()
-
-    def _write_fails(service, secret):
-        raise CredentialsError(f"could not update Keychain item {service!r}: timed out")
-
-    monkeypatch.setattr(cr, "_keychain_write", _write_fails)
-    with _token_endpoint() as http, warnings.catch_warnings():
-        warnings.simplefilter("error")
-        new = cr.refresh_credentials(creds, client=http)
-    assert (new.access_token, new.refresh_token) == ("new-token", "new-refresh")
-    assert new.stale_refresh_token == "old-refresh"
-    assert "kept in memory only" in caplog.text and "timed out" in caplog.text
-
 
 def test_refresh_survives_a_failed_file_write(tmp_path: Path, monkeypatch, caplog):
     """The live Linux path: the replace fails, the new pair comes back, and the
@@ -810,7 +780,8 @@ def test_refresh_survives_a_failed_file_write(tmp_path: Path, monkeypatch, caplo
     with _token_endpoint() as http:
         new = cr.refresh_credentials(creds, client=http)
     assert (new.access_token, new.stale_refresh_token) == ("new-token", "old-refresh")
-    assert p.read_text() == before and list(tmp_path.iterdir()) == [p]
+    assert p.read_text() == before
+    assert set(tmp_path.iterdir()) == {p, Path(str(p) + ".lock")}
     assert "could not write" in caplog.text
 
 
@@ -1026,7 +997,8 @@ _EVENTS_URL = "https://api.anthropic.com/v1/code/sessions/x/events"
 def _bare_rc_with(creds, http):
     from claude_rc.client import RemoteControlClient
 
-    rc = RemoteControlClient(credentials=creds, org_uuid="org-x", auto_refresh=False)
+    rc = RemoteControlClient(credentials=creds, org_uuid="org-x", auto_refresh=False,
+                             allow_device_enrollment=True)
     rc._http.close()
     rc._refresher.close()
     rc._org_uuid = None

@@ -27,6 +27,7 @@ module that owns the area, or a new mixin module plus one line in the
 | `client.py` | transport, headers (`build_headers`), auth hooks, session list/get/rename/archive, send/stream events, control requests (model, mode, effort, interrupt), `ManagedAgentsClient` |
 | `credentials.py` | OAuth credentials (file / macOS Keychain), refresh with CAS save, trusted devices, `resolve_auth` (the auth chain), cswap slots |
 | `webauth.py` | claude.ai cookie jar: env, state file, Chrome cookie DB, Chrome CDP; Cloudflare detection |
+| `login.py` | explicit isolated PKCE helpers; never called by auth discovery; live grant exchange still unverified |
 | `lifecycle.py` | create/unarchive/delete/share/tag/mark-read, teleport events |
 | `environments.py` | environments (public + private org routes), create/update, self-hosted pools |
 | `triggers.py` | scheduled tasks (routines) |
@@ -68,6 +69,21 @@ On dev, uv needs the proxy CA plus the system bundle:
   shared CLI file / Keychain may be re-read, but `client._refresh` refuses to
   refresh either. A client-owned OAuth login must use its own file via
   `credentials_path`, never the CLI's default path.
+- Cookie recovery pins `/api/account` and preserves the selected org. Re-read
+  only the original cookie source; policy/Cloudflare denials are not expiry.
+  Client-owned refresh exchanges use an OS sidecar lock around read/exchange/CAS.
+  Shared stores, including resolved symlinks, remain read-only. The cswap accessor
+  uses only cswap's storage reads, never the proxy reader (which can refresh a
+  backup grant). Expired slots fail closed until their owner renews them.
+  Initial account pinning can reread stale cookies once; the observed account
+  403 `permission_error` / `Invalid authorization` is an auth denial, not policy.
+- `direct=True` ignores proxy/CA env only for this client's HTTP transports;
+  never rewrite global network settings. Multipart retries require bytes/str.
+  New device enrollment requires `allow_device_enrollment=True` and an owned
+  store; default requests never enroll or email anyone.
+- Contracts, live 401 recovery evidence and explicit remaining verification:
+  `docs/devlog/claude_2026-10-28-group01-auth-foundation.md` (deliberately a plain
+  path, not an `@` include).
 - Never print, log, commit or put in fixtures any token or cookie value
   (`repr`s show names only).
 
