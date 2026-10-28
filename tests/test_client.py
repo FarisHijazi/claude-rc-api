@@ -635,6 +635,23 @@ def test_keychain_write_long_document_goes_on_argv(monkeypatch):
     assert seen["kw"]["stdin"] is subprocess.DEVNULL and "input" not in seen["kw"]
 
 
+def test_keychain_write_switches_to_argv_just_past_4032(monkeypatch):
+    """The CLI pipes a command of up to 4032 characters into `security -i`."""
+    import subprocess
+    from claude_rc import credentials as cr
+    seen = []
+    monkeypatch.setattr(cr.subprocess, "run", lambda argv, **kw: seen.append(argv) or subprocess.CompletedProcess(argv, 0, "", ""))
+    for user in ("alice", "alicex"):  # one of them makes 4032 reachable with whole bytes
+        monkeypatch.setenv("USER", user)
+        base = len(f'add-generic-password -U -a "{user}" -s "svc" -X ""\n')
+        if (cr._KEYCHAIN_STDIN_MAX - base) % 2 == 0:
+            break
+    fits = "x" * ((cr._KEYCHAIN_STDIN_MAX - base) // 2)
+    cr._keychain_write("svc", fits)
+    cr._keychain_write("svc", fits + "x")
+    assert seen[0] == ["security", "-i"] and seen[1][:2] == ["security", "add-generic-password"]
+
+
 def test_keychain_account_matches_the_cli(monkeypatch):
     from claude_rc import credentials as cr
     monkeypatch.setenv("USER", "alice.b-c_1")
@@ -740,7 +757,7 @@ def test_refresh_spends_nothing_once_the_store_has_moved_on(tmp_path: Path):
         assert posts == [] and (p.read_text() if p.exists() else None) == moved_on
 
 
-def test_refresh_that_loses_a_race_keeps_the_new_tokens(tmp_path: Path):
+def test_refresh_that_loses_a_race_keeps_the_new_tokens(tmp_path: Path, caplog):
     """The store moves on while the POST is in flight (the CLI signed in again):
     the save is skipped, and the new pair still comes back, with a warning."""
     import httpx
@@ -753,15 +770,17 @@ def test_refresh_that_loses_a_race_keeps_the_new_tokens(tmp_path: Path):
         _write_creds(p, "signed-in", "signed-in-refresh", 9999999999999)
         return httpx.Response(200, json={"access_token": "new-token", "refresh_token": "new-refresh", "expires_in": 3600})
 
-    with httpx.Client(transport=httpx.MockTransport(answer)) as http, pytest.warns(UserWarning, match="kept in memory only"):
+    with httpx.Client(transport=httpx.MockTransport(answer)) as http:
         new = refresh_credentials(creds, client=http)
-    assert new.access_token == "new-token"
+    assert new.access_token == "new-token" and new.stale_refresh_token == "old-refresh"
     assert json.loads(p.read_text())["claudeAiOauth"]["accessToken"] == "signed-in"
+    assert "kept in memory only" in caplog.text
 
 
-def test_refresh_returns_the_new_tokens_when_saving_fails(fake_keychain, monkeypatch):
+def test_refresh_returns_the_new_tokens_when_saving_fails(fake_keychain, monkeypatch, caplog):
     """Once the refresh token is spent the new pair is the only valid one, so a
-    failed save warns instead of dropping it."""
+    failed save logs instead of dropping it, even where warnings are errors."""
+    import warnings
     from claude_rc import credentials as cr
     fake_keychain[cr.KEYCHAIN_SERVICE] = _keychain_doc("old-token", "old-refresh", 1)
     creds = load_credentials()
@@ -770,9 +789,94 @@ def test_refresh_returns_the_new_tokens_when_saving_fails(fake_keychain, monkeyp
         raise CredentialsError(f"could not update Keychain item {service!r}: timed out")
 
     monkeypatch.setattr(cr, "_keychain_write", _write_fails)
-    with _token_endpoint() as http, pytest.warns(UserWarning, match="kept in memory only.*timed out"):
+    with _token_endpoint() as http, warnings.catch_warnings():
+        warnings.simplefilter("error")
         new = cr.refresh_credentials(creds, client=http)
     assert (new.access_token, new.refresh_token) == ("new-token", "new-refresh")
+    assert new.stale_refresh_token == "old-refresh"
+    assert "kept in memory only" in caplog.text and "timed out" in caplog.text
+
+
+def test_refresh_survives_a_failed_file_write(tmp_path: Path, monkeypatch, caplog):
+    """The live Linux path: the replace fails, the new pair comes back, and the
+    temporary file holding it is gone."""
+    from claude_rc import credentials as cr
+    p = tmp_path / ".credentials.json"
+    _write_creds(p, "old-token", "old-refresh", 1)
+    before = p.read_text()
+    creds = load_credentials(p)
+
+    def _replace_fails(src, dst):
+        raise PermissionError(13, "Permission denied")
+
+    monkeypatch.setattr(cr.os, "replace", _replace_fails)
+    with _token_endpoint() as http:
+        new = cr.refresh_credentials(creds, client=http)
+    assert (new.access_token, new.stale_refresh_token) == ("new-token", "old-refresh")
+    assert p.read_text() == before and list(tmp_path.iterdir()) == [p]
+    assert "could not write" in caplog.text
+
+
+def test_client_keeps_unsaved_tokens_and_saves_them_later(tmp_path: Path, monkeypatch):
+    """After a refresh that couldn't be saved, the store still holds the spent
+    pair (or the "" the CLI clears it to). The client must not reload that over
+    the live pair, and its next refresh posts the live refresh token and saves."""
+    from claude_rc import credentials as cr
+    p = tmp_path / ".credentials.json"
+    _write_creds(p, "old-token", "old-refresh", 1)
+    client = _client_for(p)
+    posts = []
+    client._refresher.close()
+    client._refresher = _token_endpoint(posts)
+    real_replace = cr.os.replace
+
+    def _replace_fails(src, dst):
+        raise PermissionError(13, "Permission denied")
+
+    monkeypatch.setattr(cr.os, "replace", _replace_fails)
+    assert client._token() == "new-token"  # refreshed, not saved
+    monkeypatch.setattr(cr.os, "replace", real_replace)
+    for cleared in (False, True):
+        if cleared:  # the CLI's own refresh hit the spent token and cleared it
+            doc = json.loads(p.read_text())
+            doc["claudeAiOauth"]["refreshToken"] = ""
+            p.write_text(json.dumps(doc))
+        assert not client._reload_credentials()
+        assert client._creds.refresh_token == "new-refresh"
+    client._creds.expires_at_ms = 1  # the live pair expires in turn
+    assert client._token() == "new-token"
+    assert [b["refresh_token"] for b in posts] == ["old-refresh", "new-refresh"]
+    assert json.loads(p.read_text())["claudeAiOauth"]["refreshToken"] == "new-refresh"
+    assert client._creds.stale_refresh_token is None
+    client.close()
+
+
+def test_refresh_saves_over_a_token_the_cli_cleared(tmp_path: Path):
+    """The CLI clears a refresh token it found dead to ""; its compare-and-swap
+    still saves over that, and so does ours."""
+    import httpx
+    from claude_rc.credentials import refresh_credentials
+    p = tmp_path / ".credentials.json"
+    _write_creds(p, "old-token", "old-refresh", 1)
+    creds = load_credentials(p)
+
+    def answer(req):
+        doc = json.loads(p.read_text())
+        doc["claudeAiOauth"]["refreshToken"] = ""
+        p.write_text(json.dumps(doc))
+        return httpx.Response(200, json={"access_token": "new-token", "refresh_token": "new-refresh", "expires_in": 3600})
+
+    with httpx.Client(transport=httpx.MockTransport(answer)) as http:
+        assert refresh_credentials(creds, client=http).stale_refresh_token is None
+    assert json.loads(p.read_text())["claudeAiOauth"]["refreshToken"] == "new-refresh"
+    # Cleared before the POST, it is a dead login: nothing is spent into it.
+    doc = json.loads(p.read_text())
+    doc["claudeAiOauth"]["refreshToken"] = ""
+    p.write_text(json.dumps(doc))
+    posts = []
+    with _token_endpoint(posts) as http, pytest.raises(CredentialsError, match="no longer holds"):
+        refresh_credentials(creds, client=http)
+    assert posts == []
 
 
 def test_unparsable_keychain_item_falls_back_to_the_file(fake_keychain, monkeypatch, tmp_path: Path):
@@ -798,8 +902,16 @@ def test_explicit_credentials_reload_from_their_own_file(tmp_path: Path, monkeyp
     monkeypatch.delenv(cr.ENV_ACCESS_TOKEN, raising=False)
     monkeypatch.delenv(cr.ENV_CLI_OAUTH_TOKEN, raising=False)
     client = RemoteControlClient(credentials=load_credentials(other), org_uuid="org-x")
+    posts = []
+    client._refresher.close()
+    client._refresher = _token_endpoint(posts)
     _write_creds(other, "other-new", "other-refresh-2", 9999999999999)
-    assert client._token() == "other-new"
+    assert client._token() == "other-new" and posts == []
+    client.close()
+    # Explicit credentials from the default file keep the CLI's own lookup,
+    # which on macOS reads the Keychain first.
+    client = RemoteControlClient(credentials=load_credentials(), org_uuid="org-x")
+    assert client._creds_path is None
     client.close()
 
 

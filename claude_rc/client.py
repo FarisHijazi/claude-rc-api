@@ -26,6 +26,7 @@ from typing import Any, Iterable, Iterator, Optional
 import httpx
 
 from ._version import __version__
+from . import credentials as _credentials
 from .credentials import (
     CredentialsError,
     OAuthCredentials,
@@ -170,9 +171,13 @@ class RemoteControlClient:
     ):
         self.base_url = base_url.rstrip("/")
         self._creds = credentials or load_credentials(credentials_path)
-        # Where rotated tokens are re-read from: the path given, else the file
-        # explicit credentials came from, else (None) the CLI's own lookup.
-        self._creds_path = credentials_path or (credentials.source_path if credentials else None)
+        # Where rotated tokens are re-read from: the path given, else a
+        # non-default file explicit credentials came from, else (None) the
+        # CLI's own lookup (on macOS the Keychain first, then the default file).
+        source = credentials.source_path if credentials else None
+        if source == _credentials.DEFAULT_CREDENTIALS_PATH:
+            source = None
+        self._creds_path = credentials_path or source
         self._org_uuid = org_uuid or load_org_uuid(config_path)
         self._auto_refresh = auto_refresh
         self._persist_refresh = persist_refresh
@@ -209,6 +214,9 @@ class RemoteControlClient:
             fresh = load_credentials(self._creds_path)
         except CredentialsError:
             return False
+        stale = self._creds.stale_refresh_token
+        if stale and fresh.refresh_token in (stale, ""):
+            return False  # the store is behind an unsaved refresh: ours are the live tokens
         if (
             fresh.access_token == self._creds.access_token
             and fresh.refresh_token == self._creds.refresh_token

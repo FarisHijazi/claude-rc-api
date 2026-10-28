@@ -74,9 +74,10 @@ The hex goes over `security -i`'s stdin so `ps` can't see it, except when the
 command is longer than 4032 characters (an `mcpOAuth` block gets there): then
 the CLI passes the same arguments on argv. An item that isn't valid JSON reads
 as no item. The service name has two variants this library doesn't follow
-(it reads only the default item and file): `CLAUDE_CONFIG_DIR` (or a non-empty
-`CLAUDE_SECURESTORAGE_CONFIG_DIR`, which overrides it) appends
-`-<first 8 hex of sha256(that dir)>`, and `CLAUDE_CODE_CUSTOM_OAUTH_URL` makes it
+(it reads only the default item and file): a config-dir suffix
+`-<first 8 hex of sha256(dir)>`, taken from `CLAUDE_SECURESTORAGE_CONFIG_DIR`
+when that is set at all (set but empty: no suffix) and otherwise from
+`CLAUDE_CONFIG_DIR`, and `CLAUDE_CODE_CUSTOM_OAUTH_URL`, which makes it
 `Claude Code-custom-oauth-credentials`. `load_credentials()` reads the Keychain
 first on macOS (unless given an explicit path), and refreshes write back to
 the same item.
@@ -88,10 +89,14 @@ compare-and-swap: only while the stored `refreshToken` is still the one it
 posted (or `""`). A store that a sign-in or sign-out has changed is left
 alone. It keeps the block's other fields (`subscriptionType`, `rateLimitTier`,
 …), and every store write holds `~/.claude/.storage-write.lock`. This
-library does the same apart from the two locks (`RemoteControlClient` adopts
-rotated tokens; `refresh_credentials()` checks the store and saves), and
-returns the new tokens even when it can't save them, since they are then the
-only valid pair.
+library follows the same rules without the two locks, and a little stricter:
+a Keychain it can't read stops the refresh (the CLI may still refresh from
+its 30-second cache). `RemoteControlClient` adopts rotated tokens, and
+`refresh_credentials()` checks the store before posting and saves after. If
+that save fails, it returns the new tokens anyway (they are the only valid
+pair), logs a warning, and sets `stale_refresh_token` to the spent token the
+store still holds. Until a later refresh saves over it, the client doesn't
+reload that stale pair, or the `""` the CLI clears it to.
 
 **Organization UUID** (needed for the `x-organization-uuid` header) lives in
 **`~/.claude.json`** → `oauthAccount.organizationUuid` (a top-level

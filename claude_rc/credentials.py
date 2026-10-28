@@ -20,13 +20,14 @@ All of the constants below were reverse-engineered from the CLI binary:
 
 from __future__ import annotations
 
+import contextlib
 import json
+import logging
 import os
 import re
 import subprocess
 import sys
 import time
-import warnings
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
@@ -34,6 +35,8 @@ from typing import Optional
 import httpx
 
 from ._version import __version__
+
+_log = logging.getLogger(__name__)
 
 # --- reverse-engineered constants ------------------------------------------
 CLAUDE_CODE_CLIENT_ID = "9d1c250a-e61b-44d9-88ed-5944d1962f5e"
@@ -95,6 +98,11 @@ class OAuthCredentials:
     # Keychain service the tokens came from (macOS); mutually exclusive with
     # ``source_path``. Either one marks the credentials as re-readable.
     source_keychain: Optional[str] = None
+    # Set while a refresh of these tokens isn't saved (it failed, or persist
+    # was off): the spent refresh token the store still holds. The store is
+    # this login, just behind, so it isn't reloaded over these tokens, and
+    # the next refresh may still save over it.
+    stale_refresh_token: Optional[str] = None
 
     def is_expired(self, skew_seconds: int = 60) -> bool:
         """True if the token is expired (or within ``skew_seconds`` of it)."""
@@ -311,16 +319,20 @@ def refresh_credentials(
     still holds this login and can be read: a locked Keychain, a sign-in or
     sign-out since, another process's refresh, or a corrupt file raises
     :class:`CredentialsError` first. If saving fails after the refresh, the
-    new tokens are still returned (with a warning): they are the only valid
-    ones left.
+    new tokens are still returned, with a logged warning and
+    :attr:`~OAuthCredentials.stale_refresh_token` set: they are the only
+    valid ones left.
     """
     if not creds.refresh_token:
         raise CredentialsError(
             "access token is expired and no refresh_token is available "
             "(token came from an env var). Re-run `claude` to refresh it."
         )
+    # A store left behind by an unsaved refresh is still this login, as is
+    # the "" the CLI clears its copy of that spent token to.
+    behind = (creds.stale_refresh_token, "") if creds.stale_refresh_token else ()
     if persist:
-        _stored_login(creds, creds.refresh_token, saving=False)
+        _stored_login(creds, (creds.refresh_token, *behind))
 
     owns_client = client is None
     client = client or httpx.Client(timeout=30.0)
@@ -361,28 +373,28 @@ def refresh_credentials(
         trusted_device_token=creds.trusted_device_token,
         source_path=creds.source_path,
         source_keychain=creds.source_keychain,
+        stale_refresh_token=creds.stale_refresh_token or creds.refresh_token,
     )
 
     if persist:
         try:
-            _persist(new, spent=creds.refresh_token)
-        except CredentialsError as exc:
-            warnings.warn(f"refreshed tokens kept in memory only: {exc}", stacklevel=2)
+            # Like the CLI's compare-and-swap, which also takes a "" it cleared.
+            _persist(new, held=(creds.refresh_token, "", *behind))
+            new.stale_refresh_token = None
+        except CredentialsError as exc:  # never raise here: `new` is the only valid pair
+            _log.warning("refreshed tokens kept in memory only: %s", exc)
     return new
 
 
-def _stored_login(creds: OAuthCredentials, refresh_token: Optional[str], *, saving: bool) -> Optional[dict]:
-    """The document ``creds`` came from, provided it still holds the login
-    whose refresh token is ``refresh_token`` (``None`` when there's no store).
-    Raises :class:`CredentialsError` when the store can't be read or has moved
-    on. Saving also accepts a refresh token the CLI cleared to ``""``, as its
-    compare-and-swap does."""
+def _stored_login(creds: OAuthCredentials, held: tuple) -> Optional[dict]:
+    """The document ``creds`` came from, provided its login's refresh token is
+    one of ``held`` (``None`` when there's no store). Raises
+    :class:`CredentialsError` when the store can't be read or has moved on."""
     data = _read_document(creds)
     if data is None:
         return None
     block = data.get("claudeAiOauth")
-    held = block.get("refreshToken") if isinstance(block, dict) else None
-    if held != refresh_token and not (saving and held == ""):
+    if not isinstance(block, dict) or block.get("refreshToken") not in held:
         where = f"Keychain item {creds.source_keychain!r}" if creds.source_keychain else creds.source_path
         raise CredentialsError(
             f"{where} no longer holds the login being refreshed (refreshed, signed in"
@@ -391,13 +403,14 @@ def _stored_login(creds: OAuthCredentials, refresh_token: Optional[str], *, savi
     return data
 
 
-def _persist(creds: OAuthCredentials, *, spent: Optional[str]) -> None:
+def _persist(creds: OAuthCredentials, *, held: tuple) -> None:
     """Write refreshed tokens back to the store they came from, the way the
     CLI's refresh saves: a compare-and-swap that writes only while the stored
-    login is the one whose refresh token was ``spent``. Only the token fields
-    change; the block's other fields (``subscriptionType``, ``rateLimitTier``
-    …) and the document's other keys (``mcpOAuth`` …) stay as stored."""
-    data = _stored_login(creds, spent, saving=True)
+    login's refresh token is one of ``held`` (the one just spent, or what the
+    store was left with). Only the token fields change; the block's other
+    fields (``subscriptionType``, ``rateLimitTier`` …) and the document's
+    other keys (``mcpOAuth`` …) stay as stored."""
+    data = _stored_login(creds, held)
     if data is None:
         return
     block = data["claudeAiOauth"]
@@ -448,6 +461,8 @@ def _write_document(creds: OAuthCredentials, data: dict) -> None:
         os.chmod(tmp, 0o600)
         os.replace(tmp, path)
     except OSError as exc:
+        with contextlib.suppress(OSError):
+            tmp.unlink()  # it holds tokens
         raise CredentialsError(f"could not write {path}: {exc}") from exc
 
 
