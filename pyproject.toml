@@ -41,5 +41,9 @@ path = "claude_rc/_version.py"
 [tool.hatch.build.targets.wheel]
 packages = ["claude_rc"]
 
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+norecursedirs = ["worktrees", ".venv"]
+
 [tool.uv]
 package = true

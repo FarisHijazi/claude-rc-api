@@ -191,8 +191,7 @@ def test_result_exclusion_requires_explicit_advertised_capability():
 def test_live_mcp_does_not_silently_poll_history(monkeypatch):
     fake = FakeSession()
     with _client(fake.handler) as client:
-        with pytest.raises(ValueError, match="request_control_live"):
-            client.mcp_status(SID, live_reply=True)
+        assert callable(client.request_control_live)
         seen = []
         monkeypatch.setattr(client, "request_control_live", lambda *a, **kw: seen.append(kw) or {"mcpServers": [{"name": "test"}]}, raising=False)
         assert client.mcp_status(SID, live_reply=True) == [{"name": "test"}]

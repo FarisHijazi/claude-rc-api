@@ -88,7 +88,10 @@ from .events import (
     interrupt,
     custom_tool_result,
 )
-from .files import attachment_ref, read_upload, user_message_with_files
+from .files import attachment_ref, read_upload, user_message_with_files, inline_image
+from .dictation import DictationError, transcribe_audio
+from .commands import UnsupportedControl, LocalCommandRequired, command_table, dispatch_command
+from .login import begin_login, finish_login
 from .interaction import (
     PendingRequest,
     Question,
@@ -172,6 +175,10 @@ __all__ = [
     "user_message",
     "interrupt",
     "custom_tool_result",
+    # new browser surfaces
+    "DictationError", "transcribe_audio", "inline_image",
+    "UnsupportedControl", "LocalCommandRequired", "command_table", "dispatch_command",
+    "begin_login", "finish_login",
     # files
     "attachment_ref",
     "read_upload",

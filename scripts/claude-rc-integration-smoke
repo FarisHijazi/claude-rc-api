@@ -1,0 +1,339 @@
+#!/usr/bin/env python3
+"""Opt-in live integration, automatic continuous auth, exact throwaway resources.
+
+Run with --output <sanitized-evidence.json>. No browser interaction, credential
+writes, sharing, network policy changes, or existing-session mutations.
+"""
+from __future__ import annotations
+
+import argparse
+import base64
+import json
+import signal
+import subprocess
+import threading
+import os
+
+import httpx
+import sys
+import time
+import uuid
+from contextlib import closing
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from claude_rc import APIError, RemoteControlClient, PendingRequest
+from claude_rc.triggers import trigger_item
+from claude_rc.webui import _RCServer, _Handler
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--output', type=Path, required=True)
+    args = parser.parse_args()
+    proof = {'run': 'integration-' + uuid.uuid4().hex[:12], 'checks': [],
+             'created': {'sessions': [], 'environments': [], 'triggers': []}, 'cleanup': []}
+    def save():
+        args.output.write_text(json.dumps(proof, indent=2) + '\n')
+    def record(name, status='passed', **details):
+        proof['checks'].append({'name': name, 'status': status, **details})
+        save()
+        print(json.dumps(proof['checks'][-1]), flush=True)
+    def deadline(*_):
+        raise TimeoutError('live step deadline')
+    signal.signal(signal.SIGALRM, deadline)
+    def check(name, fn):
+        signal.alarm(150)
+        try:
+            result = fn()
+            record(name, **(result or {}))
+            return True
+        except Exception as exc:
+            details = {'error_class': type(exc).__name__}
+            if isinstance(exc, APIError):
+                details.update(http_status=exc.status, error_type=exc.error_type)
+            record(name, 'unverified', **details)
+            return False
+        finally:
+            signal.alarm(0)
+
+    rc = RemoteControlClient(direct=True, timeout=30)  # no auth override, default recovery enabled
+    sid = env_id = None
+    server = _RCServer(('127.0.0.1', 0), _Handler, rc, False)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    panel = httpx.Client(base_url='http://127.0.0.1:' + str(server.server_port), trust_env=False, timeout=45)
+    try:
+        rc.list_sessions(limit=1)
+        assert rc._auth.origin == 'cookies:cdp'
+        account_id = rc._account_uuid
+        org = rc.org_uuid
+        record('automatic_continuous_auth', source=rc._auth.origin, auto_refresh=rc._auto_refresh,
+               account_pinned=bool(account_id))
+        def recovery():
+            # Deliberately corrupt only the in-memory jar; Chrome owns the original.
+            before = len(proof.get('requests', []))
+            jar = rc._auth.jar
+            original_reread = jar.reread
+            counts = []
+            def reread():
+                counts.append(1)
+                return original_reread()
+            jar.reread = reread
+            try:
+                for name in ('sessionKey', 'sessionKeyV3'):
+                    if name in jar.cookies:
+                        jar.cookies[name] = 'invalid-client-memory-cookie'
+                rc.list_sessions(limit=1)
+            finally:
+                jar.reread = original_reread
+            assert len(counts) == 1 and rc._account_uuid == account_id and rc.org_uuid == org
+            statuses = [r['status'] for r in proof['requests'][before:]]
+            assert statuses[0] in (401, 403) and statuses[-1] == 200
+            return {'one_reread': True, 'identity_unchanged': True, 'statuses': statuses}
+        proof['requests'] = []
+        def hook(response):
+            proof['requests'].append({'method': response.request.method,
+                'path': response.request.url.path.replace(org, '{org}'), 'status': response.status_code})
+        rc._http.event_hooks['response'].append(hook)
+        check('real_auth_recovery', recovery)
+        envs = rc.list_environments()
+        models = rc.browser_models()
+        model_ids = [m['id'] for g in models.get('model_selector_config', []) for m in g.get('models', [])]
+        assert 'claude-haiku-5-5' in model_ids
+        record('discovery', environments=len(envs), models=len(model_ids), policy_keys=sorted(rc.permission_mode_policy()))
+        check('account_discovery', lambda: {'usage_keys': sorted(rc.get_account_usage()),
+            'settings_exists': rc.get_user_settings() is not None})
+        marker = proof['run']
+        env = rc.create_cloud_environment(marker, description='Disposable integration acceptance',
+            environment={'RC_TEST_MARKER': marker}, init_script='printf integration_setup > /tmp/rc-integration-setup')
+        env_id = env['environment_id']
+        proof['created']['environments'].append(env_id)
+        save()
+        original_config = rc.get_environment(env_id)['config']
+        rc.update_environment(env_id, description='Edited disposable integration acceptance')
+        assert rc.get_environment(env_id)['config'] == original_config
+        record('environment_create_update_readback', preserved_configuration=True)
+        session = rc.create_session(env_id, title=marker, tags=[marker], model='claude-haiku-5-5',
+            permission_mode='plan', sources=[], outcomes=[])
+        sid = session['id']
+        proof['created']['sessions'].append(sid)
+        save()
+        assert rc.get_session(sid)['config']['model'] == 'claude-haiku-5-5'
+        def collect(text, expected):
+            events = rc.send_and_collect(sid, text, timeout=110)
+            assert events[-1].is_turn_end
+            assert any(expected in ev.text() for ev in events if ev.role == 'assistant')
+            return events
+        first = check('send_collect_execution', lambda: {'frames': len(collect('Reply exactly INTEGRATION_OK', 'INTEGRATION_OK'))})
+        if first:
+            def reconnect():
+                history = list(rc.iter_history(sid, page_size=2))
+                cut = history[0].sequence_num
+                replay = []
+                with closing(rc.stream_session(sid, from_sequence_num=cut, reconnect=False,
+                            deadline=time.monotonic()+25)) as stream:
+                    for event in stream:
+                        if event.sequence_num is not None:
+                            replay.append(event)
+                        if event.is_turn_end:
+                            break
+                expected = [ev for ev in history if ev.sequence_num > cut]
+                assert [e.payload for e in replay] == [e.payload for e in expected]
+                assert len({e.sequence_num for e in replay}) == len(replay)
+                return {'history_equal': True, 'durable_events': len(replay), 'page_size': 2}
+            check('reconnect_history_equality', reconnect)
+            def questions():
+                events = rc.send_and_collect(sid, 'Isolated API test. Call AskUserQuestion exactly once with THREE questions: Colour? single-select Red/Blue with preview on Blue; Toppings? multiSelect Ham/Egg; Name? choices A/B. After answering report exact received values. No other tools.', timeout=110)
+                pr = next(PendingRequest.from_payload(e.payload, e) for e in reversed(events) if e.is_blocking_control)
+                assert pr.kind == 'question' and len(pr.questions) == 3 and pr.questions[1].multi_select
+                seq = max(e.sequence_num or 0 for e in rc.iter_history(sid))
+                response = panel.post(f'/api/sessions/{sid}/answer', json={
+                    'request_id': pr.request_id, 'selections': {'0':'Blue', '1':['Ham','Egg']},
+                    'other': {'2':'Ada'}, 'notes': {'0':'integration note'},
+                    'previews': {'0':'integration preview'}})
+                assert response.status_code == 200
+                results = []
+                complete = False
+                with closing(rc.stream_session(sid, from_sequence_num=seq, reconnect=False,
+                             deadline=time.monotonic()+100)) as stream:
+                    for event in stream:
+                        for block in event._content_blocks():
+                            if isinstance(block, dict) and block.get('type') == 'tool_result' and block.get('tool_use_id') == pr.tool_use_id:
+                                assert not block.get('is_error')
+                                results.append(json.dumps(block.get('content')))
+                        if event.is_turn_end:
+                            complete = True
+                            break
+                combined = '\n'.join(results)
+                assert complete and all(v in combined for v in ('Blue','Ham,Egg','Ada','integration note','integration preview'))
+                assert not rc.pending_requests(sid, limit=3, initialize=True)
+                return {'real_worker_tool_result': True, 'single': True, 'multi': True, 'other': True,
+                        'notes_previews': True, 'pending_cleared': True}
+            check('ask_user_question_continuation', questions)
+            def controls():
+                init = rc.initialize(sid)
+                rc.run_command(sid, 'plan', 'acceptEdits')
+                assert rc.initialize(sid).get('current_permission_mode') == 'acceptEdits'
+                alternative = next(m for m in model_ids if m != 'claude-haiku-5-5')
+                for model in (alternative, 'claude-haiku-5-5'):
+                    response = panel.post(f'/api/sessions/{sid}/model', json={'model': model})
+                    assert response.status_code == 200
+                    assert rc.get_settings(sid)['applied']['model'] == model
+                rc.run_command(sid, 'effort', 'low')
+                settings = rc.get_settings(sid)['applied']
+                assert settings.get('effort') == 'low'
+                rc.run_command(sid, 'context')
+                rc.run_command(sid, 'usage')
+                answer = rc.run_command(sid, 'btw', 'Reply exactly CONTROL_OK')['result']
+                assert 'CONTROL_OK' in str(answer)
+                return {'worker_acknowledgements': True, 'state_readback': True,
+                        'advertised_commands': len(init.get('commands') or [])}
+            check('typed_slash_controls', controls)
+            # A harmless Bash invocation may run without prompting on this platform.
+            # Do not invent a permission event when none was emitted.
+            def permission_and_environment():
+                rc.set_permission_mode(sid, 'default', wait=15)
+                events = rc.send_and_collect(sid, 'Use Bash only to run: printf "%s\\n" "$RC_TEST_MARKER"; cat /tmp/rc-integration-setup . This is an isolated disposable environment test. Report output.', timeout=110)
+                prompts = [PendingRequest.from_payload(e.payload,e) for e in events if e.is_blocking_control]
+                if prompts:
+                    pr = prompts[0]
+                    assert pr.kind == 'permission'
+                    rc.allow_once(sid, pr)
+                    record('genuine_permission_response', 'unverified', reason='allow posted; independent execution assertion pending')
+                else:
+                    record('genuine_permission_response', 'unverified', reason='harmless Bash executed without a permission prompt; no fabricated response')
+                matched = [b for e in events for b in e._content_blocks() if isinstance(b,dict) and b.get('type')=='tool_result' and not b.get('is_error')]
+                assert any(marker in str(b.get('content')) and 'integration_setup' in str(b.get('content')) for b in matched)
+                assert events[-1].is_turn_end
+                return {'marker_and_setup_from_tool_result': True, 'turn_complete': True}
+            check('environment_worker_execution', permission_and_environment)
+            def files():
+                from claude_rc import default_environment
+                env = default_environment(envs)
+                file_sid = rc.create_session(env.get('environment_id') or env['id'], title=marker+'-files',
+                    model='claude-haiku-5-5', permission_mode='acceptEdits')['id']
+                proof['created']['sessions'].append(file_sid)
+                save()
+                events = rc.send_and_collect(file_sid, 'Use Write to create /mnt/user-data/working/rc-integration.txt containing exactly integration_workspace (no newline). Then reply exactly FILE_READY.', timeout=110)
+                assert events[-1].is_turn_end and any('FILE_READY' in e.text() for e in events if e.role == 'assistant')
+                response = panel.get(f'/api/sessions/{file_sid}/file', params={'path':'/mnt/user-data/working/rc-integration.txt'})
+                assert response.status_code == 200
+                before = response.json()
+                assert base64.b64decode(before['content']) == b'integration_workspace'
+                sha = before['content_sha256']
+                changed = b'integration_workspace_changed'
+                written = rc.put_synced_file(file_sid, '/working/rc-integration.txt', changed, if_match_sha256=sha)
+                after = rc.get_session_file(file_sid, '/mnt/user-data/working/rc-integration.txt')
+                # This wire field is an opaque CAS token, not SHA256(decoded content).
+                assert after['content_sha256'] == written['content_sha256']
+                assert base64.b64decode(after['content']) == changed
+                try:
+                    rc.put_synced_file(file_sid, '/working/rc-integration.txt', b'bad', if_match_sha256=sha)
+                except APIError as exc:
+                    assert exc.status == 409
+                else:
+                    raise AssertionError('CAS conflict not enforced')
+                assert rc.get_session_file(file_sid, '/mnt/user-data/working/rc-integration.txt')['content_sha256'] == after['content_sha256']
+                return {'cas_write_readback': True, 'stale_hash_http_409': True}
+            check('workspace_cas', files)
+        def cli_processes():
+            env = {**os.environ, 'PYTHONPATH': str(Path(__file__).resolve().parent.parent)}
+            cases = [['--direct','whoami'], ['--direct','models'],
+                     ['--direct','dispatch',sid,'help'],
+                     ['--direct','history',sid,'--page-size','3'],
+                     ['--direct','account','settings-shape']]
+            for argv in cases:
+                result = subprocess.run([sys.executable,'-m','claude_rc.cli',*argv],
+                    capture_output=True, env=env, timeout=45)
+                assert result.returncode == 0
+            return {'real_processes': len(cases), 'exit_codes': [0]*len(cases)}
+        check('cli_real_processes', cli_processes)
+        def panel_read():
+            assert panel.get('/').status_code == 200
+            assert panel.get('/api/whoami').json()['source'] == 'cookies:cdp'
+            assert panel.get('/api/models').status_code == 200
+            assert panel.get(f'/api/sessions/{sid}/changes').status_code == 200
+            return {'real_HTTP_adapters': True, 'browser_rendering': 'not asserted here'}
+        check('panel_http_adapter', panel_read)
+        def lifecycle():
+            rc.rename_session(sid, marker+'-renamed')
+            assert rc.get_session(sid)['title'] == marker+'-renamed'
+            rc.archive_session(sid)
+            assert rc.get_session(sid)['status'] == 'archived'
+            rc.unarchive_session(sid)
+            assert rc.get_session(sid)['status'] != 'archived'
+            collect('Reply exactly RESTORED_OK', 'RESTORED_OK')
+            return {'rename_readback': True, 'archive_readback': True, 'unarchive_real_reply': True}
+        check('lifecycle_restore_execution', lifecycle)
+        def routine():
+            body=rc.create_trigger(marker, environment_id=env_id, prompt='Reply exactly ROUTINE_OK',
+                model='claude-haiku-5-5', run_once_at='2027-12-01T00:00:00Z', enabled=False)
+            tid=trigger_item(body)['id']
+            proof['created']['triggers'].append(tid)
+            save()
+            assert not trigger_item(rc.get_trigger(tid))['enabled']
+            rc.update_trigger(tid, name=marker+'-edited')
+            assert trigger_item(rc.get_trigger(tid))['name'] == marker+'-edited'
+            fork=trigger_item(rc.fork_trigger(tid))
+            proof['created']['triggers'].append(fork['id'])
+            save()
+            result=rc.run_trigger(tid, text='Reply exactly ROUTINE_OK')
+            run_sid=result['session_id']
+            proof['created']['sessions'].append(run_sid)
+            save()
+            record('routine_run_submission', history_count=len(rc.trigger_runs(tid).get('data', [])))
+            events=[]
+            with closing(rc.stream_session(run_sid, reconnect=False, deadline=time.monotonic()+90)) as stream:
+                for event in stream:
+                    events.append(event)
+                    if event.is_turn_end or event.is_terminal or event.is_blocking_control:
+                        break
+            exact = any(e.text().strip() == 'ROUTINE_OK' for e in events if e.role=='assistant')
+            if not exact:
+                record('routine_worker_observation', 'unverified',
+                    terminal_subtypes=[e.subtype for e in events if e.is_turn_end],
+                    assistant_markers_present=False,
+                    limit_related_output=any('limit' in e.text().lower() for e in events))
+            assert exact
+            return {'actual_ROUTINE_OK_reply': True}
+        check('routine_create_edit_fork_run_execution', routine)
+    finally:
+        signal.alarm(0)
+        for resource, ids in [('sessions',proof['created']['sessions']), ('triggers',proof['created']['triggers']), ('environments',proof['created']['environments'])]:
+            for rid in ids:
+                try:
+                    if resource=='sessions':
+                        rc.archive_session(rid)
+                        rc.delete_session(rid)
+                        try:
+                            rc.get_session(rid)
+                        except APIError as exc:
+                            assert exc.status==404
+                        else:
+                            raise AssertionError('session still fetchable')
+                    elif resource=='triggers':
+                        rc.delete_trigger(rid)
+                        try:
+                            rc.get_trigger(rid)
+                        except APIError as exc:
+                            assert exc.status==404
+                        else:
+                            raise AssertionError('trigger still fetchable')
+                    else:
+                        rc.archive_environment(rid)
+                        assert rid not in [e['environment_id'] for e in rc.list_environments()]
+                    proof['cleanup'].append({'resource':resource,'id':rid,'status':'passed'})
+                except Exception as exc:
+                    proof['cleanup'].append({'resource':resource,'id':rid,'status':'failed','error_class':type(exc).__name__})
+                save()
+        panel.close()
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=5)
+        rc.close()
+    return int(any(c['status']!='passed' for c in proof['checks']+proof['cleanup']))
+
+
+if __name__=='__main__':
+    raise SystemExit(main())

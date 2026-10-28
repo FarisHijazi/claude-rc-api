@@ -1,0 +1,842 @@
+{
+  "run": "integration-9c0f352ef912",
+  "checks": [
+    {
+      "name": "automatic_continuous_auth",
+      "status": "passed",
+      "source": "cookies:cdp",
+      "auto_refresh": true,
+      "account_pinned": true
+    },
+    {
+      "name": "real_auth_recovery",
+      "status": "passed",
+      "one_reread": true,
+      "identity_unchanged": true,
+      "statuses": [
+        401,
+        200,
+        200
+      ]
+    },
+    {
+      "name": "discovery",
+      "status": "passed",
+      "environments": 4,
+      "models": 12,
+      "policy_keys": [
+        "auto_permissions",
+        "bypass_permissions"
+      ]
+    },
+    {
+      "name": "account_discovery",
+      "status": "passed",
+      "usage_keys": [
+        "amber_cistern",
+        "amber_cistern_offer",
+        "amber_gauge",
+        "amber_ladder",
+        "brass_thimble",
+        "cedar_ember",
+        "cinder_cove",
+        "copper_kite",
+        "extra_usage",
+        "five_hour",
+        "granite_teacup",
+        "harbor_lantern",
+        "iguana_necktie",
+        "juniper_tide",
+        "limits",
+        "member_dashboard_available",
+        "nimbus_quill",
+        "omelette_promotional",
+        "pace",
+        "seven_day",
+        "seven_day_breakdown",
+        "seven_day_cowork",
+        "seven_day_oauth_apps",
+        "seven_day_omelette",
+        "seven_day_opus",
+        "seven_day_sonnet",
+        "spend",
+        "starry_waterfall",
+        "tangelo",
+        "wattle_ember",
+        "weekly_scoped_shares"
+      ],
+      "settings_exists": true
+    },
+    {
+      "name": "environment_create_update_readback",
+      "status": "passed",
+      "preserved_configuration": true
+    },
+    {
+      "name": "send_collect_execution",
+      "status": "passed",
+      "frames": 35
+    },
+    {
+      "name": "reconnect_history_equality",
+      "status": "passed",
+      "history_equal": true,
+      "durable_events": 24,
+      "page_size": 2
+    },
+    {
+      "name": "ask_user_question_continuation",
+      "status": "passed",
+      "real_worker_tool_result": true,
+      "single": true,
+      "multi": true,
+      "other": true,
+      "notes_previews": true,
+      "pending_cleared": true
+    },
+    {
+      "name": "typed_slash_controls",
+      "status": "passed",
+      "worker_acknowledgements": true,
+      "state_readback": true,
+      "advertised_commands": 86
+    },
+    {
+      "name": "genuine_permission_response",
+      "status": "unverified",
+      "reason": "harmless Bash executed without a permission prompt; no fabricated response"
+    },
+    {
+      "name": "environment_worker_execution",
+      "status": "passed",
+      "marker_and_setup_from_tool_result": true,
+      "turn_complete": true
+    },
+    {
+      "name": "workspace_cas",
+      "status": "unverified",
+      "error_class": "AssertionError"
+    },
+    {
+      "name": "cli_real_processes",
+      "status": "passed",
+      "real_processes": 5,
+      "exit_codes": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "panel_http_adapter",
+      "status": "passed",
+      "real_HTTP_adapters": true,
+      "browser_rendering": "not asserted here"
+    },
+    {
+      "name": "lifecycle_restore_execution",
+      "status": "passed",
+      "rename_readback": true,
+      "archive_readback": true,
+      "unarchive_real_reply": true
+    },
+    {
+      "name": "routine_run_submission",
+      "status": "passed",
+      "history_count": 1
+    },
+    {
+      "name": "routine_worker_observation",
+      "status": "unverified",
+      "terminal_subtypes": [
+        "success"
+      ],
+      "assistant_markers_present": false,
+      "limit_related_output": true
+    },
+    {
+      "name": "routine_create_edit_fork_run_execution",
+      "status": "unverified",
+      "error_class": "AssertionError"
+    }
+  ],
+  "created": {
+    "sessions": [
+      "cse_0154EsXTUrz6sDpfyUfn8Q8V",
+      "cse_0154EsXSgAbyWz68sPCTRJJM"
+    ],
+    "environments": [
+      "env_015WKrTLGFvYEKxgrUmqHqrY"
+    ],
+    "triggers": [
+      "trig_013PQHXLAFQKCFAHBe7nYkuG",
+      "trig_016YaTKkJYdpcqmS2vDn6Hqw"
+    ]
+  },
+  "cleanup": [
+    {
+      "resource": "sessions",
+      "id": "cse_0154EsXTUrz6sDpfyUfn8Q8V",
+      "status": "passed"
+    },
+    {
+      "resource": "sessions",
+      "id": "cse_0154EsXSgAbyWz68sPCTRJJM",
+      "status": "passed"
+    },
+    {
+      "resource": "triggers",
+      "id": "trig_013PQHXLAFQKCFAHBe7nYkuG",
+      "status": "passed"
+    },
+    {
+      "resource": "triggers",
+      "id": "trig_016YaTKkJYdpcqmS2vDn6Hqw",
+      "status": "passed"
+    },
+    {
+      "resource": "environments",
+      "id": "env_015WKrTLGFvYEKxgrUmqHqrY",
+      "status": "passed"
+    }
+  ],
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/v1/code/sessions",
+      "status": 401
+    },
+    {
+      "method": "GET",
+      "path": "/api/account",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/code/sessions",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/environment_providers/private/organizations/{org}/environments",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/organizations/{org}/model_selector/cc",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/claude_code/organizations/{org}/permission_mode_policy",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/organizations/{org}/usage",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/claude_code/organizations/{org}/user_settings",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/v1/environment_providers/private/organizations/{org}/cloud/create",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/environment_providers/private/organizations/{org}/environments/env_015WKrTLGFvYEKxgrUmqHqrY",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/environment_providers/private/organizations/{org}/environments/env_015WKrTLGFvYEKxgrUmqHqrY",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/v1/environment_providers/private/organizations/{org}/environments/env_015WKrTLGFvYEKxgrUmqHqrY",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/environment_providers/private/organizations/{org}/environments/env_015WKrTLGFvYEKxgrUmqHqrY",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/v1/code/sessions",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V/events",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V/events/stream",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V/events",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V/events",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V/events",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V/events",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V/events",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V/events",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V/events",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V/events",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V/events",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V/events",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V/events",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V/events",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V/events",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V/events",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V/events/stream",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V/events",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V/events/stream",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V/events",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V/events",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V/events",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V/events",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V/events/stream",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V/events",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V/events",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V/events",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V/events",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V/events",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V/events",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V/events",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V/events",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V/events",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V/events",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V/events",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V/events",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V/events",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V/events",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V/events",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V/events",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V/events",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V/events",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V/events",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V/events",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V/events",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V/events",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V/events",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V/events",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V/events",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V/events",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V/events",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V/events",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V/events",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V/events",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V/events",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V/events",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V/events",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V/events",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V/events",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V/events",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V/events",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V/events",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V/events",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V/events",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V/events",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V/events",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V/events",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V/events",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V/events",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V/events",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V/events/stream",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V/events",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V/events",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V/events",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V/events",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V/events/stream",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V/events",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V/file",
+      "status": 200
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V/synced_file",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V/file",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/organizations/{org}/model_selector/cc",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V/events",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V/events",
+      "status": 200
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V/archive",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V/unarchive",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V/events",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V/events/stream",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V/events",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/v1/code/triggers",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/code/triggers/trig_013PQHXLAFQKCFAHBe7nYkuG",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/v1/code/triggers/trig_013PQHXLAFQKCFAHBe7nYkuG",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/code/triggers/trig_013PQHXLAFQKCFAHBe7nYkuG",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/v1/code/triggers/trig_013PQHXLAFQKCFAHBe7nYkuG/fork",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/v1/code/triggers/trig_013PQHXLAFQKCFAHBe7nYkuG/run",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/code/sessions",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/code/sessions/cse_0154EsXSgAbyWz68sPCTRJJM/events/stream",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V/archive",
+      "status": 200
+    },
+    {
+      "method": "DELETE",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/code/sessions/cse_0154EsXTUrz6sDpfyUfn8Q8V",
+      "status": 404
+    },
+    {
+      "method": "POST",
+      "path": "/v1/code/sessions/cse_0154EsXSgAbyWz68sPCTRJJM/archive",
+      "status": 200
+    },
+    {
+      "method": "DELETE",
+      "path": "/v1/code/sessions/cse_0154EsXSgAbyWz68sPCTRJJM",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/code/sessions/cse_0154EsXSgAbyWz68sPCTRJJM",
+      "status": 404
+    },
+    {
+      "method": "DELETE",
+      "path": "/v1/code/triggers/trig_013PQHXLAFQKCFAHBe7nYkuG",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/code/triggers/trig_013PQHXLAFQKCFAHBe7nYkuG",
+      "status": 404
+    },
+    {
+      "method": "DELETE",
+      "path": "/v1/code/triggers/trig_016YaTKkJYdpcqmS2vDn6Hqw",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/code/triggers/trig_016YaTKkJYdpcqmS2vDn6Hqw",
+      "status": 404
+    },
+    {
+      "method": "POST",
+      "path": "/v1/environment_providers/private/organizations/{org}/environments/env_015WKrTLGFvYEKxgrUmqHqrY/archive",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/environment_providers/private/organizations/{org}/environments",
+      "status": 200
+    }
+  ]
+}

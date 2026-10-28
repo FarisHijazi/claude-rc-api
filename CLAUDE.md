@@ -28,21 +28,13 @@ module that owns the area, or a new mixin module plus one line in the
 | `credentials.py` | OAuth credentials (file / macOS Keychain), refresh with CAS save, trusted devices, `resolve_auth` (the auth chain), cswap slots |
 | `webauth.py` | claude.ai cookie jar: env, state file, Chrome cookie DB, Chrome CDP; Cloudflare detection |
 | `login.py` | explicit isolated PKCE helpers; never called by auth discovery; live grant exchange still unverified |
-| `lifecycle.py` | create/unarchive/delete/share/tag/mark-read, teleport events |
 | `lifecycle.py` | create/unarchive/delete/share/tag, filtered/local-title discovery, cookie repo/branch pickers, guarded support/debug export, secret scan, teleport events |
-| `environments.py` | environments (public + private org routes), create/update, self-hosted pools |
 | `environments.py` | environments (cookie private writes + bearer lineage), recursive config merging, archive, self-hosted pool reads, network profiles/rules/credentials |
 | `account.py` | read-only web usage/settings/profile/subscription/connectors/skills; distinct from session worker settings and usage |
-| `triggers.py` | scheduled tasks (routines) |
-| `interaction.py` | pending prompts, permission + AskUserQuestion answers, slash commands, generic controls; stream methods delegate to `streaming.py` |
 | `streaming.py` | paginated durable history, metadata/ephemeral session streams, bounded reconnect/backfill, live control correlation, account watch; opt-in CLI registration helpers |
-| `interaction.py` | slash commands, generic controls, `stream_session` (keeps meta frames), account `watch` feed |
 | `prompts.py` | pending prompts, permission decisions, AskUserQuestion answers/annotations, explicit worker versus browser unanswered encodings, dialog/elicitation/hook responses; re-exported by `interaction.py` for compatibility |
 | `commands.py` | cloud admission/direction gates, typed slash dispatch, browser model/policy discovery, captured MCP REST and staging contracts; CLI registration/dispatch helpers for integration |
-| `interaction.py` | compatibility delegates for slash dispatch, typed session controls, pending prompts, permission + AskUserQuestion answers, `stream_session` (keeps meta frames), account `watch` feed |
 | `triggers.py` | scheduled tasks (routines); CLI job updates must preserve unspecified nested configuration |
-| `interaction.py` | pending prompts, permission + AskUserQuestion answers, slash commands, generic controls, `stream_session` (keeps meta frames), account `watch` feed |
-| `files.py` | attachments / Files API |
 | `interaction.py` | pending prompts, permission + AskUserQuestion answers, slash commands, generic controls, `stream_session` (keeps meta frames), account `watch` feed |
 | `files.py` | chat attachments, inline images, Files API staging, controller file reads and CAS sync writes |
 | `tts.py` | claude.ai text-to-speech websocket + Ogg muxer |
@@ -187,3 +179,28 @@ TTS/dictation and inline images worked live; OAuth attachment upload returned
 Independent reruns and remaining gaps are recorded in
 `docs/devlog/group07-independent-2026-10-28.json`. Dictation rejects empty or
 whitespace-only final transcripts rather than reporting a successful empty result.
+
+## Integrated verification
+
+All eight feature branches are merged. `docs/web-api.md` is the current
+per-capability matrix and endpoint map; branch devlogs retain historical states.
+`docs/devlog/claude_2026-10-28-integration-qualified.json` records the fresh
+integrated cookie-auth/worker/CLI/panel-HTTP run, including incomplete checks.
+These are deliberately plain paths, not `@` includes.
+
+- `commands`, `account`, `streaming`, and `media_cli` registration helpers are
+  wired by `cli.build_parser`; credential flags use its one client factory.
+- `InteractionMixin(PromptsMixin, CommandsMixin)` preserves prompt exports and
+  delegates streams to their owner. Live control correlation must enforce the
+  same admission gate as durable controls before opening HTTP.
+- `content_sha256` is an opaque server CAS token, not necessarily the digest of
+  decoded content. Default workspace GET/PUT namespaces are qualified; custom
+  environment paths are not. Never derive the token locally or retry a conflict
+  as an overwrite.
+- Routine enqueue/terminal success is not execution: require the actual expected
+  assistant marker. Genuine permission prompts, owned OAuth enrollment/refresh,
+  cookie uploads and full live-browser parity remain incomplete.
+- `tests/integration_adapters_test.py` covers merged boundaries;
+  `tests/panel_browser_test.py` optionally runs isolated headless Chrome via
+  `uv run --extra test --extra web --extra cli --with playwright pytest -q`.
+  Tests only collect `tests/`, never the preserved feature worktrees.

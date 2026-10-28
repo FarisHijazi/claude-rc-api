@@ -15,17 +15,18 @@ uses.
 
 ## This fork (0.6.0): Claude Code on the web
 
-`FarisHijazi/claude-rc-api` adds the rest of claude.ai/code on top of
-upstream 0.4.0: create/unarchive/delete/share/tag cloud sessions, environments
-(list/get/create/edit), scheduled tasks, every control request (model,
-permission mode, effort, interrupt), permission and AskUserQuestion answers,
-slash commands, the account watch feed, attachments, claude.ai TTS, and
+`FarisHijazi/claude-rc-api` extends upstream 0.4.0 with cloud session
+lifecycle, environments, routines, typed model/mode/effort controls, question
+and permission responses, resumable streams, workspace CAS, media, and
 claude.ai `sessionKey` cookie auth read from a signed-in Chrome
 (automatically probes `http://127.0.0.1:9222`; `CLAUDE_AI_CDP_URL` overrides,
 empty disables). Chrome owns these cookies and keeps them fresh; the client
 re-reads on auth failure. Shared CLI OAuth credentials are never refreshed;
 use a separate client-owned OAuth file for refreshable bearer auth. Shapes and live status:
-[`docs/web-api.md`](./docs/web-api.md).
+[`docs/web-api.md`](./docs/web-api.md). **Not full web parity:** routine worker
+execution, genuine permission prompts, cookie attachment uploads, owned OAuth
+refresh and several browser-only surfaces remain unqualified or unsupported.
+The matrix distinguishes live behavior from fixtures, blocked writes and gaps.
 
 ```bash
 uv add "claude-rc-api[web,cli] @ git+https://github.com/FarisHijazi/claude-rc-api"
@@ -59,9 +60,9 @@ It also ships a `ManagedAgentsClient` for the sibling public Sessions API
 As a library / CLI, straight from the repo:
 
 ```bash
-uv add "claude-rc-api @ git+https://github.com/ThatCrispyToast/claude-rc-api"   # into a uv project
-pip install "git+https://github.com/ThatCrispyToast/claude-rc-api"              # into any venv
-uvx --from "git+https://github.com/ThatCrispyToast/claude-rc-api[cli]" claude-rc list   # run the CLI, zero install
+uv add "claude-rc-api @ git+https://github.com/FarisHijazi/claude-rc-api"   # into a uv project
+pip install "git+https://github.com/FarisHijazi/claude-rc-api"              # into any venv
+uvx --from "git+https://github.com/FarisHijazi/claude-rc-api[cli]" claude-rc list   # run the CLI, zero install
 ```
 
 For development in a checkout, use [uv](https://docs.astral.sh/uv/):
@@ -75,9 +76,9 @@ uv sync --extra cli --extra test    # + pytest
 
 1. Sign into claude.ai in Chrome (cookie mode), or use an existing Claude Code
    subscription login (bearer mode). API-key logins cannot use Remote Control.
-2. Have a session to drive: run `claude remote-control` (or
-   `claude --remote-control`) in some project. That registers a session you can
-   then control from here.
+2. For a local worker, run `claude remote-control` in a project. For a cloud
+   worker, use `claude-rc create` with an available environment and model; no
+   local worker is needed.
 
 ## Authentication
 
@@ -94,7 +95,10 @@ changes fail closed unless an unchanged nonempty refresh grant proves lineage;
 use the default cookie path for continuously re-readable browser authentication.
 
 Use `RemoteControlClient(direct=True)` to ignore proxy/CA environment variables
-for that client's HTTP transports without changing the process environment.
+for that client's HTTP transports without changing the process environment
+(CLI: `claude-rc --direct whoami`). Cookie recovery defaults to enabled, but
+requires a reachable signed-in browser; a revoked login still requires signing
+in again. Shared OAuth refresh grants are never consumed.
 Explicit PKCE enrollment helpers live in `claude_rc.login`; see
 `docs/devlog/claude_2026-10-28-group01-auth-foundation.md` for their signatures
 and the distinction between offline coverage and live verification.
@@ -113,6 +117,21 @@ claude-rc send  <cse_id> "run the tests"   # send a message, print the reply
 claude-rc repl  <cse_id>         # interactive chat
 claude-rc rename <cse_id> "new title"
 claude-rc web                    # browser control panel (all sessions)
+claude-rc models                 # authoritative browser model catalog
+claude-rc policy                 # account permission-mode policy
+claude-rc repos                  # browser repository picker
+claude-rc branches org/project
+claude-rc history <cse_id> --page-size 100
+claude-rc stream <cse_id> --control-only   # local filter keeps ephemeral replies
+claude-rc dispatch <cse_id> context       # typed control, not ordinary chat
+claude-rc account usage
+claude-rc envs update <env_id> --option description=updated
+claude-rc envs archive <owned_env_id>
+claude-rc answer <cse_id> question --multi 1:Ham --other 1:Basil --note 1:optional
+claude-rc answer <cse_id> question --skip-question 0 --encoding browser
+claude-rc session-file <cse_id> /mnt/user-data/working/owned.txt
+claude-rc sync-file <cse_id> /working/owned.txt ./owned.txt --if-match <server_hash>
+claude-rc transcribe ./generated-audio.pcm   # finite PCM16/16-kHz mono; no microphone
 ```
 
 `ask` is claude.ai's "btw": the worker answers from its conversation without
@@ -129,6 +148,12 @@ permissions, and steer (interrupt / model / permission mode / effort / archive).
 claude-rc web                    # serves http://127.0.0.1:8765 and opens it
 claude-rc web --port 9000 --no-open
 ```
+
+The panel also provides model-catalog selection, typed slash dispatch, local
+`/theme light|dark`, question annotations/partial skips/dismissal, and Files /
+Changes inspection. Native text/number forms are fixture-tested, not emitted by
+the live cloud worker in acceptance. Management of routines/network profiles is
+still CLI/library work, not a completed panel feature.
 
 It's a standard-library `http.server` (no new dependencies) that proxies the
 `RemoteControlClient`. It speaks to the private API with *your* OAuth token and
@@ -153,7 +178,7 @@ for s in rc.sessions():
     meta = s.get("external_metadata") or {}
     print(s["id"], s["worker_status"], s["title"], meta.get("effort_level"))
 
-sid = rc.sessions()[0]["id"]
+sid = "<session-you-created>"  # never steer an arbitrary session from the list
 
 # ask and wait for the answer (sends, streams from the pre-send cursor, stops on `result`)
 for ev in rc.send_and_collect(sid, "summarize the current diff", print_stream=True):
@@ -168,8 +193,8 @@ for ev in rc.stream_events(sid):
 
 # steer
 rc.interrupt(sid)
-rc.set_model(sid, "claude-opus-5-5")
-rc.set_permission_mode(sid, "acceptEdits")
+rc.set_model(sid, "claude-opus-5-5", wait=15.0)
+rc.set_permission_mode(sid, "acceptEdits", wait=15.0)
 rc.set_effort(sid, "high", wait=6.0)        # low|medium|high|xhigh|max, or None = auto
 rc.rename_session(sid, "release prep")
 
@@ -293,10 +318,15 @@ tests/             # offline unit tests (pytest)
 ## Tests
 
 ```bash
-uv run --extra test pytest -q
+uv run --extra test --extra web --extra cli pytest -q
+# Include isolated headless Chrome fixtures (requires installed Chrome):
+uv run --extra test --extra web --extra cli --with playwright pytest -q
 ```
 
-All tests run offline (no network, no credentials required).
+Offline tests use fixtures and temporary localhost servers, not account
+credentials. Opt-in live checks and their honest partial results are documented
+in `docs/web-api.md`; `scripts/claude-rc-integration-smoke` records exact owned
+resources and cleans them up, returning nonzero for unqualified acceptance.
 
 ## Routine management (0.6.0)
 

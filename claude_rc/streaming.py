@@ -288,6 +288,8 @@ def request_control_live(self, session_id: str, subtype: str, *, timeout: float 
 
     if timeout <= 0:
         raise ValueError("timeout must be positive")
+    from .commands import validate_control_request
+    validate_control_request(subtype, fields, cloud=self.control_profile == "cloud")
     request_id = str(uuid.uuid4())
     deadline = time.monotonic() + timeout
     def send() -> None:

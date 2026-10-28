@@ -77,6 +77,7 @@ _R_EFFORT = re.compile(rf"^/api/sessions/{_SID}/effort$")
 _R_MARK = re.compile(rf"^/api/sessions/{_SID}/mark_read$")
 _R_ARCHIVE = re.compile(rf"^/api/sessions/{_SID}/archive$")
 _R_ANSWER = re.compile(rf"^/api/sessions/{_SID}/answer$")
+_R_WORKSPACE = re.compile(rf"^/api/sessions/{_SID}/(?P<action>file|directory|changes|sync_file|command|rename|unarchive|delete)$")
 
 
 def _indexed(mapping: Any) -> dict:
@@ -172,15 +173,17 @@ class _Handler(BaseHTTPRequestHandler):
     def _error(self, exc: Exception) -> None:
         if isinstance(exc, APIError):
             status = exc.status if 400 <= exc.status < 600 else 502
-            self._json({"error": exc.body[:1000], "status": exc.status}, status=status)
+            self._json({"error": str(exc), "status": exc.status}, status=status)
         elif isinstance(exc, CredentialsError):
             self._json({"error": str(exc)}, status=401)
         elif isinstance(exc, ControlRejected):
             self._json({"error": str(exc)}, status=502)  # the worker refused it
         elif isinstance(exc, ControlTimeout):
             self._json({"error": str(exc)}, status=504)  # the worker never answered
+        elif isinstance(exc, (ValueError, KeyError)):
+            self._json({"error": str(exc)}, status=400)
         else:
-            self._json({"error": repr(exc)}, status=500)
+            self._json({"error": type(exc).__name__}, status=500)
 
     # -- GET ---------------------------------------------------------------
     def do_GET(self) -> None:  # noqa: N802
@@ -196,6 +199,20 @@ class _Handler(BaseHTTPRequestHandler):
                 from .environments import redact_environment
 
                 return self._json({"environments": [redact_environment(e) for e in self.rc.list_environments()]})
+            if path == "/api/models":
+                return self._json(self.rc.browser_models())
+            if path == "/api/permission-policy":
+                return self._json(self.rc.permission_mode_policy())
+            m = _R_WORKSPACE.match(path)
+            if m:
+                q = self._query()
+                action, sid = m["action"], m["sid"]
+                if action == "file":
+                    return self._json(self.rc.get_session_file(sid, q.get("path", [""])[0]))
+                if action == "directory":
+                    return self._json(self.rc.list_directory(sid, q.get("path", [""])[0]))
+                if action == "changes":
+                    return self._json(self.rc.get_workspace_diff(sid))
             m = _R_STREAM.match(path)
             if m:
                 return self._stream(m["sid"])
@@ -224,6 +241,22 @@ class _Handler(BaseHTTPRequestHandler):
         try:
             if path == "/api/sessions":
                 return self._json(self._create(body))
+            m = _R_WORKSPACE.match(path)
+            if m:
+                action, sid = m["action"], m["sid"]
+                if action == "command":
+                    return self._json(self.rc.run_command(sid, body.get("name", ""), body.get("args", "")))
+                if action == "rename":
+                    return self._json(self.rc.rename_session(sid, body["title"]))
+                if action == "unarchive":
+                    return self._json(self.rc.unarchive_session(sid))
+                if action == "delete":
+                    return self._json({"deleted": self.rc.delete_session(sid)})
+                if action == "sync_file":
+                    if not body.get("if_match_sha256"):
+                        raise ValueError("CAS hash from the file read is required")
+                    return self._json(self.rc.put_synced_file(sid, body["path"], body["content"].encode(),
+                                         if_match_sha256=body["if_match_sha256"]))
             m = _R_ANSWER.match(path)
             if m:
                 return self._answer(m["sid"], body)
@@ -269,15 +302,15 @@ class _Handler(BaseHTTPRequestHandler):
                 model = (body.get("model") or "").strip()
                 if not model:
                     return self._json({"error": "missing model"}, status=400)
-                self.rc.set_model(m["sid"], model)
-                return self._json({"ok": True})
+                verdict = self.rc.set_model(m["sid"], model, wait=15.0)
+                return self._json({"ok": True, "verdict": verdict})
             m = _R_PERM.match(path)
             if m:
                 mode = (body.get("mode") or "").strip()
                 if not mode:
                     return self._json({"error": "missing mode"}, status=400)
-                self.rc.set_permission_mode(m["sid"], mode)
-                return self._json({"ok": True})
+                verdict = self.rc.set_permission_mode(m["sid"], mode, wait=15.0)
+                return self._json({"ok": True, "verdict": verdict})
             m = _R_EFFORT.match(path)
             if m:
                 effort = body.get("effort") or None
@@ -325,13 +358,20 @@ class _Handler(BaseHTTPRequestHandler):
         if req is None or req.kind != "question":
             return self._json({"error": "no pending question with that request_id"}, status=404)
         if body.get("skip"):
-            self.rc.skip_questions(sid, req)
+            self.rc.skip_questions(sid, req, encoding="browser")
+        elif body.get("dismissed"):
+            self.rc.dismiss_questions(sid, req, encoding="browser")
+        elif body.get("replied_in_chat"):
+            self.rc.questions_replied_in_chat(sid, req, encoding="browser")
         else:
             try:
                 self.rc.answer_questions(
                     sid, req, _indexed(body.get("selections")), other=_indexed(body.get("other")) or None,
                     notes=_indexed(body.get("notes")) or None,
                     skipped=body.get("skipped") or (),
+                    previews=_indexed(body.get("previews")) or None,
+                    unanswered=_indexed(body.get("unanswered")) or None,
+                    unanswered_encoding="browser",
                 )
             except (KeyError, ValueError) as exc:
                 return self._json({"error": str(exc)}, status=400)
@@ -391,9 +431,9 @@ class _Handler(BaseHTTPRequestHandler):
         except (BrokenPipeError, ConnectionResetError):
             return  # client navigated away / closed the tab
         except APIError as exc:
-            self._sse_error(exc.body[:500], exc.status)
+            self._sse_error(str(exc), exc.status)
         except Exception as exc:  # noqa: BLE001 - headers already sent; can't reply twice
-            self._sse_error(repr(exc), 500)
+            self._sse_error(type(exc).__name__, 500)
 
     def _sse_error(self, message: str, status: int) -> None:
         try:

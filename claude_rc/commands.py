@@ -308,8 +308,8 @@ class CommandsMixin:
         return self.request_control(session_id, "set_chrome_browser_hints", timeout=timeout, **fields)
 
 
-def register_command_cli(subparsers) -> None:
-    parser = subparsers.add_parser("dispatch", help="dispatch a typed/local/advertised worker slash command")
+def register_command_cli(subparsers, *, parents=()) -> None:
+    parser = subparsers.add_parser("dispatch", help="dispatch a typed/local/advertised worker slash command", parents=list(parents))
     parser.add_argument("session_id")
     parser.add_argument("name")
     parser.add_argument("args", nargs="?", default="")

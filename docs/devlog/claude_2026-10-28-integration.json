@@ -1,0 +1,143 @@
+{
+  "date": "2026-10-28",
+  "result": "INTEGRATED; partial live acceptance, not full browser parity",
+  "base": "ab779941752f166bb52a000a5dd5c15303c7d761",
+  "merged_features": [
+    "+",
+    "feat/01-auth-and-http-foundation",
+    "+",
+    "feat/02-session-discovery-creation-and-lifecycle",
+    "+",
+    "feat/03-chat-streaming-history-and-recovery",
+    "+",
+    "feat/04-permissions-questions-and-dialogs",
+    "+",
+    "feat/05-controls-models-slash-commands-and-mcp",
+    "+",
+    "feat/06-environments-network-profiles-and-account-discovery",
+    "+",
+    "feat/07-attachments-workspace-sync-and-media",
+    "+",
+    "feat/08-routines-cli-web-panel-and-integration-proof"
+  ],
+  "preservation": "All eight feature worktrees inspected clean before merging; no reset/clean/stash, no edits to those checkouts; canonical worktrees directory ignored and excluded from test discovery",
+  "changes": [
+    "Merged PromptsMixin, CommandsMixin and metadata-preserving streaming delegates without restoring duplicate implementations",
+    "Registered command/account/stream/media CLI helpers; added discovery and environment update/archive adapters; credential flags share one client factory",
+    "CLI and panel model/mode setters wait for worker verdicts; typed dispatch renders results instead of misleading sent receipts",
+    "Live control correlator now enforces the same cloud/direction admission gate before HTTP",
+    "CLI/panel errors no longer return sensitive raw API bodies",
+    "Panel catalog, native text/number fixture renderers, previews/notes/partial skips/dismiss/chat encodings, workspace inspection and session lifecycle adapters",
+    "Public helper exports, consolidated endpoint map and per-capability evidence matrix; version 0.6.0"
+  ],
+  "canonical_tests": {
+    "command": "uv run --extra test --extra web --extra cli --with playwright pytest -q",
+    "passed": 685,
+    "skipped": 0,
+    "warnings": "3 deliberate legacy fire_routine deprecation warnings",
+    "browser": "Isolated headless Chrome; no user profile or application input"
+  },
+  "downstream_rust": {
+    "command": "cargo test --manifest-path <consumer-worktree>/Cargo.toml --all -- --test-threads=1",
+    "exit": 0,
+    "passed": 1071,
+    "note": "Ran before dependency pin; Rust sources unchanged. Existing subscription smoke emitted model-unavailable diagnostic but tests passed; not proof of that model availability"
+  },
+  "live_latest": {
+    "evidence": "claude_2026-10-28-integration-qualified.json",
+    "passed_checks": [
+      "automatic_continuous_auth",
+      "real_auth_recovery",
+      "discovery",
+      "account_discovery",
+      "environment_create_update_readback",
+      "send_collect_execution",
+      "reconnect_history_equality",
+      "ask_user_question_continuation",
+      "typed_slash_controls",
+      "environment_worker_execution",
+      "workspace_cas",
+      "cli_real_processes",
+      "panel_http_adapter",
+      "lifecycle_restore_execution",
+      "routine_run_submission"
+    ],
+    "unqualified_checks": [
+      {
+        "name": "genuine_permission_response",
+        "status": "unverified",
+        "reason": "harmless Bash executed without a permission prompt; no fabricated response"
+      },
+      {
+        "name": "routine_worker_observation",
+        "status": "unverified",
+        "terminal_subtypes": [
+          "success"
+        ],
+        "assistant_markers_present": false,
+        "limit_related_output": true
+      },
+      {
+        "name": "routine_create_edit_fork_run_execution",
+        "status": "unverified",
+        "error_class": "AssertionError"
+      }
+    ],
+    "exit": 1,
+    "exit_reason": "Intentionally nonzero for genuine permission generator absence and routine marker failure"
+  },
+  "live_resource_totals": {
+    "sessions": 10,
+    "environments": 4,
+    "triggers": 8
+  },
+  "cleanup": "All manifest sessions deleted and GET 404; all manifest routines deleted and GET 404; environments archived and excluded. No preexisting-user session mutations, public shares, tokens, webhook/network-profile writes, credential refreshes or browser input",
+  "diagnosis": [
+    "First control verifier used permissionMode instead of captured current_permission_mode; fixed, full model/mode/effort readback passed on subsequent runs",
+    "content_sha256 is an opaque CAS token, not SHA256(decoded content). The dedicated live CAS and final default-workspace check passed byte readback and real stale 409",
+    "Custom environment /mnt/user-data/working path intermittently failed file reads; only default workspace namespace qualified, not papered over",
+    "Routine terminal subtype success repeatedly carried limit-related output with no ROUTINE_OK. Submission/history are accepted; worker execution is not"
+  ],
+  "remaining_plan": [
+    {
+      "capabilities": "Permission allow/deny/interrupt/always reuse; dialogs/elicitation/hooks; native text/number forms",
+      "next": "Use an owned fixture actually emitting each schema and verify its execution result; do not synthesize live proof"
+    },
+    {
+      "capabilities": "Routine marker/cron/active cancel/mode/alternative-model/live tag filters",
+      "next": "Capture actual routine worker model and account limit state, resolve limit refusal, then assert marker, scheduled firing and cancellation outcomes"
+    },
+    {
+      "capabilities": "Cookie attachment/Files upload roundtrip, delete, nonempty prefetch, mount/seed, MCP staging",
+      "next": "Capture an authorized accepted upload route and dedicated MCP fixture; current upload failures remain 401/404"
+    },
+    {
+      "capabilities": "Custom-environment workspace namespace",
+      "next": "Capture/read actual worker namespace and storage mapping before qualifying GET/PUT outside default workspace"
+    },
+    {
+      "capabilities": "Client-owned PKCE/refresh/restart/concurrency/trusted devices; platform locking; attestation signing",
+      "next": "Explicitly enroll an isolated grant with approval, never borrow a shared grant; attestation signer remains unsupported"
+    },
+    {
+      "capabilities": "Queued UUID cancel/send-now/receipt outcomes; natural worker replacement/watch 410/truncation; task messaging/control cancellation; flag state variants",
+      "next": "Use dedicated owned race fixtures and naturally observed stream conditions; offline/fault-injected coverage remains separately labelled"
+    },
+    {
+      "capabilities": "MCP mutations/REST approval effects; feedback/rating/survey; network writes/secrets/bindings; shares/support/debug; routine token/webhook",
+      "next": "Obtain explicit write approval and operate only test-owned harmless integrations; no outward writes performed as probes"
+    },
+    {
+      "capabilities": "Host-local menus, browser navigation/pin/copy, environment/routine/network panel management, full real-browser continuation/reconnect",
+      "next": "Implement host renderers and run real-browser flow on owned resources; headless fixtures and HTTP live adapters do not prove all clicks"
+    },
+    {
+      "capabilities": "Fork/grouping/templates/SCM/integration-fire and service-owned hosting/memory/runner registry",
+      "next": "Capture contracts where controller-owned, otherwise extend the existing service owner; no guessed endpoints"
+    }
+  ],
+  "checks": {
+    "diff_check": "passed",
+    "source_JSON_compilation_and_local_links": "74 files validated, no unresolved markers or long live-token patterns"
+  }
+}

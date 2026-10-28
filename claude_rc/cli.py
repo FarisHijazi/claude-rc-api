@@ -99,7 +99,8 @@ def cmd_whoami(args) -> int:
     except CredentialsError as e:
         _print(f"not logged in: {e}")
         return 1
-    with RemoteControlClient(auth=auth, org_uuid=getattr(args, "org", None)) as rc:
+    with RemoteControlClient(auth=auth, org_uuid=getattr(args, "org", None),
+                             direct=getattr(args, "direct", False)) as rc:
         org = rc.org_uuid  # explicit, env, cookie or ~/.claude.json, else one lookup
     _print(f"auth source  : {auth.origin}")
     if auth.is_cookie:
@@ -283,6 +284,7 @@ def _rc(args) -> RemoteControlClient:
         token=getattr(args, "token", None),
         session_key=getattr(args, "session_key", None),
         cswap_slot=getattr(args, "cswap_slot", None),
+        **({"direct": True} if getattr(args, "direct", False) else {}),
     )
 
 
@@ -400,7 +402,9 @@ def cmd_tag(args) -> int:
 def cmd_share(args) -> int:
     with _rc(args) as rc:
         if args.set:
-            rc.set_share(args.session_id, **_fields(args.set))
+            rc.set_share(args.session_id, confirm=args.confirm, **_fields(args.set))
+        if args.revoke:
+            rc.revoke_share(args.session_id)
         _dump(rc.get_share(args.session_id))
     return 0
 
@@ -431,8 +435,17 @@ def cmd_envs(args) -> int:
                 raise SystemExit("envs get needs an environment id")
             _dump(redact_environment(rc.get_environment(args.id)))
             return 0
-        # create
-        env = rc.create_cloud_environment(args.id or "Default", **_fields(args.option))
+        if args.action == "archive":
+            if not args.id:
+                raise ValueError("envs archive needs an id")
+            _dump(rc.archive_environment(args.id))
+            return 0
+        if args.action == "update":
+            if not args.id:
+                raise ValueError("envs update needs an id")
+            env = rc.update_environment(args.id, **_fields(args.option))
+        else:
+            env = rc.create_cloud_environment(args.id or "Default", **_fields(args.option))
         _dump(redact_environment(env))
     return 0
 
@@ -576,7 +589,11 @@ def cmd_answer(args) -> int:
             rc.deny_permission(args.session_id, req, args.message, interrupt=args.interrupt or None)
         else:
             if args.skip:
-                rc.skip_questions(args.session_id, req)
+                rc.skip_questions(args.session_id, req, encoding=args.encoding)
+            elif args.dismiss:
+                rc.dismiss_questions(args.session_id, req, encoding=args.encoding)
+            elif args.replied_in_chat:
+                rc.questions_replied_in_chat(args.session_id, req, encoding=args.encoding)
             else:
                 default = _question_key(args.question)
                 selections: dict[Any, Any] = {}
@@ -586,9 +603,13 @@ def cmd_answer(args) -> int:
                     prior = selections.get(key)
                     selections[key] = [*(prior if isinstance(prior, list) else [prior] if prior else []), label]
                 other = dict(_targeted(args.other, default)) or None
-                if not selections and not other:
+                skipped = [_question_key(key) for key in args.skip_question or ()]
+                if not selections and not other and not skipped:
                     raise SystemExit("answer question needs --select, --multi, --other or --skip")
-                rc.answer_questions(args.session_id, req, selections, other=other)
+                rc.answer_questions(args.session_id, req, selections, other=other, skipped=skipped,
+                    notes=dict(_targeted(args.note, default)) or None,
+                    previews=dict(_targeted(args.preview, default)) or None,
+                    unanswered_encoding=args.encoding)
     print(f"answered {getattr(req, 'request_id', req)}")
     return 0
 
@@ -599,8 +620,7 @@ def cmd_commands(args) -> int:
         if args.action == "run":
             if not args.name:
                 raise SystemExit("commands run needs a command name")
-            rc.run_command(args.session_id, args.name, " ".join(args.args))
-            print(f"sent /{args.name.lstrip('/')}")
+            _dump(rc.run_command(args.session_id, args.name, " ".join(args.args)))
             return 0
         cmds = rc.list_commands(args.session_id)
     if args.json:
@@ -626,7 +646,7 @@ def cmd_control(args) -> int:
 
 def cmd_model(args) -> int:
     with _rc(args) as rc:
-        rc.set_model(args.session_id, args.value)
+        rc.set_model(args.session_id, args.value, wait=15.0)
     print(f"model → {args.value}")
     return 0
 
@@ -641,7 +661,7 @@ def cmd_effort(args) -> int:
 
 def cmd_mode(args) -> int:
     with _rc(args) as rc:
-        rc.set_permission_mode(args.session_id, args.value)
+        rc.set_permission_mode(args.session_id, args.value, wait=15.0)
     print(f"permission mode → {args.value}")
     return 0
 
@@ -729,6 +749,8 @@ def _creds_parent() -> argparse.ArgumentParser:
     g.add_argument("--cswap-slot", dest="cswap_slot", default=argparse.SUPPRESS, help="claude-swap slot (access token only)")
     g.add_argument("--session-key", dest="session_key", default=argparse.SUPPRESS, help="claude.ai sessionKey cookie value")
     g.add_argument("--org", default=argparse.SUPPRESS, help="organization UUID (else looked up)")
+    g.add_argument("--direct", action="store_true", default=argparse.SUPPRESS,
+                   help="ignore proxy/CA environment for this client only")
     return c
 
 
@@ -794,14 +816,16 @@ def build_parser() -> argparse.ArgumentParser:
 
     cmd("archive", cmd_archive, "archive a session", session=True)
     cmd("unarchive", cmd_unarchive, "restore an archived session", json_out=True, session=True)
-    cmd("delete", cmd_delete, "delete a session (route unverified)", session=True)
+    cmd("delete", cmd_delete, "delete a session", session=True)
 
     pt = cmd("tag", cmd_tag, "add/remove session tags", json_out=True, session=True)
     pt.add_argument("--add", action="append")
     pt.add_argument("--remove", action="append")
 
     psh = cmd("share", cmd_share, "show (or --set) sharing", session=True)
-    psh.add_argument("--set", action="append", metavar="K=V", help="share field to write (unverified)")
+    psh.add_argument("--set", action="append", metavar="K=V", help="explicit share fields")
+    psh.add_argument("--confirm", action="store_true", help="approve public sharing")
+    psh.add_argument("--revoke", action="store_true")
 
     pm = cmd("mark-read", cmd_mark_read, "mark a session read", session=True)
     pm.add_argument("--event-id", dest="event_id")
@@ -809,7 +833,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     # -- environments / triggers --
     pv = cmd("envs", cmd_envs, "environments: list | get ID | create NAME", json_out=True)
-    pv.add_argument("action", choices=["list", "get", "create"])
+    pv.add_argument("action", choices=["list", "get", "create", "update", "archive"])
     pv.add_argument("id", nargs="?", help="environment id (get) or name (create)")
     pv.add_argument("--kind", help="filter: anthropic_cloud, bridge, …")
     pv.add_argument("--option", action="append", metavar="K=V", help="create option (JSON value)")
@@ -846,6 +870,12 @@ def build_parser() -> argparse.ArgumentParser:
     pan.add_argument("--multi", action="append", metavar="[N:]LABEL", help="multi-select choice (repeatable)")
     pan.add_argument("--other", action="append", metavar="[N:]TEXT", help='"Other" free text')
     pan.add_argument("--skip", action="store_true", help="skip the whole card")
+    pan.add_argument("--skip-question", action="append", metavar="N", help="skip one index/header/text")
+    pan.add_argument("--note", action="append", metavar="[N:]TEXT")
+    pan.add_argument("--preview", action="append", metavar="[N:]TEXT")
+    pan.add_argument("--dismiss", action="store_true")
+    pan.add_argument("--replied-in-chat", action="store_true", help="mark answered in chat; does not send chat itself")
+    pan.add_argument("--encoding", choices=["worker", "browser"], default="worker")
 
     pco = cmd("commands", cmd_commands, "slash commands: list | run NAME [ARGS…]", json_out=True, session=True)
     pco.add_argument("action", choices=["list", "run"])
@@ -888,7 +918,40 @@ def build_parser() -> argparse.ArgumentParser:
     pweb.add_argument("--port", type=int, default=8765, help="port (default: 8765)")
     pweb.add_argument("--no-open", action="store_true", help="don't open a browser window")
     pweb.add_argument("--verbose", action="store_true", help="log HTTP requests")
+    from .account import register_account_commands
+    from .commands import register_command_cli
+    from .streaming import register_stream_commands
+    from .media_cli import register_media_commands
+    register_account_commands(sub, parents=[creds])
+    register_command_cli(sub, parents=[creds])
+    register_stream_commands(sub, _rc, parents=[creds])
+    register_media_commands(cmd, _rc)
+    # Helpers deliberately reuse this factory; no second credential resolver.
+    sub.choices["account"].set_defaults(func=cmd_extension)
+    sub.choices["dispatch"].set_defaults(func=cmd_extension)
+    for name, method in (("models", "browser_models"), ("policy", "permission_mode_policy"),
+                         ("repos", "list_code_repos")):
+        cmd(name, cmd_discovery, "read-only browser discovery").set_defaults(method=method)
+    pb = cmd("branches", cmd_discovery, "repository branch picker")
+    pb.set_defaults(method="list_repo_branches")
+    pb.add_argument("repo")
     return p
+
+
+def cmd_extension(args) -> int:
+    from .account import dispatch_account_command
+    from .commands import dispatch_command_cli
+    with _rc(args) as rc:
+        dispatch = dispatch_account_command if args.cmd == "account" else dispatch_command_cli
+        _dump(dispatch(rc, args))
+    return 0
+
+
+def cmd_discovery(args) -> int:
+    with _rc(args) as rc:
+        method = getattr(rc, args.method)
+        _dump(method(args.repo) if args.method == "list_repo_branches" else method())
+    return 0
 
 
 def main(argv: Optional[list[str]] = None) -> int:
@@ -903,10 +966,13 @@ def main(argv: Optional[list[str]] = None) -> int:
         _print(f"worker: {e}")
         return 1
     except APIError as e:
-        _print(_esc(f"API error {e.status}{f' ({e.error_type})' if e.error_type else ''}: {e.body[:300]}"))
+        _print(_esc(str(e)))
         return 1
     except ValueError as e:
         _print(_esc(f"error: {e}"))
+        return 1
+    except OSError as e:
+        _print(f"local I/O error: {e.strerror or type(e).__name__}")
         return 1
     except KeyboardInterrupt:
         return 130

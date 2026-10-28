@@ -1,398 +1,294 @@
-# Claude Code on the web: shapes and live status
+# Web controller: contracts and evidence (0.6.0)
 
-`claude_rc` is a controller client for claude.ai/code. It does what the
-web app does: create, list, steer, answer, archive and delete cloud sessions,
-plus environments, scheduled tasks, uploads and claude.ai's text to speech. It
-was built in cc-proxy (vendored there as `python/claude_rc`) and moved here in
-0.5.0; read "LIVE CHECK" at the end for what has since run live. The tests use `httpx.MockTransport` and a fake
-websocket server. "Verified offline" below means checked against the specs and
-HAR. Real traffic has not confirmed it yet.
+This is the canonical `claude_rc` implementation. All eight feature branches
+are merged. It is **not full browser parity**: a captured request builder,
+queue acknowledgement, fixture test, or terminal `success` alone is not proof
+that a worker executed the requested operation.
 
-Evidence, kept in the session scratchpad and not in the repo:
+## Evidence and status vocabulary
 
-- `spec/sessions.md`: the session protocol, read out of the Claude Code CLI 2.1.312 chunks.
-- `spec/surface.md`: auth, environments, triggers, GitHub and the `/v1/code/*` inventory.
-- `spec/har-2026-10-28.md`: a sanitized HAR of the web client. It covers a new session on
-  this repo with Opus 5.5 and a "fully open network" environment, the message "hi this is
-  a test", one TTS playback, and pin/unpin.
-- `spec/web-capture-2026-10-23.md`: an earlier UI walkthrough, with URLs only.
+Each capability appears once in the matrix below. **Implemented** means a
+concrete API/adapter exists; the verification column is independent:
 
-## What already existed (survey)
+- **Live**: accepted behavior asserted against the service on owned resources.
+- **Fault-injected live**: the fault is synthetic, subsequent traffic is real.
+- **Offline**: deterministic fixtures/contracts only; no live qualification.
+- **Rejected/blocked**: actual service denial, missing fixture/grant, or an
+  outward-facing operation deliberately not submitted.
+- **Unsupported**: no captured contract or outside the controller's authority.
 
-| Project | Verdict |
-| --- | --- |
-| `ThatCrispyToast/claude-rc-api` 0.3.0 (MIT) | The base. It was a Remote Control controller on `/v1/code/sessions`; this fork extends it to the whole web surface (0.5.0, on top of upstream's 0.4.0). |
-| `jwoglom/ccweb` | **Has no licence, so it is reference only and nothing was copied.** It is a TUI over the legacy `/v1/sessions` family and replies through `claude -p --cloud`. Its v1 `session_context` create body is older than the web's v1alpha2 `config` body. |
-| ducktape API notes | A GET-only write-up with a cookie or bearer. It was the source for the watch feed's `web_claude_ai` platform requirement and its token lifetime. |
-| `lipefur/claude-rc-api`, Exhen `claude-code` 2.1.88 source | Older snapshots of the same ground. Read for drift only (sessions.md §11). |
-| cc-tmux-api, rclaude, otherside-cli, ahp | Evaluated in the scratchpad. Nothing was taken from them. |
+Evidence files are deliberately plain paths, not force-loaded includes:
 
-## Auth
+| Key | Evidence in `docs/devlog/` |
+|---|---|
+| I | `claude_2026-10-28-integration-qualified.json` (latest integrated run), `claude_2026-10-28-integration-live.json`, `claude_2026-10-28-integration-live-rerun.json`, `claude_2026-10-28-integration-live-final.json` (earlier runs retained, including verifier failures) |
+| C | `claude_2026-10-28-integration-cas.json` (independent default-workspace CAS and cleanup) |
+| A | `claude_2026-10-28-group01-auth-foundation.md` (independent auth fixes and 192 unchanged shared credential files) |
+| L | `claude_2026-10-28-group02-independent-verification.json` |
+| S | `claude_2026-10-28-streaming-independent-verification.json` |
+| Q | `claude_2026-10-28-group04-independent-verification.json` |
+| W | `claude_2026-10-28-group05-independent-summary.json` and its linked task/rerun evidence |
+| E | `claude_2026-10-28-group06-independent-evidence.json`, `claude_2026-10-28-group06-contracts.json` |
+| F | `group07-independent-2026-10-28.json` |
+| R | `claude_2026-10-28-group08-independent-evidence.json` |
+| T | `tests/integration_adapters_test.py`, `tests/panel_browser_test.py` and the area-specific offline suites |
 
-See [README authentication](../README.md#authentication) for the resolver order,
-source ownership, isolated PKCE helpers and direct-networking option. Shared
-CLI/Keychain/cswap/proxy refresh grants are read-only, not refreshed by this client.
+Branch evidence records the feature branch at the time it ran; claims that those
+branches were not yet integrated are historical, not the current main state.
 
-Cookie mode prefers an explicit/env organization, then `lastActiveOrg`; without
-one it queries `/api/organizations` once. Bearer mode uses explicit/config values,
-then `/api/oauth/profile`. Cookie recovery preserves the selected organization
-and verifies the same `/api/account` UUID before replaying an operation.
-1. Explicit arguments: `credentials`, `token`, `session_key`, `cswap_slot`. The CLI flags are
-   `--token`, `--session-key` and `--cswap-slot`.
-2. Cookies from `webauth.load_jar`: explicit cookie environment, live Chrome
-   CDP (default `http://127.0.0.1:9222`), state file, then Chrome DB. The base URL
-   moves to `https://claude.ai`.
-3. Bearer environment: `CLAUDE_AI_ACCESS_TOKEN`, then `CLAUDE_RC_ACCESS_TOKEN`,
-   then `CLAUDE_CODE_OAUTH_TOKEN`. Bare tokens are not refreshed.
-4. `CLAUDE_RC_CSWAP_SLOT`, otherwise cswap's current slot, read through
-   cc-proxy's `slot_token`. cswap owns refresh; the client only re-reads.
-5. Shared CLI credentials (file/Keychain), access-token-only and never refreshed
-   or written by this client. A separate client-owned `credentials_path` may
-   hold its own refreshable grant; it must not contain copied shared tokens.
+## Capability matrix
 
-Sessions routes require `user:sessions:claude_code`. A setup-token with only
-inference scopes is not a substitute for a full subscription login.
+### Authentication and transport
 
-## API map
+| Capability | Implementation | Verification / boundary |
+|---|---|---|
+| Automatic browser authentication, no copied cookies | Implemented | Live I/A: `cookies:cdp`, recovery enabled by default |
+| Re-read after an authenticated 401; same account/org | Implemented | Live I: real 401 → account 200 → original GET 200; exactly one reread |
+| Initial stale-cookie 403 recovery | Implemented | Live A: account 403 `Invalid authorization` → 200; distinct from policy/Cloudflare |
+| Explicit env/state/Chrome DB sources and source-pinned recovery | Implemented | Offline source variants; CDP is the live-qualified default |
+| Shared CLI/Keychain/cswap/proxy access-only credentials | Implemented | Live A: invalid bearer, zero refresh exchanges; 192 credential-file hashes unchanged; cswap reader never consumes backup grants |
+| Unidentified legacy bearer rotation | Fail-closed | Blocked: no reliable account lineage; a changed unidentified grant is not accepted silently |
+| Isolated PKCE login; owned refresh/restart/CAS locking | Implemented | Offline; no separately enrolled owned grant. Never borrow a shared refresh token |
+| Trusted-device token reread / explicit owned enrollment | Implemented | Offline; new enrollment opt-in, not performed live; Windows/macOS locks untested |
+| Device/event attestation signing | Unsupported | Caller may supply attestation to file APIs; client cannot generate signatures |
+| Direct HTTP, bounded retries, multipart replay, safe errors | Implemented | Live direct HTTP I; retry/replay combinations offline. CLI/panel do not print raw API error bodies |
 
-**Headers.** Every `/v1/code/*` call sends what the web sends (HAR):
+Continuous authentication is conditional on Chrome remaining signed in and CDP
+being reachable. The client cannot renew a revoked browser login without a new
+login; it does not promise an immortal credential or silently enroll an account.
+Explicit auth overrides still take precedence. `direct=True` / CLI `--direct`
+ignore proxy/CA environment only for that HTTP client, not the whole machine.
 
-- `anthropic-version: 2023-06-01`
-- `anthropic-beta: ccr-byoc-2025-07-29`, plus any per-call betas
-- `anthropic-client-platform: web_claude_ai`
-- `anthropic-client-feature: ccr`
-- `x-organization-uuid`
-- `Authorization: Bearer` (or the cookie)
-- `X-Trusted-Device-Token`, when one exists
+### Session discovery and lifecycle
 
-Scheduled tasks add `ccr-triggers-2026-01-30`. The Files API uses
-`files-api-2025-04-14,oauth-2025-04-20`. `/api/oauth/profile` gets the bare OAuth set. All of it
-passes through one method, `RemoteControlClient._send`. That method handles one renewal after a
-401, retries 429 (honouring `retry-after`), and retries 5xx only for idempotent methods.
+| Capability | Implementation | Verification / boundary |
+|---|---|---|
+| List/filter/page/detail; bounded local title search | Implemented | Live L; search is explicitly local, not an invented search route |
+| Repository/branch/installations/auth discovery | Implemented | Live L cookie routes; exhaustive repo enumeration unproven; bearer picker rejected locally |
+| Inline and deferred cloud creation; repo/revision/output branch/model/plan | Implemented | Live L: persisted config, applied mode and actual worker result |
+| Pool, effort, legacy and multi-source create variants | Implemented | Offline variants; actual pool hosting not qualified |
+| Title generation | Implemented | Live L |
+| Rename, tags, mark-read, presence and heartbeat | Implemented | Live L; rename also I |
+| Archive and usable unarchive | Implemented | Live I/L: fresh reply after unarchive, not merely active-state readback |
+| Exact session deletion | Implemented | Live I/L: DELETE `{}`, subsequent GET 404; no legacy fallback |
+| Share GET/create/revoke/shared-session read | Implemented | Captured contracts/offline; create requires `confirm=True`; public sharing not exercised |
+| Secret scanning | Implemented | Rejected L: GET 404; explicit harmless fallback 403. Unavailable is not a clean scan |
+| Support-share and debug-export | Implemented | Offline/blocked approval; no transcript/log export submitted |
+| Fork, spaces/grouping/templates and SCM commit/PR actions | Unsupported | Contracts not captured; no guessed routes or action names |
+| Teleport/bridge move-to-cloud | Implemented bridge-only | Offline; not a general cloud migration API |
 
-**The web platform matters.** A Remote Control worker treats a user message as human only if it
-came from a web, iOS, Android or desktop platform (sessions.md §8).
+### Chat, history and recovery
 
-**Routes:**
+| Capability | Implementation | Verification / boundary |
+|---|---|---|
+| Send, processing receipts and own-turn collection | Implemented | Live I/S: exact reply and turn completion; unrelated queued result rejected offline |
+| Paginated durable history (page size ≤500) | Implemented | Live I/S, including pages of two events |
+| Metadata-preserving stream and legacy `stream_events` delegate | Implemented | Live I/S; unknown/meta/ephemeral vocabulary retained |
+| Disconnect/resume, ordering and deduplication | Implemented | Live I/S: replay payloads equal paginated history |
+| Truncated catch-up backfill | Implemented | Fault-injected live S: synthetic truncation, real GET history; natural truncation not observed |
+| EOF/read failures and bounded reconnect/backoff | Implemented | Fault-injected live S; absolute stream deadline bounds reads/backoff, not synchronous callbacks/history requests |
+| Worker replacement / reinitialize callback | Implemented callback | Offline; caller must explicitly integrate its handshake; natural replacement unobserved |
+| Ephemeral MCP liveReply correlation | Implemented | Live S; merged `mcp_status(live_reply=True)` uses this correlator. Missed ephemeral replies cannot be replayed |
+| Account watch mint/resume/rename/archive | Implemented | Live S; notifications may be `added` snapshots, not always `changed` |
+| Watch 410/remint/resync | Implemented | Offline; natural 410 not observed |
+| Priorities, cancellation, send-now and interrupt receipts | Implemented | Offline; genuine queue outcomes and capability-matched receipts still unqualified live |
 
-| What | Route | Evidence |
-| --- | --- | --- |
-| create | `POST /v1/code/sessions` (v1alpha2). `legacy=True` sends `POST /v1/sessions` instead | HAR #16, §3 |
-| list / get / update title | `GET /v1/code/sessions[?statuses,tags,exclude_tags,trigger_id,cursor]`, `GET`/`PUT /v1/code/sessions/{id}` | HAR #21/#22, §4 |
-| tag | `PUT /v1/code/sessions/{id}` `{add_tags, remove_tags}` | §4.3 |
-| archive / unarchive | `POST …/archive` (409 means already archived), `POST …/unarchive` `{}` | §4.4 |
-| delete | `DELETE /v1/code/sessions/{id}`, falling back to `DELETE /v1/sessions/{id}` | **guess** |
-| mark read | `POST …/mark_read {event_id}` | HAR #11 |
-| share | `GET …/share`; the write is a guess | HAR #24 |
-| liveness | `POST /v1/code/sessions/heartbeat_check {session_ids: [cse_…]}` | HAR #13 |
-| send | `POST …/events {events:[{payload}]}` | HAR #18 |
-| history | `GET …/events?limit&sort_order&cursor` | HAR #26/#34 |
-| live stream | `GET …/events/stream?from_sequence_num=N[&control_only=1]` (SSE) | HAR #36, §7 |
-| account feed | `GET /v1/code/sessions/watch` with a resume token from `GET /v1/code/sessions?limit=1` | §4.11, ducktape |
-| transcript rows | `GET …/teleport-events` | §4.10 |
-| environments | `GET /v1/environment_providers`, the private org route, `POST …/cloud/create`, `GET /v1/code/last_used_environment` | HAR #2/#28, surface §2 |
-| scheduled tasks | `GET`/`POST /v1/code/triggers`, `POST /v1/code/triggers/{id}`, `POST …/{id}/run`. `DELETE …/{id} {}`, fork and per-run cancellation are also supported | surface §3 |
-| branch status | `POST /v1/code/github/get-batch-branch-status` | HAR #1 |
-| title + branch | `POST /api/organizations/{org}/dust/generate_title_and_branch` | HAR #17, CLI |
-| attachments | `POST /api/oauth/file_upload` (multipart `file`) → `file_uuid` | surface §4.4 |
-| TTS | `wss://claude.ai/api/ws/text_to_speech/text_stream` | HAR #56 |
+The server's `control_only=1` suppresses ephemeral responses. `stream_control`
+therefore filters the full stream locally by default. `server_filter=True` is an
+explicit opt-in with that limitation. Streams own and close only their own HTTP
+responses; tests do not signal browser, worker or proxy processes.
 
-Pinning a session sent **no request**. It is client-side only (the `pinnedOrder` in local
-storage), so there is nothing to implement.
+### Questions, permissions and dialogs
 
-**Create body (web, HAR #16):**
+| Capability | Implementation | Verification / boundary |
+|---|---|---|
+| Pending reconciliation, complete history and initialized snapshot | Implemented | Live Q/I; stale/cancelled prompts disappear; default lookup remains read-only |
+| Authoritative permission allow-once | Implemented | Offline T; harmless live Bash ran without a prompt, so genuine allow execution remains unverified |
+| Deny/interrupt and permanent exact-rule reuse | Implemented | Offline T; no genuine live generator; no fabricated approval counted |
+| Single/multi-select, including one-item multi | Implemented | Live Q; single/multi also through panel answer HTTP adapter I |
+| Other alone and combined with selected labels | Implemented | Live Q/I; duplicate aliases rejected before posting |
+| One-to-four question cards | Implemented | Live Q four-card; I three-card |
+| Option previews, notes and answer-preview annotations | Implemented | Live Q/I tool-result assertions; panel fixtures T |
+| Native text/number/default/unit/follow-up forms | Implemented validators/renderers | Offline T; cloud worker did not emit native kinds. Other text is not native-field proof |
+| Partial/whole skip, dismiss and replied-in-chat | Implemented | Live Q distinct browser sentinels; panel/CLI encoding adapters offline T |
+| User dialogs, elicitation and hook callbacks | Implemented API | Offline; dedicated generators absent; panel does not claim these renderers |
 
-```json
-{"title": "…", "environment_id": "env_…",
- "config": {"sources": [{"type": "git_repository", "url": "https://github.com/O/R"}],
-            "outcomes": [{"type": "git_repository",
-                          "git_info": {"type": "github", "repo": "O/R", "branches": ["claude/<slug>"]}}],
-            "model": "claude-opus-5-5", "effort_level": "medium", "append_system_prompt": "…"},
- "events": [], "tags": ["cowork-warm-start"]}
+Answers preserve the original input, question text keys, tool name and tool-use
+ID. A multi-choice answer remains a list; worker display joins it. Unanswered
+worker encoding (empty answers plus annotations) and browser sentinel encoding
+are distinct. Panel uses browser encoding; CLI defaults to worker and exposes
+`--encoding browser`. Replied-in-chat marks the prompt only; it sends no chat
+message. Native numeric constraints validate finite values and explicit wire
+min/max/step; no missing defaults are invented.
+
+### Controls, slash dispatch and MCP
+
+| Capability | Implementation | Verification / boundary |
+|---|---|---|
+| Initialize commands/capabilities | Implemented | Live I/W |
+| Authoritative pre-session model catalog and permission policy | Implemented | Live I/W; panel models load from catalog, not a hardcoded list |
+| Model/mode changes and `/model`, `/plan` | Implemented | Live I/W worker verdicts and settings/initialize readback; alternative model restored before inference |
+| Effort / `/effort` | Implemented | Live I/W settings readback |
+| Fast/advisor/thinking/view flags | Implemented | Fast-off/advisor-off worker verdicts W; independent flag readback and other variants remain offline |
+| Context/usage/btw typed dispatch | Implemented | Live I/W, exact btw response; no ordinary-text fallback |
+| Cost, plan, settings, hooks, permission rules, version, suggestions/read state | Implemented | Mixed W query evidence; full method-specific live response qualification remains incomplete |
+| Worker-advertised prompt commands | Implemented | Live W `/recap` actual completion; unadvertised names rejected |
+| Local `/help` and panel `/theme light|dark` | Implemented local | Help live CLI process I; theme and menus tested against local fixtures, no worker turn |
+| Login/config/sandbox/skills/workflows/design/slides and other host menus | Guarded, renderer absent | Unsupported in this host; `LocalCommandRequired`, never sent as chat. Account skill discovery is a separate API |
+| Directory/file/diff worker controls | Implemented | Live W owned marker reads; I Changes HTTP adapter; response can legitimately be null |
+| Guarded rewind | Implemented | Live W matching target; unguarded rewind failed earlier independent assertion |
+| Task output/stop/end-session | Implemented | Live W marker output, stopped-task notification and worker verdict |
+| Task messaging / control cancellation | Implemented | Offline; dedicated live outcomes missing |
+| MCP status/toggle/reconnect/permission override | Implemented | Status ephemeral S; mutation effects offline pending dedicated fixture; askForTools uses name objects, never scalar strings |
+| MCP call/staged input/output/expiry/result exclusion | Implemented/gated | Offline; authorized fixture absent. Remote result-exclusion has local-pipe restrictions |
+| Session MCP servers/approvals REST | Implemented | Captured contracts/offline; connector changes not submitted |
+| Feedback/rating/survey and Chrome hints | Implemented | Offline; no user feedback/logs submitted as a probe |
+| Cloud-rejected and service/agent-originated controls | Explicitly unsupported | Offline fail-before-HTTP gates, including liveReply escape path; `start_shell_task`, auth/UI resources and service events cannot become controller support by serialization |
+| Worker hosting, shared memory, SCM service and runner registry | Outside scope | Existing service owner must implement these, not a second controller-side service |
+
+`command_table()` lists routing, not proof that every local renderer exists.
+`run_command()` returns `via=local|control|worker`; worker results are queue
+acknowledgements until the stream proves execution. `set_model` and
+`set_permission_mode` retain legacy enqueue behavior without `wait=...`; CLI
+and panel now wait for the worker verdict before reporting application.
+
+### Environments, account and network configuration
+
+| Capability | Implementation | Verification / boundary |
+|---|---|---|
+| Private cookie environment list/get/pagination | Implemented | Live E/I; metadata compared to browser E; environment values never logged |
+| Create/update configuration preserving unspecified nested fields | Implemented | Live E/I readback; marker/setup actual tool output, not just config storage |
+| Environment archive | Implemented | Live E/I excluded from lists; GET may still report active |
+| Permanent environment deletion | Unsupported | No captured contract; archive is the evidenced web equivalent |
+| Self-hosted pool discovery/selection | Implemented | Reads E; actual self-hosted execution unqualified |
+| Last-used environment | Implemented | Live 404 absence E; 200 response shape unverified |
+| Account usage/settings/profile/subscription/connectors/skills | Implemented read-only | Live E browser-shape comparisons; I usage/settings; distinct from worker settings/usage |
+| Network profile detail/list, credentials/rules metadata | Implemented | Live read shapes E; metadata is not proof of secret usability |
+| Profile CRUD, bindings, network credentials/rules and rotation | Implemented | Captured/offline, writes blocked without explicit authorization |
+| Environment network secrets | Implemented | Live listing 403 on archived test environment; editable-fixture listing/writes unqualified |
+| Bearer environment write lineage | Implemented | Offline; cookie writes are the qualified path |
+
+### Files, workspace and media
+
+| Capability | Implementation | Verification / boundary |
+|---|---|---|
+| Inline image inference | Implemented | Live F actual worker reply |
+| Browser attachment multipart upload/download/reference | Implemented | Rejected F: cookie upload 401; no upload roundtrip acceptance |
+| Files API upload/download/delete | Implemented | Rejected F: upload 404; no accepted roundtrip/deletion |
+| Attachment prefetch | Implemented | Empty replacement acknowledged F; nonempty effect blocked by upload failure |
+| Mount/seed bundles | Implemented | Offline; file upload unavailable; not cookie-qualified |
+| Controller workspace GET/CAS PUT and stale-write protection | Implemented | Live C/F default workspace: byte readback and 409 without overwrite; custom-environment path behavior failed I and remains unqualified |
+| TTS/Ogg mux/CLI output | Implemented | Live F valid Opus/Ogg decoding and real CLI process; no playback required |
+| Cookie dictation final transcript | Implemented | Live F generated audio only; no microphone |
+| Dictation pre-audio reconnect | Implemented | Fault-injected live F, two attempts and nonzero backoff |
+| Dictation keepalive/natural reconnect and bearer media | Implemented subset | Offline/unqualified variants; no automatic mid-audio replay |
+| Desktop dictation tickets | Unsupported | Cookie browser websocket only |
+
+**Workspace CAS tokens are opaque.** Despite the name `content_sha256`, live C
+proves it need not equal SHA256(decoded bytes). Pass the server-returned token
+unchanged. Default read path is `/mnt/user-data/working/<file>`, write path is
+`/working/<file>`. Do not assume custom environments expose that namespace.
+A 409 propagates; do not refetch-and-overwrite automatically.
+
+### Routines and host integration
+
+| Capability | Implementation | Verification / boundary |
+|---|---|---|
+| Routine create/get/name/prompt/model/schedule updates | Implemented | Live R; I create/name readback. CLI preserves unspecified nested job fields |
+| Enable/disable, fork, nonempty paging and deletion | Implemented | Live R; fork/delete also I; exact owned IDs GET 404 |
+| Manual run and run history | Implemented | Live R/I submission and history only |
+| Actual routine worker response | Not qualified | R/I: no `ROUTINE_OK`, limit-related output despite terminal `success`; not successful execution |
+| Cron execution/mode update/alternative routine model/live tag filters | Implemented subset | Offline or unqualified live variants |
+| Active routine cancellation | Implemented | Offline; useful active-run fixture absent |
+| Routine API tokens/webhook creation | Implemented | Captured/offline; permission blocked, no token issued; intentionally no secret-printing CLI |
+| Integration fire route / legacy `fire_routine` | Unsupported/deprecated | No captured integration-fire contract; legacy function retained with warning, not recommended |
+| CLI feature helper registration and result rendering | Implemented | Live I real processes: whoami/models/dispatch/history/account; T parser/request tests; specialized unlisted CLI paths remain library-only |
+| Panel auth/question continuation/model application/Changes adapters | Implemented | Live I HTTP-to-real-service checks; actual browser interaction against live workers not asserted |
+| Panel native question variants and loading guards | Implemented | Isolated headless browser T: single/multi/Other/text/number/defaults/unit/skip/notes/previews/dismiss/chat encodings; fixtures, not live native-form proof |
+| Panel Files inspection and lifecycle controls | Implemented | HTTP contract tests T; C library CAS proof is not a live Files-button claim |
+| Panel end-to-end stream reconnect, permission rule reuse and all-click coverage | Not fully qualified | Library stream recovery is live; whole-browser live scenario remains pending |
+| Panel environment/routine/network-management menus and full workspace editor | Not implemented | APIs/CLI cover portions; panel only inspects Files/Changes and exposes core session controls |
+| Browser-local pinning/copy and complete navigation parity | Not implemented | Local UI work, not invented server grouping routes |
+| Managed Agents public API | Separate legacy client | Outside this web-controller acceptance; no paid-key test or parity claim |
+
+## Captured endpoint map
+
+Cookie base is `https://claude.ai`; bearer base is `https://api.anthropic.com`
+where supported. `/v1/code/*` uses `ccr-byoc-2025-07-29`,
+`anthropic-version: 2023-06-01`, web platform/feature headers and selected org.
+Routines add `ccr-triggers-2026-01-30`. The private Files adapter retains its
+captured beta headers; public Files SDK changes do not qualify cookie access.
+
+Abbreviations: `S=/v1/code/sessions`, `T=/v1/code/triggers`,
+`E=/v1/environment_providers/private/organizations/{org}`,
+`P=/v1/code/agent-proxy-profiles`, `N=/v1/code/agent-proxy`.
+Matrix status above applies to every route; listing a route is not live proof.
+
+| Surface | Captured method/path and body boundary |
+|---|---|
+| Sessions | GET/POST `S`; GET/PUT/DELETE `S/{id}`; DELETE body `{}` |
+| Archive/restore | POST `S/{id}/archive`, `S/{id}/unarchive`, `{}` |
+| Tags/read/presence | PUT session `{add_tags,remove_tags}`; POST `S/{id}/mark_read` `{event_id}`; session presence helper; POST `S/heartbeat_check` `{session_ids}` |
+| Send/history/stream | POST `S/{id}/events` `{events:[{payload}]}`; GET `…/events?limit&sort_order&cursor`; GET `…/events/stream?from_sequence_num` |
+| Account feed | GET `S?limit=1` mints token; GET `S/watch?resume_token&exclude_tags&include_trigger_sessions&channels_changed&keepalive_tolerance_seconds` |
+| Sharing | GET/POST/DELETE `S/{id}/share`; writes `{}`; GET `/v1/code/shared-sessions/{share_id}` |
+| Secret/support/debug | GET `…/share/secret-scan`; explicit POST `/api/organizations/{org}/code/shares/scan_secrets` `{text_content:[...]}`; POST/DELETE `…/support-share`; POST `…/debug-export` |
+| Repo/branch pickers | GET `/api/organizations/{org}/code/repos`; GET `/api/github/organizations/{org}/github/{owner}/{repo}/branches` |
+| GitHub status/title | GET `/v1/code/github/org-connection/installations-status`; GET org sync GitHub auth; POST `/v1/code/github/get-batch-branch-status`; POST org `/dust/generate_title_and_branch` |
+| Models/policy | GET org `/model_selector/cc`; GET `/api/claude_code/organizations/{org}/permission_mode_policy` |
+| Environment CRUD | GET `E/environments[/{id}]`; POST `E/cloud/create`; POST `E/environments/{id}` full merged object; POST `…/{id}/archive` `{}` |
+| Pools/last-used | GET `/v1/code/runners/self-hosted/pools[/{id}]`; GET `/v1/code/last_used_environment` |
+| Profiles | GET/POST `P`; GET/PATCH/DELETE `P/{id}`; POST `…/bindings`, `…/bindings:unbind` |
+| Network credentials/rules | GET/POST `N/credentials`, `N/rules`; PATCH/DELETE `…/{id}`; POST `N/credentials/{id}/rotate` |
+| Environment secrets | GET/POST `N/environment-credentials`; DELETE `…/{id}?environment_id=…` |
+| Account | GET `/api/account`, `/api/account_profile`, org `/usage`, `/subscription_details`, `/mcp/remote_servers_with_connection`, `/skills/list-skills`; code-org `/user_settings` |
+| Controller files | GET `S/{id}/file?path`; PUT `…/synced_file` `{path,content:base64,if_match_sha256?,...attestation}` |
+| Upload/mount | POST `/api/oauth/file_upload` multipart; `/v1/files` family; POST `S/{id}/files` captured mount body |
+| MCP REST | PUT `S/{id}/mcp-servers` `{mcp_servers:[...]}`; POST `…/mcp-approvals` `{tool_name,scope,tool_use_id}` |
+| Routines | GET/POST `T`; GET/POST/DELETE `T/{id}`; POST `…/run` `{}` or `{text}`; POST `…/fork` `{}`; POST `…/runs/{session_id}/cancel` `{}`; POST/DELETE `…/api-token` `{}` |
+| Webhook create | POST `/v1/code/webhook-triggers`; captured builder only; integration fire route not known |
+| TTS | WSS `/api/ws/text_to_speech/text_stream`; text chunks then close_stream; binary Opus then SpeechComplete |
+| Dictation | WSS `/api/ws/speech_to_text/voice_stream`; finite generated audio then CloseStream; final TranscriptText required |
+
+All worker controls use the **same** event writer, never separate HTTP routes.
+Admission is owned by `commands.py`; prompt responses by `prompts.py`/`events.py`;
+streaming by `streaming.py`; HTTP/auth by `client._send`. Upstream MIT
+`ThatCrispyToast/claude-rc-api` is the reused base. Prior-art/source-contract
+provenance remains in the feature evidence, not copied into a second client.
+
+## Reproducing verification
+
+```bash
+uv run --extra test --extra web --extra cli pytest -q
+uv run --extra test --extra web --extra cli --with playwright pytest -q
+uv run --extra web python scripts/claude-rc-integration-smoke --output ./integration-evidence.json
+uv run --extra web python scripts/claude-rc-stream-smoke --direct --timeout 90
 ```
 
-- A `ccpool_` id goes in `self_hosted_runner_pool_id` instead of `environment_id`.
-- The web creates the session with no events. Its first `/events` POST carries
-  `[set_permission_mode control_request, user message]`; this is `defer_events=True`.
-- The CLI puts its initial events in the create body, in the order set_max_thinking_tokens,
-  then set_permission_mode, then the prompt (§3.4). That is the default here, so creating a
-  session is one request.
-- The web signs every event with `device_attestation`. This client cannot sign, so it sends the
-  events unsigned.
+The integration smoke returns nonzero for **any** unqualified check, including
+known missing permission generators and routine execution. Its output stores
+request paths/statuses and exact created IDs, never credentials, environment
+values, or existing transcripts. Every manifest ID is cleaned up in `finally`.
+The browser test uses isolated headless Chrome, not the user's profile; install
+Chrome or adjust its executable path on another platform. The fixture does not
+qualify a real worker.
 
-**Event vocabulary.**
+## Remaining acceptance plan
 
-- Controller payloads:
-  - `user`: string `content`, `session_id`, `parent_tool_use_id: null`, and optionally
-    `priority` and `file_attachments`.
-  - `control_request`, with subtypes such as `interrupt`, `set_model`, `set_permission_mode`,
-    `set_max_thinking_tokens`, `apply_flag_settings`, `initialize`, `mcp_*`, `rewind_*`,
-    `get_*` and `end_session`. `interaction.py` mirrors the cloud worker's allow and reject
-    lists.
-  - `control_response`
-  - `control_cancel_request`
-- Worker prompts: `control_request` with `can_use_tool`, `request_user_dialog`, `elicitation` or
-  `hook_callback`. A prompt counts as pending until a `control_response` or
-  `control_cancel_request` arrives with the same `request_id`
-  (`interaction.find_pending`).
-- Stream meta frames are yielded as typed events by `stream_session`: `session_update`,
-  `security_update`, `delivery_update` and `catch_up_truncated`.
-
-**Permission answers.** Each answer is a `control_response` whose response is a `PermissionResult`:
-
-| Action | `behavior` | Other fields | `decisionClassification` |
-| --- | --- | --- | --- |
-| Allow once | `allow` | `updatedInput`, `tool_name`, `toolUseID` | `user_temporary` |
-| Always allow | `allow` | the above plus `updatedPermissions`, from the request's `permission_suggestions` | `user_permanent` |
-| Deny | `deny` | `message`, optional `interrupt` | `user_reject` |
-
-**AskUserQuestion encoding.** The answer is an allow whose `updatedInput` is the original input
-plus `answers`, keyed by question text:
-
-- A single-select question maps to its label, or to the "Other" text.
-- A multi-select question maps to a list of labels, with at most `len(options) + 1` entries; the
-  extra one is "Other". The worker joins the list with `", "`.
-- Skip sends empty `answers` and `annotations[q].unanswered = "skipped"`.
-- `annotations[q].notes` carries notes.
-
-The worker refuses answers in three cases: the input already had answers, a list was given for
-a single-select question, or a key is not one of the question texts. This comes from the
-worker's admission code (`a_0257144446.js`), not from a captured web answer.
-
-**TTS (HAR #56).**
-
-1. The websocket opens `…/text_stream?output_format=opus_48000_32&voice=mellow&tts_speed=1.20&client_platform=web_claude_ai&organization_uuid=<org>`.
-2. The client sends one or more `{"type":"text_chunk","text":…}` frames, then
-   `{"type":"close_stream"}`.
-3. The server sends binary frames, each a raw Opus packet (48 kHz mono, 20 ms, TOC 0x68 or
-   0x78), then `{"type":"SpeechComplete","audio_sent_ms":N}`.
-
-`tts.ogg_opus` muxes the packets into Ogg Opus. The 436 captured packets decode to exactly
-8720 ms, which `ffprobe` confirmed.
-
-## CLI and smoke test
-
-`claude-rc` keeps the 0.3.0 commands and adds these:
-
-- Sessions: `create`, `unarchive`, `delete`, `tag`, `share`, `mark-read`
-- Environments and scheduled tasks: `envs list|get|create`,
-  `triggers list|get|create|update|run|enable|disable|runs`
-- Prompts: `pending`, `answer allow|always|deny|question`. Questions take
-  `--select`, `--multi`, `--other` and `--skip`, with an `N:` prefix to target question N.
-- Steering: `commands list|run`, `control <subtype> --field k=v`, `model`, `effort`, `mode`,
-  `interrupt`
-- Feeds and media: `watch` without a session id (the account feed), `speak` (writes `.ogg`, or
-  to stdout), `upload`
-
-The read commands take `--json`. `claude-rc web` can now also create a session and answer
-AskUserQuestion cards.
-
-`scripts/claude-rc-smoke` is the live check, to be run by a human once a credential exists.
-It runs these steps in order:
-
-1. List environments.
-2. Create a `claude-haiku-5-5` session.
-3. Send "reply with exactly PONG" and check for PONG.
-4. Run an AskUserQuestion turn, answer "Blue", and check the reply.
-5. Rename the session.
-6. Set the model.
-7. Archive the session.
-8. Delete it, unless `--keep` is passed.
-
-Each step prints PASS or FAIL with the HTTP status of its last request. It has not been run.
-
-## VERIFIED OFFLINE
-
-Run with `HOME=$(mktemp -d) PYTHONPATH=python uv run --no-project --with httpx --with pytest --with websockets pytest -q tests/claude_rc*_test.py`.
-
-- Headers: the web set and the bare OAuth set, the trusted-device token, cookie and bearer modes,
-  per-call betas.
-- The single `_send` path: 401 renewal, 429 and `retry-after`, 5xx retried only for idempotent
-  methods, multipart resend.
-- The auth order. cswap slot reading, using AST extraction of `slot_token`.
-- The org lookup from `/api/oauth/profile`.
-- The create body against HAR #16 (sources, outcomes, model, effort, append_system_prompt, tags).
-  The deferred first send against HAR #18. Initial event order per §3.4.
-- `mark_read {event_id}`, `heartbeat_check` with cse_ ids, the share GET, events paging, the
-  batch branch status body.
-- Environment paging and the default pick (the CLI's teleport rule). Trigger bodies and the
-  update field whitelist.
-- PermissionResult and AskUserQuestion encodings, checked against the 2.1.312 schema and worker
-  code. Pending-prompt detection.
-- The SSE meta frames, and the watch's token refresh, resync and 410 handling.
-- The TTS frame exchange against a fake server. The Ogg muxer on the real captured packets.
-- The CLI subcommands and the web UI's create and answer routes.
-
-## NEEDS LIVE CHECK
-
-Collected from every implementer's report. Each is also flagged "unverified" in a docstring.
-
-**Auth and headers**
-
-- Whether a Bearer OAuth token on api.anthropic.com is accepted with the web header set
-  (`ccr-byoc` beta plus `anthropic-client-feature: ccr`) the way the cookie web app is. The CLI
-  sends no beta on `/v1/code/*`. This also applies to `list_environments`.
-- Whether claude.ai `/api/organizations/...` routes accept a Bearer token: `generate_title_and_branch`,
-  `get_code_repo`, the repo list (HAR #15) and the branch list (HAR #3). The last two were not
-  implemented for this reason.
-- The cookie-mode org lookup: `GET https://claude.ai/api/organizations` is assumed to return a
-  list whose first item has `uuid`.
-- Whether a setup-token (`user:inference` only) gets 401 or 403 on sessions, environments and
-  triggers.
-- Unsigned events. The web signs each one with `device_attestation`. An org that requires
-  trusted or bound devices may refuse unsigned events.
-- The cswap path has only run with a fake `slot_token`. claude_swap is not installed here.
-- A 429 retry for a POST assumes the request was not stored. Ingest dedupes by event uuid,
-  which stays stable across retries.
-
-**Sessions**
-
-- The `delete_session` route: `DELETE /v1/code/sessions/{id}`, with a fallback to
-  `DELETE /v1/sessions/{id}` on 404 or 405. Both are guesses.
-- The `set_share` write: both the method (PUT) and the body (`visibility_type` / `sharing_settings`)
-  are guesses.
-- Create with inline events, the CLI form, from a bearer client with web headers.
-  `defer_events=True` is the form the HAR proves.
-- The `legacy=True` `POST /v1/sessions` body, including the format of its `sources`.
-- `query_sessions` with repeated `tags` parameters and list-valued `exclude_tags`.
-- The `unarchive_session` response shape.
-- `move_to_cloud`: its body comes from the CLI and has never been exercised. Only bridge
-  sessions are eligible.
-- `mark_read` with the legacy 0.3.0 `{sequence_num}` body. The `{event_id}` form is confirmed.
-
-**Environments and scheduled tasks**
-
-- The envelope of the private org environment list (`?limit=1000`).
-- The 200 shape of `GET /v1/code/last_used_environment`. Only a 404 has been seen.
-- `allow_mcp_servers` in the cloud/create body.
-- `get_self_hosted_pool` with no org header and no beta, and with a normal user token.
-- The `GET /v1/code/triggers` nonempty paging. Empty `{data: [], has_more: false}` is live-verified; cursor/after-id continuation is offline-only.
-- The `…/run` response, and the `POST /v1/code/webhook-triggers` body.
-- `fire_routine`: its route, the `experimental-cc-routine-2026-04-01` beta, the `{text}` body and
-  the reply. None of these appear in any spec. It is also the one direct httpx call, because it
-  uses a per-routine token.
-
-**Interaction**
-
-- The `send_task_message` field name `message`.
-- The reply shapes of `list_models`, `get_plan`, `get_session_cost`, `get_settings`, `mcp_call`,
-  `list_directory` and `read_file`.
-- The values for `set_view_mode` and for `message_rated` sentiment.
-- Whether the web's Skip sends empty `answers` plus `unanswered: "skipped"`.
-- Whether the web sends a multi-select answer as a list or as the pre-joined string.
-- That `request_user_dialog` answers use `behavior`; the old `cli_dialog_response` used `status`.
-- That `PermissionResult.toolUseID` sits inside the decision, and that allow answers carry
-  `tool_name`.
-- Which `WEB_CLIENT_COMMANDS` the browser handles and which go to the worker as `/name`.
-- The watch timing: a token is fresh for 225 s and dead after 240 s, syncs come every 100 to
-  120 s, `keepalive_tolerance_seconds=135`, and the read timeout is our own choice.
-- Whether the watch route works for a non-web platform.
-- `control_only=1` for a web controller.
-- `mcp_status` with `liveReply`. It replies only on the ephemeral channel, so polling history
-  times out.
-
-**Files and TTS**
-
-- Whether the TTS websocket accepts `Authorization: Bearer`. Only the cookie was captured.
-- The shapes of TTS error and status frames. Errors are detected by heuristic.
-- Voices other than `mellow`, and speeds other than 1.20.
-- The Ogg `pre_skip` of 312. The duration comes from the raw granule.
-- The host for `/api/oauth/file_upload` with a bearer token: api.anthropic.com is assumed
-  (sessions.md §10). Also whether the added `anthropic-version` and User-Agent headers are
-  accepted there.
-- The `file_kind` values. The client assumes `image`.
-
-## Left as is
-
-`client.stream_events`, the 0.3.0 path, still drops `session_update` and `delivery_update` frames.
-`stream_session` is the path that keeps them.
-
-## LIVE CHECK from dev (2026-10-28, cookie only)
-
-Auth was dev Chrome's cookies over CDP (`CLAUDE_AI_CDP_URL=http://127.0.0.1:9222`, a personal account), with no
-OAuth and no proxy. Dev's home IP passes Cloudflare with plain httpx.
-- Passed: `whoami`, `list`, `envs list`, `create` (haiku, Default env, `cse_…` returned), `send` (reply printed),
-  `watch <cse>` (SSE replays and follows the transcript), `watch` (account feed: added, changed per turn, changed to
-  archived), and `archive`.
-- Fixed:
-  - Under cookie auth, `list_environments` uses the private org route; `GET /v1/environment_providers` answers 403
-    "Authentication method not allowed" to a cookie.
-  - Added the `archive` CLI command.
-  - stdout is now line-buffered, so `watch` piped to a file is live.
-- Auth-foundation acceptance also passed live: automatic `cookies:cdp`, session
-  and environment listing, invalid in-memory cookie producing a real 401, one
-  CDP reread plus same-account validation, and one successful replay. A failed
-  shared bearer made zero refresh exchanges; 180 shared credential-file hashes
-  remained unchanged. Owned PKCE refresh and trusted-device enrollment remain
-  unverified live. Details and integration contracts:
-  `devlog/claude_2026-10-28-group01-auth-foundation.md`.
-- The page's endpoint map was captured in a private research handoff; the routes this client uses are above.
-
-### Independent controls verification
-
-Three owned cloud sessions were independently exercised and deleted (GET 404
-confirmed for each). Model changes were checked against `get_settings.applied.model`;
-plan/acceptEdits transitions against initialize state; effort against
-`get_settings.applied.effort`. Typed context/usage, exact btw output, a worker
-`/recap` completion, an owned marker-file read, task-output marker, stopped-task
-notification and a guarded rewind with matching target were verified. Fast-off
-and advisor-off received worker verdicts, not independent state readback.
-
-Full controls acceptance is **not complete**. This branch lacks the ephemeral
-MCP correlator and host-local menu renderers. Queue cancellation/send-now outcomes,
-MCP fixture/staging effects, task messaging and control cancellation remain
-unverified. An unguarded rewind after recap failed the independent assertion;
-only the subsequent guarded rewind is confirmed. Feedback/survey/rating and
-connector writes were not submitted. The raw checks and follow-up plan are indexed
-in `devlog/claude_2026-10-28-group05-independent-summary.json`.
-## Group 08 recovery evidence (2026-10-28, 0.6.0)
-This section supersedes older routine and panel claims above. It is not a
-claim that groups 01–07 have been integrated: this branch starts at `ab77994`.
-Machine-readable evidence: `docs/devlog/claude_2026-10-28-group08-evidence.json`.
-The recovered browser source snippets identify the `/fork`, `/run`,
-`/runs/{session_id}/cancel` and `/api-token` routes. Only operations marked
-live below actually reached the service in this recovery run.
-| Capability | Terminal evidence status |
-| --- | --- |
-| Default CDP cookies; session/environment/routine list | Accepted live; source `cookies:cdp`, no copied credentials; real CLI whoami/list processes exited 0 |
-| Routine create disabled with future run-once schedule and Haiku | Accepted live; `{outcome, trigger}` envelope; get returns `{trigger}` and confirmed disabled |
-| Routine GET; name update; enable/disable | Independently accepted live with exact name and toggle readback assertions |
-| Routine manual run with optional text | Accepted live; `{conversation_id, session_id, trigger}` returned; run appeared in trigger-filtered history |
-| Routine worker `ROUTINE_OK` result | Not passed: terminal success subtype but expected assistant marker absent; limit-related output detected. HTTP enqueue is not proof of inference |
-| Routine fork | Accepted live; `{dropped_mcp_connections, trigger}` envelope |
-| Routine DELETE `{}` | Accepted live; both exact owned IDs subsequently returned 404; final routine list empty |
-| Routine run cleanup | Exact created runs archived; follow-up history on the previous run returned 404 after trigger cleanup. No existing sessions changed |
-| Routine prompt/model/schedule updates; nonempty paging | Independently accepted live: exact prompt/model/name/run-once readbacks; limit=1 enumeration included both owned routines across pages. Same Haiku model was retained, not switched to a different model |
-| Routine cron execution; mode updates; tag/exclude-tag filters | Still unverified live; no arbitrary-field acceptance claim |
-| Cancel exact owned active run | Offline-only; quota prevented a meaningful active-run outcome check |
-| API-token issue/revoke and webhook setup/fire | Blocked permission; no tokens issued, no webhook configured. Integration fire contract still uncaptured; legacy `fire_routine` deprecated rather than presented as verified |
-| CLI routine delete/fork/cancel-run/disabled-create/optional run text | Offline request-shape tests passed; live CLI whoami/list processes exited 0 |
-| CLI routine update prompt/model/environment/repository flags | Fixed silent ignoring of these flags; read-modify-write preserves other job configuration. Five new regressions pass. Real CLI prompt/model update exited 0 with live prompt/model readback, environment/schedule/disabled state preserved, exact test routine deleted and GET 404 |
-| Panel auth; stale prompt protection; allow/always/deny; notes | HTTP integration tests passed against owned fixtures, not live workers |
-| Panel delayed first load and settled empty state | Real Chrome tab with local fixture server: loading state before first response, empty only after settlement; tab/server closed |
-| Panel single/multi question, option previews and notes; unavailable Always allow | Browser fixture rendering assertions passed; screenshot contains fixtures only. Not live question protocol proof |
-| Panel full stream metadata and reconnect cursor forwarding | Serialization/request contracts offline-only; uses `stream_session`, preserves payload/raw metadata; group03 transport recovery still needs integration |
-| Panel text/number constraints, answer preview annotations, partial skip and other new question variants | Not integrated; requires group04's final API and schema before adding controls |
-| Panel authoritative model catalog/mode readback, Files/Changes, lifecycle expansion and all other groups' CLI helper registration | Not integrated; requires final group02/04/05/07 contracts. Existing controls are retained, not newly live-qualified |
-| Group01 auth fault injection/owned refresh; group02 lifecycle; group03 lossless recovery/watch; group04 live dialogs; group05 controls/MCP; group06 environment writes/account; group07 files/media | Not rerun by group08; their branch evidence must be merged, reviewed and acceptance-run individually before a final ledger can mark them passed |
-| Managed Agents, worker hosting, service-originated controls and server-owned memory/SCM/bridge services | Outside this web-controller integration proof |
-Offline result after recovery: **286 passed, 1 skipped**; independent verification
-with the CLI update regression fix: **291 passed, 1 skipped** (baseline **265
-passed, 1 skipped**). Independent live and browser-fixture reruns are recorded in
-`docs/devlog/claude_2026-10-28-group08-independent-evidence.json`. Worker marker
-acceptance failed again despite a terminal `success` subtype; limit-related
-output is not successful execution. The new run session was archived/deleted,
-and all four routines created by independent verification returned GET 404
-after deletion. Browser fixture checks used a new localhost-only Chrome tab;
-no existing-user transcripts were displayed.
-### Remaining integration plan
-1. Merge the seven owned feature branches without discarding their uncommitted
-   work, resolve exports/version once, and consume their documented CLI helper
-   signatures. Do not infer those contracts from placeholder names.
-2. Complete panel question variants and Files/Changes using the merged APIs;
-   remove unsupported controls rather than serialize arbitrary guesses.
-3. Rerun all groups' exact live acceptance tests against a single run-scoped
-   manifest after quota is available; keep denied outbound actions blocked.
-4. Expand this ledger from group-level pending rows to the final per-inventory
-   capability rows, attach evidence, and verify cleanup before claiming full
-   web support. No full-parity or 100%-live-verification claim is made here.
+1. Supply a dedicated owned permission/MCP/dialog fixture and verify allow,
+   deny, permanent-rule reuse, elicitation and staged files against execution.
+2. Diagnose routine-run limit output with the routine's actual worker model and
+   account limit state; then require a real marker, cron firing and active cancel.
+   Do not classify terminal `success` as that marker.
+3. Capture a cookie-authorized upload contract; only then qualify attachment
+   roundtrip, nonempty prefetch, Files mount/seed/delete and staged MCP effects.
+4. Capture custom-environment workspace namespace behavior. Keep the default
+   workspace CAS proof separate from those failed custom-path checks.
+5. Enroll an explicitly approved isolated OAuth grant and qualify refresh/restart,
+   concurrent rotation and trusted-device recovery without touching shared grants.
+6. Complete host-local menus, browser-only conveniences and remaining management
+   screens; run the entire real-browser continuation/reconnect/lifecycle flow on
+   owned resources. Rendering fixtures and live HTTP adapters are separate proof.
+7. Obtain explicit approval before public shares, support/debug exports,
+   feedback/log uploads, network bindings, tokens or webhook writes. Capture
+   unsupported fork/grouping/SCM/integration-fire contracts before implementation.

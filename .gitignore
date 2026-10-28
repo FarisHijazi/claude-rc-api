@@ -26,3 +26,6 @@ htmlcov/
 .idea/
 *.swp
 .DS_Store
+
+# Isolated feature checkouts
+/worktrees/

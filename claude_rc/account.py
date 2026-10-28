@@ -53,9 +53,9 @@ class AccountMixin:
         return self._request("GET", self._account_org_path("skills/list-skills"))
 
 
-def register_account_commands(subparsers: Any) -> None:
+def register_account_commands(subparsers: Any, *, parents=()) -> None:
     """Group08 integration: add parsers; dispatch_account_command handles them."""
-    parser = subparsers.add_parser("account", help="read-only web account discovery")
+    parser = subparsers.add_parser("account", help="read-only web account discovery", parents=list(parents))
     parser.add_argument(
         "account_action",
         choices=(

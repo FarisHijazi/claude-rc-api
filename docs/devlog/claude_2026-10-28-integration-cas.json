@@ -1,0 +1,33 @@
+{
+  "created": [
+    "cse_0154EsXQHkfg1r67EMMwWyui"
+  ],
+  "reads": [
+    {
+      "attempt": 0,
+      "content": "CAS_CHANGED",
+      "hash": "9d667d7e31bdda6ffbca75def9d8db1a84c6dad73d0bd3cfb2b1bb26742786d5",
+      "digest": "7e4b13c07e15392e34cfcbd1407160cc62d79f89228d9c87fc559b2f14cdc9f2"
+    }
+  ],
+  "cleanup": [
+    {
+      "session_id": "cse_0154EsXQHkfg1r67EMMwWyui",
+      "status": 404
+    }
+  ],
+  "before": {
+    "keys": [
+      "content",
+      "content_sha256",
+      "content_type"
+    ],
+    "bytes": "CAS_ORIGINAL",
+    "hash": "16d65e79b5c3869cb2bf56d8b4c02bffdbb415dd41dcb72646ecd24f61473874"
+  },
+  "put": {
+    "content_sha256": "9d667d7e31bdda6ffbca75def9d8db1a84c6dad73d0bd3cfb2b1bb26742786d5"
+  },
+  "stale_cas": 409,
+  "verified": true
+}

@@ -22,6 +22,10 @@
     --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
     --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   }
+  :root[data-theme="light"] {
+    --bg: #f6f7fa; --panel: #fff; --panel-2: #edf0f5;
+    --border: #c5cad4; --text: #20242d; --muted: #555f72;
+  }
   * { box-sizing: border-box; }
   html, body { height: 100%; margin: 0; }
   body {
@@ -197,10 +201,7 @@
             <label>model
               <select id="sel-model">
                 <option value="">— keep —</option>
-                <option>claude-opus-5-5</option>
-                <option>claude-sonnet-5-5</option>
-                <option>claude-haiku-5-5</option>
-                <option>claude-fable-5-1</option>
+                <option value="" disabled>Loading model catalog…</option>
               </select>
             </label>
             <label>permission
@@ -225,10 +226,19 @@
             </label>
             <button id="btn-interrupt" title="Interrupt the running turn">⛔ Interrupt</button>
             <span class="spacer"></span>
+            <button id="btn-files">Files</button>
+            <button id="btn-changes">Changes</button>
+            <button id="btn-rename">Rename</button>
+            <button id="btn-unarchive">Restore</button>
+            <button id="btn-delete" class="danger">Delete</button>
             <button id="btn-archive" class="danger" title="Archive this session">Archive</button>
           </div>
         </div>
 
+        <details id="workspace-panel" style="padding: 0 16px">
+          <summary>Workspace result</summary>
+          <pre id="workspace-result" style="white-space:pre-wrap;overflow-wrap:anywhere"></pre>
+        </details>
         <div id="log"></div>
 
         <div class="composer">
@@ -361,6 +371,7 @@ async function selectSession(id) {
   if (S.es) { S.es.close(); S.es = null; }
   S.selectedId = id; S.seen = new Set(); S.lastSeq = 0; S.session = null;
   S.prompts = new Map(); S.lastDivider = null;
+  $("workspace-result").textContent = ""; $("workspace-panel").open = false;
   renderSessions();
   $("empty").style.display = "none";
   $("pane-body").style.display = "flex";
@@ -542,9 +553,25 @@ function questionForm(ev) {
         box.appendChild(details);
       }
     }
+    if (q.description) box.appendChild(el("div", null, q.description));
+    if (q.followUp) box.appendChild(el("div", null, typeof q.followUp === "string" ? q.followUp : JSON.stringify(q.followUp)));
     const other = document.createElement("input");
-    other.placeholder = "Other…"; other.dataset.other = i;
+    other.placeholder = q.placeholder || (q.kind === "number" ? "Number…" : q.kind === "text" ? "Your answer…" : "Other…");
+    other.dataset.other = i;
+    if (q.kind === "number") {
+      other.type = "number";
+      for (const key of ["min", "max", "step"]) if (q[key] != null) other[key] = q[key];
+      if (q.unit) box.appendChild(el("span", null, q.unit));
+    }
+    if (q.defaultValue != null && ["text", "number"].includes(q.kind)) other.value = q.defaultValue;
     box.appendChild(other);
+    const skipLabel = el("label", null, "Skip this question ");
+    const skipInput = document.createElement("input");
+    skipInput.type = "checkbox"; skipInput.dataset.skip = i;
+    skipLabel.appendChild(skipInput); box.appendChild(skipLabel);
+    const preview = document.createElement("input");
+    preview.placeholder = "Answer preview annotation (optional)…"; preview.dataset.preview = i;
+    box.appendChild(preview);
     const notes = document.createElement("input");
     notes.placeholder = "Notes (optional)…"; notes.dataset.notes = i;
     box.appendChild(notes);
@@ -552,7 +579,8 @@ function questionForm(ev) {
   });
   const submit = el("button", "primary", "Submit");
   submit.onclick = () => {
-    const selections = {}, other = {}, notes = {};
+    if ([...form.querySelectorAll('input[type="number"]')].some(inp => !inp.reportValidity())) return;
+    const selections = {}, other = {}, notes = {}, previews = {}, skipped = [];
     form.querySelectorAll("input[data-q]:checked").forEach(inp => {
       const q = qs[inp.dataset.q];
       if (q.multiSelect) (selections[inp.dataset.q] ||= []).push(inp.value);
@@ -567,21 +595,37 @@ function questionForm(ev) {
     form.querySelectorAll("input[data-notes]").forEach(inp => {
       if (inp.value.trim()) notes[inp.dataset.notes] = inp.value.trim();
     });
-    steer("Answer", "answer", { request_id: ev.request_id, selections, other, notes }, "Answered");
+    form.querySelectorAll("input[data-preview]").forEach(inp => {
+      if (inp.value.trim()) previews[inp.dataset.preview] = inp.value.trim();
+    });
+    form.querySelectorAll("input[data-skip]:checked").forEach(inp => {
+      const i = inp.dataset.skip; skipped.push(Number(i)); delete selections[i]; delete other[i];
+    });
+    steer("Answer", "answer", { request_id: ev.request_id, selections, other, notes, previews, skipped }, "Answered");
   };
   const skip = el("button", "danger", "Skip");
   skip.onclick = () => steer("Skip", "answer", { request_id: ev.request_id, skip: true }, "Skipped");
   form.appendChild(submit); form.appendChild(skip);
+  for (const [label, flag] of [["Dismiss", "dismissed"], ["Replied in chat", "replied_in_chat"]]) {
+    const button = el("button", null, label);
+    button.onclick = () => steer(label, "answer", {request_id: ev.request_id, [flag]: true}, label);
+    form.appendChild(button);
+  }
   return form;
 }
 async function newSession() {
-  // Cheap create flow: the default environment, the model picked above.
   const prompt = window.prompt("First message for the new cloud session:");
   if (!prompt) return;
   const repo = window.prompt("GitHub repo (owner/name), blank for none:") || "";
-  const model = $("sel-model").value || "";
   try {
-    const s = await post("/api/sessions", { prompt, repo, model });
+    const envs = (await api("/api/environments")).environments || [];
+    const choices = envs.map(e => (e.environment_id || e.id) + " " + e.name).join("\n");
+    const env = window.prompt("Choose environment id:\n" + choices, envs[0] && (envs[0].environment_id || envs[0].id));
+    if (!env || !envs.some(e => (e.environment_id || e.id) === env)) throw new Error("Select a listed environment id");
+    const allowed = [...$("sel-model").options].map(o => o.value).filter(Boolean);
+    const model = window.prompt("Choose model:\n" + allowed.join("\n"), $("sel-model").value || allowed[0]);
+    if (!allowed.includes(model)) throw new Error("Select a catalog model");
+    const s = await post("/api/sessions", { prompt, repo, model, env });
     toast("Created " + (s.id || "session"));
     await loadSessions();
     if (s.id) selectSession(s.id);
@@ -617,7 +661,21 @@ async function sendMessage() {
   const text = ta.value.trim();
   if (!text || !S.selectedId) return;
   ta.value = ""; autoGrow(ta);
-  try { await post(`/api/sessions/${S.selectedId}/send`, { text }); }
+  try {
+    if (text.startsWith("/")) {
+      const [name, ...words] = text.slice(1).split(" ");
+      if (name === "theme") {
+        if (!["light", "dark"].includes(words[0])) throw new Error("/theme expects light or dark");
+        document.documentElement.dataset.theme = words[0];
+        document.documentElement.style.colorScheme = words[0];
+        toast("Theme set locally");
+      } else {
+        const out = await post(`/api/sessions/${S.selectedId}/command`, {name, args: words.join(" ")});
+        if (out.via !== "worker") showWorkspace(out);
+        else toast("Worker command queued; awaiting execution in stream");
+      }
+    } else await post(`/api/sessions/${S.selectedId}/send`, { text });
+  }
   catch (e) { toast("Send failed: " + e.message); ta.value = text; }
 }
 async function askAside() {
@@ -678,7 +736,63 @@ $("sel-effort").onchange = (e) => {
   if (effort) steer("Set effort", "effort", { effort: effort === "auto" ? null : effort }, "Effort → " + effort);
 };
 
+function showWorkspace(value) {
+  $("workspace-panel").open = true;
+  $("workspace-result").textContent = JSON.stringify(value, null, 2);
+}
+$("btn-files").onclick = async () => {
+  if (!S.selectedId) return;
+  const sid = S.selectedId;
+  const path = window.prompt("Workspace directory (blank for default), or absolute file path:", "");
+  if (path === null) return;
+  $("workspace-panel").open = true;
+  $("workspace-result").textContent = "Loading workspace…";
+  try {
+    const file = path && !path.endsWith("/") && window.confirm("Read this as a file? Cancel lists the directory.");
+    const out = await api(`/api/sessions/${sid}/${file ? "file" : "directory"}?path=${encodeURIComponent(path)}`);
+    if (S.selectedId === sid) showWorkspace(out);
+  } catch (e) { if (S.selectedId === sid) $("workspace-result").textContent = "Workspace error: " + e.message; }
+};
+$("btn-changes").onclick = async () => {
+  if (!S.selectedId) return;
+  const sid = S.selectedId;
+  $("workspace-result").textContent = "Loading changes…";
+  $("workspace-panel").open = true;
+  try { const out = await api(`/api/sessions/${sid}/changes`); if (S.selectedId === sid) showWorkspace(out); }
+  catch (e) { if (S.selectedId === sid) $("workspace-result").textContent = "Changes error: " + e.message; }
+};
+$("btn-rename").onclick = async () => {
+  const title = window.prompt("Session title", S.session && S.session.title);
+  if (title) { await steer("Rename", "rename", {title}, "Renamed"); loadSessions(); }
+};
+$("btn-unarchive").onclick = () => steer("Restore", "unarchive", {}, "Restore submitted; awaiting worker readiness");
+$("btn-delete").onclick = async () => {
+  if (!S.selectedId || !window.confirm("Permanently delete this session?")) return;
+  try {
+    await post(`/api/sessions/${S.selectedId}/delete`, {});
+    if (S.es) S.es.close();
+    S.selectedId = null; S.session = null;
+    $("pane-body").style.display = "none"; $("empty").style.display = "block";
+    loadSessions();
+  } catch (e) { toast("Delete failed: " + e.message); }
+};
+async function loadModels() {
+  const selector = $("sel-model");
+  selector.disabled = true;
+  try {
+    const catalog = await api("/api/models");
+    const models = (catalog.model_selector_config || []).flatMap(g => g.models || []);
+    selector.replaceChildren(new Option("— keep —", ""), ...models.map(m => new Option(m.display_name || m.id, m.id)));
+    selector.disabled = false;
+    if (S.session) renderSessionHeader(S.session);
+  } catch (e) {
+    selector.replaceChildren(new Option("Model catalog unavailable", ""));
+    toast("Model catalog: " + e.message);
+  }
+}
+
 // ---- boot ----------------------------------------------------------------
+loadModels();
 renderSessions();
 loadWhoami();
 loadSessions();
