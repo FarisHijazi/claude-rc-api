@@ -276,8 +276,12 @@ def test_run_trigger_webhook_and_runs():
     assert runs == {"data": [], "next_cursor": None}
 
 
-def test_no_delete_trigger():
-    assert not hasattr(RemoteControlClient, "delete_trigger")
+def test_delete_trigger_sends_empty_body():
+    seen, handler = _recorder([(204, None)])
+    _client(handler).delete_trigger("trig_1")
+    assert seen[0].method == "DELETE"
+    assert seen[0].url.path == "/v1/code/triggers/trig_1"
+    assert json.loads(seen[0].content) == {}
     assert trigger_url("trig_1") == "https://claude.ai/code/routines/trig_1"
 
 

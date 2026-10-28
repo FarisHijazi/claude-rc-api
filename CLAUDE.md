@@ -10,7 +10,7 @@ dependency (its `pyproject.toml`), so there is no second copy to keep in sync.
 - `origin` = `git@github.com:FarisHijazi/claude-rc-api.git` (push here; `main`).
 - `upstream` = `ThatCrispyToast/claude-rc-api`, **read-only**: fetch and merge
   `upstream/main` into `main`; never push there, never open upstream PRs/issues.
-- Version: ours is `0.5.0`+ (upstream already used 0.4.0). Bump the minor for a
+- Version: ours is `0.6.0`+ (upstream already used 0.4.0). Bump the minor for a
   new surface.
 
 ## Layout

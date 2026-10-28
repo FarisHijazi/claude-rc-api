@@ -1,0 +1,39 @@
+{
+  "date": "2026-10-28",
+  "group": "08-routines-cli-web-panel-and-integration-proof",
+  "baseline": "ab77994",
+  "authentication": {"source": "cookies:cdp", "copied_credentials": false, "shared_refresh": false},
+  "final_manifest": {
+    "triggers": ["trig_0192hPXoC47PvFLAjRUNzv4w", "trig_01HMwSy7XvZ11ptjq2no6iFa"],
+    "sessions": ["cse_0154EsXSispbzeA8wBdipGiv"],
+    "environments": [], "files": [], "shares": [],
+    "cleanup_verified": "Both routine GETs 404; DELETE of exact owned session 404 (already absent); final routine list empty"
+  },
+  "offline": {"passed": 286, "skipped": 1, "baseline_passed": 265, "baseline_skipped": 1},
+  "live": {
+    "session_list": "accepted",
+    "environment_list": "accepted; four environments, values never printed",
+    "routine_list": "accepted; empty before and after cleanup",
+    "routine_create_disabled": "accepted; future run_once_at, Haiku",
+    "routine_get": "accepted; trigger envelope",
+    "routine_name_update": "HTTP accepted; updated name not independently asserted",
+    "routine_enable_disable": "accepted; both readback assertions true",
+    "routine_fork": "accepted; trigger and dropped_mcp_connections envelope",
+    "routine_run": "accepted; conversation_id/session_id/trigger envelope; history session observed",
+    "routine_expected_marker": "FAILED; no assistant ROUTINE_OK; terminal subtype success with limit-related output",
+    "routine_delete": "accepted; each exact owned routine subsequently GET 404",
+    "run_cleanup": "exact owned run archived; previous owned run history subsequently 404 after trigger cleanup",
+    "real_cli_processes": ["whoami exit 0, source cookies:cdp", "triggers list --limit 1 --json exit 0, zero routines"]
+  },
+  "browser": {
+    "kind": "real Chrome tab, localhost fixture server; not live worker evidence",
+    "first_response_delayed": "loading shown, no false empty",
+    "settled_empty": "empty shown after response",
+    "rendered": {"radios": 1, "checkboxes": 2, "notes": 2, "previews": 1, "always_without_rules_disabled": true},
+    "cleanup": "only newly created tab closed; fixture HTTP server shutdown"
+  },
+  "permission_blocked": ["routine API-token issue/revoke", "webhook setup/fire", "external sharing"],
+  "not_integrated": ["groups01-07 final branches", "text/number question schemas", "answer preview annotations", "Files/Changes panel", "authoritative model catalog", "all feature CLI helper contracts"],
+  "not_live_verified": ["active run cancellation outcome", "cron execution", "prompt/model/mode/schedule routine update readback", "nonempty routine pagination", "lossless stream reconnection", "live panel worker question and permission round trips"],
+  "legacy_fire_route": "deprecated; unverified, not advertised as official"
+}

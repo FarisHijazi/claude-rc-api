@@ -13,7 +13,7 @@ uses.
 > break at any time. Use your own account, at your own risk. Full protocol
 > writeup in [`API_REFERENCE.md`](./API_REFERENCE.md).
 
-## This fork (0.5.0): Claude Code on the web
+## This fork (0.6.0): Claude Code on the web
 
 `FarisHijazi/claude-rc-api` adds the rest of claude.ai/code on top of
 upstream 0.4.0: create/unarchive/delete/share/tag cloud sessions, environments
@@ -132,7 +132,7 @@ serve_webui(host="127.0.0.1", port=8765, open_browser=True)
 ```python
 from claude_rc import RemoteControlClient
 
-rc = RemoteControlClient()                 # reads ~/.claude, refreshes token as needed
+rc = RemoteControlClient()                 # auto-reads Chrome cookies; shared OAuth is read-only
 
 # discover sessions
 for s in rc.sessions():
@@ -244,14 +244,11 @@ ev.attestation   # "UNSPECIFIED" | "VERIFIED" | "ABSENT" … (Trusted Devices)
   controller events that carry no device signature; this library doesn't
   sign. `ev.attestation` shows what the server recorded, and
   API_REFERENCE.md §3.4 has the details.
-- Token refresh writes the new tokens back where they came from (the
-  credentials file or the macOS Keychain item) the way the CLI's own refresh
-  does: only over the login it refreshed, keeping the rest of the document.
-  Neither that nor an enrollment takes the CLI's lock files, so a write
-  racing one of the CLI's can lose one side. `persist_refresh=False` keeps
-  refreshes in memory and turns lazy enrollment off, but the refresh token a
-  refresh spends is the CLI's too, so the CLI must sign in again.
-- This project never prints or transmits your tokens.
+- Shared CLI, Keychain and cswap OAuth grants are never refreshed by this client.
+  Chrome owns its cookies; authentication failures re-read them once. Refreshable
+  OAuth requires a separate client-owned credentials file. Never copy a shared
+  refresh token into that file.
+- Credentials are sent only to their configured service, never printed by the client.
 
 ## Used by
 
@@ -285,3 +282,28 @@ uv run --extra test pytest -q
 ```
 
 All tests run offline (no network, no credentials required).
+
+## Routine management (0.6.0)
+
+```bash
+claude-rc triggers create test-only --env <environment-id> --at 2030-01-01T00:00:00Z --disabled --prompt "Reply ROUTINE_OK"
+claude-rc triggers get <trigger-id>
+claude-rc triggers run <trigger-id> --prompt "Reply ROUTINE_OK"
+claude-rc triggers runs <trigger-id>
+claude-rc triggers fork <trigger-id>
+claude-rc triggers cancel-run <trigger-id> --run-session <owned-session-id>
+claude-rc triggers delete <trigger-id>
+```
+
+List supports `--limit`, `--cursor`, `--tag` and `--exclude-tag`. Responses
+from create/get/fork wrap the routine in `trigger`; `trigger_item()` handles
+that envelope. `fire_routine()` is deprecated: its legacy route has not been
+verified. Use authenticated `run_trigger()` instead. Token management methods
+return secrets and are deliberately not exposed as commands that print JSON.
+
+The panel now uses its own client's auth status (including cookie mode),
+metadata-preserving streams, server-revalidated permission decisions including
+Always allow, question notes/previews, and a sticky first-load state. These
+changes do not claim full parity with browser-only commands or newer question
+schemas. The current evidence and remaining integration work are in
+`docs/web-api.md`.
