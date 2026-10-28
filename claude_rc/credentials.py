@@ -1,8 +1,8 @@
 """OAuth credential handling for the Claude Remote Control / Sessions API.
 
 The Claude Code CLI logs in through claude.ai (OAuth) and stores the resulting
-tokens in ``~/.claude/.credentials.json`` — on macOS, in the login Keychain
-(generic password ``Claude Code-credentials``) instead — and account metadata (including the
+tokens in ``~/.claude/.credentials.json`` (on macOS, in the login Keychain item
+``Claude Code-credentials`` instead) and account metadata (including the
 organization UUID that the API requires as the ``x-organization-uuid`` header)
 in ``~/.claude.json``.
 
@@ -22,9 +22,11 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 import sys
 import time
+import warnings
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
@@ -42,9 +44,16 @@ OAUTH_USER_AGENT = "anthropic-sdk-typescript/0.94.0 userOAuthProvider"
 DEFAULT_CREDENTIALS_PATH = Path.home() / ".claude" / ".credentials.json"
 DEFAULT_CONFIG_PATH = Path.home() / ".claude.json"
 # On macOS the CLI keeps the same JSON document (``claudeAiOauth`` block and
-# all) as a login-Keychain generic password under this service name, and
-# writes no credentials file.
+# all) as a login-Keychain generic password under this service name. It reads
+# the Keychain first; the credentials file is only its fallback (a Keychain
+# write that failed).
 KEYCHAIN_SERVICE = "Claude Code-credentials"
+# The account it files the item under: $USER, unless that has other characters.
+_KEYCHAIN_ACCOUNT = re.compile(r"[a-zA-Z0-9._-]+")
+_KEYCHAIN_FALLBACK_ACCOUNT = "claude-code-user"
+_KEYCHAIN_NOT_FOUND = 44  # `security` exit status for errSecItemNotFound
+# The longest command the CLI pipes into `security -i`; past it, it uses argv.
+_KEYCHAIN_STDIN_MAX = 4032
 
 # Environment overrides (handy in CI / other machines).
 ENV_ACCESS_TOKEN = "CLAUDE_RC_ACCESS_TOKEN"
@@ -126,30 +135,34 @@ def load_credentials(path: os.PathLike | str | None = None) -> OAuthCredentials:
     Priority:
       1. ``CLAUDE_RC_ACCESS_TOKEN`` env var (no refresh possible).
       2. macOS only, when no explicit ``path`` is given: the login-Keychain
-         item :data:`KEYCHAIN_SERVICE` — where the CLI stores them there.
+         item :data:`KEYCHAIN_SERVICE`, which the CLI also reads first.
       3. ``~/.claude/.credentials.json`` (``claudeAiOauth`` block).
     """
     env_token = os.environ.get(ENV_ACCESS_TOKEN) or os.environ.get(ENV_CLI_OAUTH_TOKEN)
     if env_token:
         return OAuthCredentials(access_token=env_token)
 
+    keychain_miss = None
     if path is None and sys.platform == "darwin":
-        raw = _keychain_read(KEYCHAIN_SERVICE)
+        try:
+            raw = _keychain_read(KEYCHAIN_SERVICE)
+        except CredentialsError as exc:  # locked, timed out: fall back to the file, as the CLI does
+            raw, keychain_miss = None, str(exc)
         if raw is not None:
-            where = f"macOS Keychain item {KEYCHAIN_SERVICE!r}"
             try:
                 data = json.loads(raw)
-            except json.JSONDecodeError as exc:
-                raise CredentialsError(f"could not parse {where}: {exc}") from exc
-            return _from_document(data, where, source_keychain=KEYCHAIN_SERVICE)
+            except json.JSONDecodeError:  # the CLI reads an unparsable item as none too
+                keychain_miss = f"Keychain item {KEYCHAIN_SERVICE!r} is not valid JSON"
+            else:
+                where = f"macOS Keychain item {KEYCHAIN_SERVICE!r}"
+                return _from_document(data, where, source_keychain=KEYCHAIN_SERVICE)
+        keychain_miss = keychain_miss or f"no {KEYCHAIN_SERVICE!r} Keychain item"
 
     p = Path(path) if path else DEFAULT_CREDENTIALS_PATH
     if not p.exists():
-        where = (
-            f"no {KEYCHAIN_SERVICE!r} Keychain item and no credentials file at {p}"
-            if path is None and sys.platform == "darwin"
-            else f"credentials file not found at {p}"
-        )
+        where = f"credentials file not found at {p}"
+        if keychain_miss:
+            where = f"{keychain_miss}, and {where}"
         raise CredentialsError(
             f"{where}. Run `claude` and `/login` first, or set {ENV_ACCESS_TOKEN}."
         )
@@ -185,14 +198,21 @@ def _from_document(
 
 
 def _keychain_account() -> str:
-    # The CLI files its item under the login user's name.
-    import getpass
+    """The account the CLI files its item under: ``$USER`` (else the passwd
+    name), or ``claude-code-user`` when that has characters it won't use."""
+    try:
+        import pwd  # only reached on macOS; Windows has no pwd
 
-    return os.environ.get("USER") or getpass.getuser()
+        name = os.environ.get("USER") or pwd.getpwuid(os.getuid()).pw_name
+    except Exception:  # no USER and no passwd entry
+        name = ""
+    return name if _KEYCHAIN_ACCOUNT.fullmatch(name) else _KEYCHAIN_FALLBACK_ACCOUNT
 
 
 def _keychain_read(service: str) -> Optional[str]:
-    """The item's secret, or ``None`` if it doesn't exist / can't be read."""
+    """The item's secret, or ``None`` when there is no such item. Raises
+    :class:`CredentialsError` when the Keychain can't be read (locked, timed
+    out), so a caller never mistakes that for an empty store."""
     try:
         out = subprocess.run(
             ["security", "find-generic-password", "-a", _keychain_account(), "-s", service, "-w"],
@@ -200,24 +220,32 @@ def _keychain_read(service: str) -> Optional[str]:
             text=True,
             timeout=15,
         )
-    except (OSError, subprocess.TimeoutExpired):
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        raise CredentialsError(f"could not read Keychain item {service!r}: {exc}") from exc
+    if out.returncode == _KEYCHAIN_NOT_FOUND:
         return None
     if out.returncode != 0:
-        return None
+        raise CredentialsError(
+            f"could not read Keychain item {service!r}: security exited {out.returncode}"
+            f" {out.stderr.strip()[:200]}"
+        )
     return out.stdout.strip() or None
 
 
 def _keychain_write(service: str, secret: str) -> None:
-    """Create or update (``-U``) the item. The secret goes hex-encoded (``-X``)
-    over ``security -i``'s stdin, never argv, so it can't leak via ``ps``."""
-    cmd = (
-        f'add-generic-password -U -a "{_keychain_account()}" -s "{service}" '
-        f"-X {secret.encode().hex()}\n"
-    )
+    """Create or update (``-U``) the item the way the CLI does: hex-encoded
+    (``-X``) over ``security -i``'s stdin, out of reach of ``ps``. A command
+    too long for ``security -i`` goes on argv instead, as the CLI's does (a
+    credentials document holding MCP logins easily passes the limit)."""
+    account, hexed = _keychain_account(), secret.encode().hex()
+    cmd = f'add-generic-password -U -a "{account}" -s "{service}" -X "{hexed}"\n'
+    if len(cmd) <= _KEYCHAIN_STDIN_MAX:
+        argv, io = ["security", "-i"], {"input": cmd}
+    else:
+        argv = ["security", "add-generic-password", "-U", "-a", account, "-s", service, "-X", hexed]
+        io = {"stdin": subprocess.DEVNULL}
     try:
-        out = subprocess.run(
-            ["security", "-i"], input=cmd, capture_output=True, text=True, timeout=15
-        )
+        out = subprocess.run(argv, capture_output=True, text=True, timeout=15, **io)
     except (OSError, subprocess.TimeoutExpired) as exc:
         raise CredentialsError(f"could not update Keychain item {service!r}: {exc}") from exc
     if out.returncode != 0:
@@ -266,14 +294,23 @@ def refresh_credentials(
 
     Mirrors the CLI: ``POST`` to :data:`OAUTH_TOKEN_URL` with a JSON body of
     ``{grant_type, refresh_token, client_id}`` and the ``oauth-2025-04-20`` beta
-    header. On success the new tokens are (optionally) written back to the same
-    credentials file (or Keychain item) so subsequent runs stay authenticated.
+    header. With ``persist``, the new tokens are written back to the store the
+    credentials came from (file or Keychain item) so subsequent runs, and the
+    CLI, stay authenticated. The refresh token is single-use and shared with
+    the CLI, so, as the CLI's refresh does, it is spent only while the store
+    still holds this login and can be read: a locked Keychain, a sign-in or
+    sign-out since, another process's refresh, or a corrupt file raises
+    :class:`CredentialsError` first. If saving fails after the refresh, the
+    new tokens are still returned (with a warning): they are the only valid
+    ones left.
     """
     if not creds.refresh_token:
         raise CredentialsError(
             "access token is expired and no refresh_token is available "
             "(token came from an env var). Re-run `claude` to refresh it."
         )
+    if persist:
+        _stored_login(creds, creds.refresh_token, saving=False)
 
     owns_client = client is None
     client = client or httpx.Client(timeout=30.0)
@@ -316,37 +353,89 @@ def refresh_credentials(
         source_keychain=creds.source_keychain,
     )
 
-    if persist and (new.source_path or new.source_keychain):
-        _persist(new)
+    if persist:
+        try:
+            _persist(new, spent=creds.refresh_token)
+        except CredentialsError as exc:
+            warnings.warn(f"refreshed tokens kept in memory only: {exc}", stacklevel=2)
     return new
 
 
-def _persist(creds: OAuthCredentials) -> None:
-    """Write refreshed tokens back to where they came from, preserving the
-    document's other keys (``mcpOAuth`` etc. share the same store)."""
+def _stored_login(creds: OAuthCredentials, refresh_token: Optional[str], *, saving: bool) -> Optional[dict]:
+    """The document ``creds`` came from, provided it still holds the login
+    whose refresh token is ``refresh_token`` (``None`` when there's no store).
+    Raises :class:`CredentialsError` when the store can't be read or has moved
+    on. Saving also accepts a refresh token the CLI cleared to ``""``, as its
+    compare-and-swap does."""
+    data = _read_document(creds)
+    if data is None:
+        return None
+    block = data.get("claudeAiOauth")
+    held = block.get("refreshToken") if isinstance(block, dict) else None
+    if held != refresh_token and not (saving and held == ""):
+        where = f"Keychain item {creds.source_keychain!r}" if creds.source_keychain else creds.source_path
+        raise CredentialsError(
+            f"{where} no longer holds the login being refreshed (refreshed, signed in"
+            " or out elsewhere, or unreadable), so it was left alone"
+        )
+    return data
+
+
+def _persist(creds: OAuthCredentials, *, spent: Optional[str]) -> None:
+    """Write refreshed tokens back to the store they came from, the way the
+    CLI's refresh saves: a compare-and-swap that writes only while the stored
+    login is the one whose refresh token was ``spent``. Only the token fields
+    change; the block's other fields (``subscriptionType``, ``rateLimitTier``
+    …) and the document's other keys (``mcpOAuth`` …) stay as stored."""
+    data = _stored_login(creds, spent, saving=True)
+    if data is None:
+        return
+    block = data["claudeAiOauth"]
+    if block.get("refreshToken") != creds.refresh_token:
+        # It described the refresh token we just spent — drop it rather
+        # than leave a stale expiry next to the new token.
+        block.pop("refreshTokenExpiresAt", None)
+    block.update(
+        accessToken=creds.access_token,
+        refreshToken=creds.refresh_token,
+        expiresAt=creds.expires_at_ms,
+        scopes=creds.scopes,
+    )
+    _write_document(creds, data)
+
+
+def _read_document(creds: OAuthCredentials) -> Optional[dict]:
+    """The document ``creds`` came from (the credentials file or the Keychain
+    item): ``None`` when they came from no store, and ``{}`` when it is gone,
+    unreadable or not a JSON object, as the CLI's store reads it. A Keychain
+    that can't be read (locked, timed out) raises :class:`CredentialsError`
+    instead of passing for empty."""
     if creds.source_keychain:
         raw = _keychain_read(creds.source_keychain)
+    elif creds.source_path:
         try:
-            data = json.loads(raw) if raw else {}
-        except json.JSONDecodeError:
-            data = {}
-        block = data.get("claudeAiOauth") or {}
-        if block.get("refreshToken") != creds.refresh_token:
-            # It described the refresh token we just spent — drop it rather
-            # than leave a stale expiry next to the new token.
-            block.pop("refreshTokenExpiresAt", None)
-        data["claudeAiOauth"] = {**block, **creds.to_block()}
+            raw = creds.source_path.read_text()
+        except OSError:
+            raw = None
+    else:
+        return None
+    try:
+        data = json.loads(raw) if raw else {}
+    except json.JSONDecodeError:
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def _write_document(creds: OAuthCredentials, data: dict) -> None:
+    """Replace the document ``creds`` came from (the file atomically)."""
+    if creds.source_keychain:
         _keychain_write(creds.source_keychain, json.dumps(data))
         return
     path = creds.source_path
-    if not path:
-        return
-    try:
-        data = json.loads(path.read_text()) if path.exists() else {}
-    except (OSError, json.JSONDecodeError):
-        data = {}
-    data["claudeAiOauth"] = creds.to_block()
     tmp = path.with_suffix(path.suffix + ".tmp")
-    tmp.write_text(json.dumps(data, indent=2))
-    os.chmod(tmp, 0o600)
-    os.replace(tmp, path)
+    try:
+        tmp.write_text(json.dumps(data, indent=2))
+        os.chmod(tmp, 0o600)
+        os.replace(tmp, path)
+    except OSError as exc:
+        raise CredentialsError(f"could not write {path}: {exc}") from exc

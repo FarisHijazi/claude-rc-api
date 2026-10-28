@@ -56,10 +56,9 @@ uv sync --extra cli --extra test    # + pytest
    `claude --remote-control`) in some project. That registers a session you can
    then control from here.
 
-Credentials load automatically from `~/.claude/.credentials.json` (OAuth token;
-on macOS the CLI keeps it in the login Keychain instead, item
-`Claude Code-credentials`, which is read first) and `~/.claude.json`
-(`organizationUuid`). Override them with
+Credentials load automatically: the OAuth token from `~/.claude/.credentials.json`
+(on macOS, first from the login Keychain item `Claude Code-credentials`, as the
+CLI does) and the `organizationUuid` from `~/.claude.json`. Override them with
 `CLAUDE_RC_ACCESS_TOKEN` / `CLAUDE_CODE_OAUTH_TOKEN` and `CLAUDE_RC_ORG_UUID`.
 
 ## CLI
@@ -216,9 +215,12 @@ ev.attestation   # "UNSPECIFIED" | "VERIFIED" | "ABSENT" … (Trusted Devices)
 - Orgs that enforce Trusted Devices can make workers drop unsigned controller
   events; this library doesn't sign. `ev.attestation` shows what the server
   recorded, and API_REFERENCE.md §3.4 has the details.
-- Token refresh writes the refreshed token back to where it was read from —
-  `~/.claude/.credentials.json` or the macOS Keychain item (same as the CLI). Pass `persist_refresh=False`
-  to keep refreshes in memory.
+- Token refresh writes the new tokens back where they came from (the
+  credentials file or the macOS Keychain item) the way the CLI's own refresh
+  does: only over the login it refreshed, keeping the rest of the document.
+  It doesn't take the CLI's lock files, so a write racing one of the CLI's can
+  lose one side. `persist_refresh=False` keeps refreshes in memory, but the
+  refresh token they spend is the CLI's too, so the CLI must sign in again.
 - This project never prints or transmits your tokens.
 
 ## Used by
@@ -234,7 +236,7 @@ install — so keep those three backwards-compatible.
 
 ```
 claude_rc/
-  credentials.py   # OAuth load + refresh, org uuid, ~/.claude parsing
+  credentials.py   # OAuth load + refresh (file or macOS Keychain), org uuid
   client.py        # RemoteControlClient (mode A) + ManagedAgentsClient (mode B)
   events.py        # Event model + builders for both wire formats
   sse.py           # dependency-free SSE parser

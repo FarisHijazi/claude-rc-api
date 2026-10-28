@@ -60,11 +60,38 @@ accepted for Remote Control. The CLI stores tokens after `/login`:
 ```
 The scope that gates Remote Control is **`user:sessions:claude_code`**.
 
-On **macOS** the CLI writes no such file: the same JSON document is the secret
-of a login-Keychain generic password (service **`Claude Code-credentials`**,
-account = the login user; `security find-generic-password -s "Claude
-Code-credentials" -w`). `load_credentials()` reads it there first on macOS
-(unless given an explicit path), and refreshes write back to the same item.
+On **macOS** the CLI keeps the same JSON document as the secret of a
+login-Keychain generic password: service **`Claude Code-credentials`**,
+account `$USER` (or `claude-code-user` when the name has characters outside
+`[A-Za-z0-9._-]`). It reads the Keychain first and falls back to the file, and
+when a Keychain write succeeds where no item existed, it deletes the file
+(2.1.312). Its calls, which this library mirrors:
+```
+security find-generic-password -a <account> -w -s "Claude Code-credentials"   # exit 44 = no item
+security -i <<< 'add-generic-password -U -a "<account>" -s "<service>" -X "<hex of the JSON>"'
+```
+The hex goes over `security -i`'s stdin so `ps` can't see it, except when the
+command is longer than 4032 characters (an `mcpOAuth` block gets there): then
+the CLI passes the same arguments on argv. An item that isn't valid JSON reads
+as no item. The service name has two variants this library doesn't follow
+(it reads only the default item and file): `CLAUDE_CONFIG_DIR` (or a non-empty
+`CLAUDE_SECURESTORAGE_CONFIG_DIR`, which overrides it) appends
+`-<first 8 hex of sha256(that dir)>`, and `CLAUDE_CODE_CUSTOM_OAUTH_URL` makes it
+`Claude Code-custom-oauth-credentials`. `load_credentials()` reads the Keychain
+first on macOS (unless given an explicit path), and refreshes write back to
+the same item.
+
+**Saving a refresh** (2.1.312, both stores): the CLI takes
+`~/.claude/.oauth_refresh.lock`, gives up if the store can't be read (no
+token spent), adopts tokens another process already rotated, and saves with a
+compare-and-swap: only while the stored `refreshToken` is still the one it
+posted (or `""`). A store that a sign-in or sign-out has changed is left
+alone. It keeps the block's other fields (`subscriptionType`, `rateLimitTier`,
+…), and every store write holds `~/.claude/.storage-write.lock`. This
+library does the same apart from the two locks (`RemoteControlClient` adopts
+rotated tokens; `refresh_credentials()` checks the store and saves), and
+returns the new tokens even when it can't save them, since they are then the
+only valid pair.
 
 **Organization UUID** (needed for the `x-organization-uuid` header) lives in
 **`~/.claude.json`** → `oauthAccount.organizationUuid` (a top-level

@@ -144,7 +144,9 @@ class RemoteControlClient:
     ):
         self.base_url = base_url.rstrip("/")
         self._creds = credentials or load_credentials(credentials_path)
-        self._creds_path = credentials_path
+        # Where rotated tokens are re-read from: the path given, else the file
+        # explicit credentials came from, else (None) the CLI's own lookup.
+        self._creds_path = credentials_path or (credentials.source_path if credentials else None)
         self._org_uuid = org_uuid or load_org_uuid(config_path)
         self._auto_refresh = auto_refresh
         self._persist_refresh = persist_refresh
@@ -171,9 +173,10 @@ class RemoteControlClient:
         Tokens are rotated *in place* by whichever process refreshes first (the
         Claude Code CLI itself, another client of this library, …), and a
         refresh token is single-use — once someone else has spent ours, the
-        disk copy is the only valid one. A long-lived client must therefore
-        treat the file, not its memory, as the source of truth. No-op when the
-        credentials didn't come from a file (env var / explicit object)."""
+        stored copy is the only valid one. A long-lived client must therefore
+        treat the store (the credentials file, or the macOS Keychain item), not
+        its memory, as the source of truth. No-op when the credentials didn't
+        come from a store (env var / explicit object)."""
         if not (self._creds.source_path or self._creds.source_keychain):
             return False
         try:
