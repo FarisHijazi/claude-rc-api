@@ -23,7 +23,12 @@ Multipart bodies go through ``files=`` as bytes so a retry can resend them.
 
 from __future__ import annotations
 
+import base64
 import hashlib
+import re
+import time
+import uuid
+from urllib.parse import quote
 import mimetypes
 import os
 from typing import Any, Iterable, Mapping
@@ -89,6 +94,16 @@ def attachment_ref(
     return ref
 
 
+def inline_image(data: bytes, mime: str) -> dict:
+    """Build an inline image content block, not an uploaded attachment reference."""
+    if mime not in {"image/png", "image/jpeg", "image/gif", "image/webp"}:
+        raise ValueError("unsupported inline image MIME type")
+    if not data:
+        raise ValueError("inline image must not be empty")
+    return {"type": "image", "source": {"type": "base64", "media_type": mime,
+                                         "data": base64.b64encode(data).decode("ascii")}}
+
+
 def user_message_with_files(text: str, attachments: Iterable[Mapping[str, Any]], **kw: Any) -> dict:
     """A stream-json ``user`` event carrying ``file_attachments`` (top level of
     the event, beside ``message``; sessions.md §5)."""
@@ -100,6 +115,106 @@ class FilesMixin:
 
     All HTTP goes through ``self._request`` / ``self._send``.
     """
+
+    def send_message_with_images(
+        self, session_id: str, text: str, images: Iterable[Mapping[str, Any]], *,
+        message_uuid: str | None = None,
+    ) -> dict:
+        """Send inline_image blocks through the existing event writer, without upload."""
+        event = cli_user_message(text, message_uuid=message_uuid)
+        event["message"]["content"] = [dict(image) for image in images] + event["message"]["content"]
+        return self.send_events(session_id, [event])
+
+    def prefetch_attachments(
+        self, session_id: str, files: Iterable[Mapping[str, Any]], *,
+        issued_at: int | None = None, only_these: bool = False,
+    ) -> dict:
+        """Enqueue browser attachment prefetch; acknowledgement is not worker completion."""
+        refs = []
+        for file in files:
+            if len(refs) == 16:
+                raise ValueError("prefetch accepts at most 16 attachments")
+            file_uuid = file.get("file_uuid")
+            if not isinstance(file_uuid, str) or not file_uuid:
+                raise ValueError("each attachment needs a nonempty file_uuid")
+            ref = {"file_uuid": file_uuid}
+            if "file_size" in file:
+                size = file["file_size"]
+                if type(size) is not int or size < 0:
+                    raise ValueError("file_size must be a nonnegative integer")
+                ref["file_size"] = size
+            refs.append(ref)
+        if not refs and not only_these:
+            return {}
+        stamp = int(time.time() * 1000) if issued_at is None else issued_at
+        if type(stamp) is not int or stamp < 0:
+            raise ValueError("issued_at must be a nonnegative millisecond timestamp")
+        event_id = str(uuid.uuid4())
+        request = {"subtype": "prefetch_attachments", "files": refs, "issued_at": stamp}
+        if only_these:
+            request["only_these"] = True
+        return self.send_events(session_id, [{
+            "type": "control_request", "uuid": event_id,
+            "request_id": f"attachment-prefetch-{event_id}", "request": request,
+        }])
+
+    def mount_file(self, session_id: str, file_id: str, mount_path: str, *,
+                   attestation_header: str | None = None) -> dict:
+        """Stage a Files API object, distinct from attaching it to a chat message."""
+        return self._request(
+            "POST", f"/v1/code/sessions/{quote(session_id, safe='')}/files",
+            json={"file_id": file_id, "mount_path": mount_path},
+            headers={"X-Device-Attestation": attestation_header} if attestation_header else None,
+        )
+
+    def get_session_file(self, session_id: str, path: str, *,
+                         attestation_header: str | None = None) -> dict:
+        """Read controller file JSON, preserving content/hash/encoding metadata.
+
+        Live GET paths are under /mnt/user-data/outputs, /mnt/user-data/working,
+        or /mnt/project-files. Use the returned content_sha256 for CAS, not a
+        locally calculated attachment digest.
+        """
+        return self._request(
+            "GET", f"/v1/code/sessions/{quote(session_id, safe='')}/file",
+            params={"path": path},
+            headers={"X-Device-Attestation": attestation_header} if attestation_header else None,
+        )
+
+    def put_synced_file(
+        self, session_id: str, path: str, content: bytes, *,
+        if_match_sha256: str | None = None,
+        device_attestation: Mapping[str, Any] | None = None,
+        device_attestation_issued_at: str | None = None,
+        attestation_header: str | None = None,
+    ) -> dict:
+        """Write base64 bytes using the browser CAS route; 409 raises APIError.
+
+        Attestation is supplied by its owner, never fabricated here. Session ID
+        belongs in the URL, not the browser request body. No automatic CAS retry.
+        The live write namespace is /working/<file>; read the same file through
+        /mnt/user-data/working/<file>. A stale returned hash causes real 409.
+        """
+        if not isinstance(content, bytes):
+            raise TypeError("content must be bytes")
+        if if_match_sha256 is not None and not re.fullmatch(r"[0-9a-f]{64}", if_match_sha256):
+            raise ValueError("if_match_sha256 must be a lowercase SHA-256 hex digest")
+        if (device_attestation is None) != (device_attestation_issued_at is None):
+            raise ValueError("device attestation and issued_at must be supplied together")
+        body = {"path": path, "content": base64.b64encode(content).decode("ascii")}
+        if if_match_sha256 is not None:
+            body["if_match_sha256"] = if_match_sha256
+        if device_attestation is not None:
+            body.update(device_attestation=dict(device_attestation),
+                        device_attestation_issued_at=device_attestation_issued_at)
+        reply = self._request(
+            "PUT", f"/v1/code/sessions/{quote(session_id, safe='')}/synced_file", json=body,
+            headers={"X-Device-Attestation": attestation_header} if attestation_header else None,
+            retry=False,
+        )
+        if not isinstance(reply, dict) or not re.fullmatch(r"[0-9a-f]{64}", str(reply.get("content_sha256", ""))):
+            raise ValueError("synced_file replied without a valid content_sha256")
+        return reply
 
     def upload_attachment(
         self,

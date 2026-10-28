@@ -41,7 +41,11 @@ module that owns the area, or a new mixin module plus one line in the
 | `commands.py` | cloud admission/direction gates, typed slash dispatch, browser model/policy discovery, captured MCP REST and staging contracts; CLI registration/dispatch helpers for integration |
 | `interaction.py` | compatibility delegates for slash dispatch, typed session controls, pending prompts, permission + AskUserQuestion answers, `stream_session` (keeps meta frames), account `watch` feed |
 | `files.py` | attachments / Files API |
+| `interaction.py` | pending prompts, permission + AskUserQuestion answers, slash commands, generic controls, `stream_session` (keeps meta frames), account `watch` feed |
+| `files.py` | chat attachments, inline images, Files API staging, controller file reads and CAS sync writes |
 | `tts.py` | claude.ai text-to-speech websocket + Ogg muxer |
+| `dictation.py` | generated-audio transcription over the captured cookie websocket; no microphone; pre-audio redial only |
+| `media_cli.py` | optional file/media registrations consumed by the CLI owner; uses its client factory |
 | `events.py`, `sse.py` | wire event builders/parsers, SSE parser |
 | `cli.py` | `claude-rc` subcommands (one `cmd_*` per command, registered in `main`) |
 | `webui.py`, `static/` | `claude-rc web` control panel |
@@ -170,3 +174,14 @@ On dev, uv needs the proxy CA plus the system bundle:
   Independent rerun: `docs/devlog/claude_2026-10-28-group06-independent-evidence.json`
   correlates Bash tool results to tool-use IDs and requires turn completion; POST
   acknowledgement or assistant text alone is not environment execution proof.
+
+Files/media integration contracts and redacted live evidence are in
+`docs/devlog/claude_2026-10-28-group07-files-media.md` and its linked JSON.
+These are deliberately plain paths, not `@` includes. Controller GET uses
+`/mnt/user-data/working/<file>`; synced PUT uses `/working/<file>`. CAS must
+use the GET response's `content_sha256`, not the attachment digest. Cookie
+TTS/dictation and inline images worked live; OAuth attachment upload returned
+401 and Files API returned 404, so neither is advertised as cookie-supported.
+Independent reruns and remaining gaps are recorded in
+`docs/devlog/group07-independent-2026-10-28.json`. Dictation rejects empty or
+whitespace-only final transcripts rather than reporting a successful empty result.

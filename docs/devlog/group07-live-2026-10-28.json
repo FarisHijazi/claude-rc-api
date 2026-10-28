@@ -1,0 +1,225 @@
+{
+  "date": "2026-10-28",
+  "auth": "cookies:cdp; no copied credentials; direct network; no OAuth refresh",
+  "api_probes": [
+    {
+      "step": "auth",
+      "source": "cookies:cdp",
+      "org_present": true
+    },
+    {
+      "step": "read_checks",
+      "status": "passed",
+      "environment_count": 4
+    },
+    {
+      "step": "attachment_marker.txt",
+      "status": "failed",
+      "exception": "APIError",
+      "http": 401,
+      "error_type": "authentication_error"
+    },
+    {
+      "step": "attachment_pixel.png",
+      "status": "failed",
+      "exception": "APIError",
+      "http": 401,
+      "error_type": "authentication_error"
+    },
+    {
+      "step": "files_upload_download",
+      "status": "failed",
+      "exception": "APIError",
+      "http": 404,
+      "error_type": null
+    },
+    {
+      "step": "tts",
+      "status": "passed",
+      "bytes": 5961,
+      "duration_ms": 1200.0,
+      "probe": {
+        "programs": [],
+        "stream_groups": [],
+        "streams": [
+          {
+            "codec_name": "opus",
+            "sample_rate": "48000",
+            "channels": 1,
+            "duration": "1.200000"
+          }
+        ]
+      }
+    },
+    {
+      "step": "dictation_with_org",
+      "status": "passed",
+      "text": "Test complete.",
+      "events": [
+        "TranscriptInterim",
+        "TranscriptInterim",
+        "TranscriptText",
+        "TranscriptEndpoint"
+      ]
+    }
+  ],
+  "dictation_reconnect": {
+    "dictation_fault_injected_preopen_reconnect": {
+      "dials": 2,
+      "backoff_seconds": 0.25,
+      "text": "Test complete.",
+      "passed": true
+    }
+  },
+  "workspace_acceptance": {
+    "title": "throwaway-media-87eb7362137d42d58864647b24fd3b72",
+    "path": "/mnt/user-data/working/367eda3c433048de9d0c099bc6324295.txt",
+    "session_id": "cse_0154EsXTxpjauviNXfUgBN8z",
+    "results": [
+      {
+        "step": "created",
+        "session_id": "cse_0154EsXTxpjauviNXfUgBN8z"
+      },
+      {
+        "step": "worker",
+        "types": [
+          "result",
+          "system",
+          "synced_file_changed",
+          "assistant",
+          "user",
+          "rate_limit_event",
+          "mcp_auth_required",
+          "autocompact_state",
+          "env_manager_log"
+        ],
+        "result_observed": true,
+        "ready_observed": true
+      },
+      {
+        "step": "prefetch_empty",
+        "status": "acknowledged",
+        "keys": [
+          "attestation_feedback",
+          "results"
+        ]
+      },
+      {
+        "step": "get_owned_missing_file",
+        "status": "acknowledged",
+        "keys": [
+          "content",
+          "content_sha256",
+          "content_type"
+        ]
+      },
+      {
+        "step": "owned_file_original_bytes",
+        "matches": true,
+        "has_hash": true
+      },
+      {
+        "step": "put_owned_file",
+        "status": "acknowledged",
+        "keys": [
+          "content_sha256"
+        ]
+      },
+      {
+        "step": "cas_readback",
+        "matches": true,
+        "hash_matches": true
+      },
+      {
+        "step": "stale_cas",
+        "status": "passed",
+        "http": 409
+      },
+      {
+        "step": "cleanup",
+        "status": "archived_and_deleted",
+        "session_id": "cse_0154EsXTxpjauviNXfUgBN8z"
+      }
+    ]
+  },
+  "cli_and_inline_image": [
+    {
+      "step": "tts_cli",
+      "exit_code": 0,
+      "ogg_exists": true
+    },
+    {
+      "step": "inline_image",
+      "session_id": "cse_0154EsXSqMzmUJXoBVN9hxyu",
+      "turn_end": true,
+      "red_identified": true
+    },
+    {
+      "step": "inline_cleanup",
+      "session_id": "cse_0154EsXSqMzmUJXoBVN9hxyu",
+      "status": "archived_and_deleted"
+    }
+  ],
+  "initial_create_timeout": {
+    "result": "ReadTimeout; subsequent recent-session reconciliation returned no candidate"
+  },
+  "all_returned_owned_session_ids_archived_and_deleted": [
+    "cse_0154EsXPqqgpm5kYFA98YAHx",
+    "cse_0154EsXSNhcjWdDEBpGb92xR",
+    "cse_0154EsXShbfh3j47QiBxpxdg",
+    "cse_0154EsXTxpjauviNXfUgBN8z",
+    "cse_0154EsXSqMzmUJXoBVN9hxyu"
+  ],
+  "prior_path_admission": {
+    "GET_tmp": {
+      "http": 400,
+      "message": "path must be under /mnt/user-data/outputs, /mnt/user-data/working or /mnt/project-files"
+    },
+    "PUT_tmp": {
+      "http": 400,
+      "message": "path must be under /working/"
+    },
+    "local_attachment_digest_used_as_CAS": {
+      "http": 409,
+      "message": "if_match_sha256 precondition failed: content has changed"
+    },
+    "server_returned_hash_used_as_CAS": "PUT succeeded; readback matched; reusing original server hash produced 409 without overwrite"
+  },
+  "not_live_verified": [
+    "attachment roundtrip/prefetch with real uploaded IDs (401)",
+    "Files API upload/download/delete/mount/seed bundles (404)",
+    "nonempty attachment prefetch worker completion",
+    "staged MCP files (group05 ownership)",
+    "dictation ticket-based desktop authentication",
+    "dictation reconnect after audio delivery (deliberately not replayed)",
+    "device attestation signing (auth owner)",
+    "TTS bearer authentication"
+  ],
+  "cleanup_verification": [
+    {
+      "session_id": "cse_0154EsXPqqgpm5kYFA98YAHx",
+      "absent": true,
+      "http": 404
+    },
+    {
+      "session_id": "cse_0154EsXSNhcjWdDEBpGb92xR",
+      "absent": true,
+      "http": 404
+    },
+    {
+      "session_id": "cse_0154EsXShbfh3j47QiBxpxdg",
+      "absent": true,
+      "http": 404
+    },
+    {
+      "session_id": "cse_0154EsXTxpjauviNXfUgBN8z",
+      "absent": true,
+      "http": 404
+    },
+    {
+      "session_id": "cse_0154EsXSqMzmUJXoBVN9hxyu",
+      "absent": true,
+      "http": 404
+    }
+  ]
+}

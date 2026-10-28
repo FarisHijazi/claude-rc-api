@@ -162,7 +162,7 @@ def speech_packets(
     A text frame that looks like an error (an ``error`` key or a ``type``
     containing "error") raises :class:`TTSError`; any other unknown frame
     goes to ``on_status`` (logged when absent). A close before
-    ``SpeechComplete`` raises :class:`TTSError` unless it was a normal close.
+    ``SpeechComplete`` raises :class:`TTSError`, including a normal close.
     """
     from websockets.exceptions import ConnectionClosed, ConnectionClosedOK
 
@@ -176,7 +176,7 @@ def speech_packets(
             except ConnectionClosedOK:
                 if failure:
                     raise failure[0]
-                return None
+                raise TTSError("TTS socket closed before SpeechComplete")
             except ConnectionClosed as exc:
                 raise TTSError(f"TTS socket closed before SpeechComplete: {exc}") from exc
             if isinstance(frame, (bytes, bytearray, memoryview)):
@@ -311,6 +311,8 @@ def ogg_page(packet: bytes, granule: int, seq: int, serial: int, flags: int) -> 
 
 def opus_samples(packet: bytes) -> int:
     """48 kHz samples in one Opus packet, from its TOC byte (RFC 6716 §3.1)."""
+    if not packet:
+        raise ValueError("empty Opus packet")
     toc = packet[0]
     config = toc >> 3
     if config < 12:  # SILK: 10/20/40/60 ms
@@ -320,7 +322,11 @@ def opus_samples(packet: bytes) -> int:
     else:  # CELT: 2.5/5/10/20 ms
         size = (120, 240, 480, 960)[config & 3]
     count = toc & 3
+    if count == 3 and len(packet) < 2:
+        raise ValueError("Opus frame count byte is missing")
     frames = 1 if count == 0 else 2 if count in (1, 2) else packet[1] & 0x3F
+    if frames == 0 or size * frames > 5760:
+        raise ValueError("Opus packet duration must be between 2.5 and 120 ms")
     return size * frames
 
 
