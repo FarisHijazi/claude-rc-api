@@ -180,7 +180,10 @@ binary.
 
 There is **no DELETE** for code sessions — archive only. Session **creation** is done
 by the local CLI, not the controller (see §5). A list page is
-`{"data": [...], "next_cursor": …, "resume_token": …}`.
+`{"data": [...], "next_cursor": …, "resume_token": …}` with the sessions bare;
+only the single-session `GET` wraps its object in `response_shape`, with or
+without `anthropic-beta` (checked live 2026-10-28). `get_session()` and
+`update_session()` return the session itself.
 
 **Session object** (verified):
 ```json
