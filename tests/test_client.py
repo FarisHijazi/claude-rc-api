@@ -384,8 +384,8 @@ def test_cli_control_cancel_request_shape():
 def test_cli_permission_response_shapes():
     allow = cli_permission_response("r1", allow=True, tool_input={"command": "ls"}, tool_use_id="toolu_1")
     assert allow == {"type": "control_response", "response": {
-        "subtype": "success", "request_id": "r1", "tool_use_id": "toolu_1",
-        "response": {"behavior": "allow", "updatedInput": {"command": "ls"}},
+        "subtype": "success", "request_id": "r1",
+        "response": {"behavior": "allow", "updatedInput": {"command": "ls"}, "toolUseID": "toolu_1"},
     }}
     # No input → no updatedInput at all (an empty one would blank the tool's input).
     assert cli_permission_response("r1", allow=True)["response"]["response"] == {"behavior": "allow"}
@@ -403,9 +403,9 @@ def test_cli_question_response_keeps_questions():
 
 
 def test_cli_dialog_response_shape():
-    assert cli_dialog_response("r4", completed=False)["response"]["response"] == {"status": "cancelled", "result": {}}
+    assert cli_dialog_response("r4", completed=False)["response"]["response"] == {"behavior": "cancelled"}
     done = cli_dialog_response("r4", completed=True, result={"answers": ["x"]})
-    assert done["response"]["response"] == {"status": "completed", "result": {"answers": ["x"]}}
+    assert done["response"]["response"] == {"behavior": "completed", "result": {"answers": ["x"]}}
 
 
 # --- request/verdict plumbing (offline: transport stubbed) --------------------

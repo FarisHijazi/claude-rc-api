@@ -1,0 +1,662 @@
+{
+  "date": "2026-10-28",
+  "group": "04-permissions-questions-and-dialogs",
+  "branch": "feat/04-permissions-questions-and-dialogs",
+  "offline": {
+    "command": "uv run --extra test --extra web --extra cli pytest -q",
+    "passed": 301,
+    "skipped": 1,
+    "baseline_passed": 265
+  },
+  "implementation": {
+    "owner": "claude_rc/prompts.py",
+    "compatibility": "InteractionMixin inherits PromptsMixin; interaction imports re-export existing public types/helpers. No cli.py, static/, top-level export or streaming edits.",
+    "write_path": "Every response calls the existing send_events; no second transport.",
+    "legacy_permission": "cli_permission_response delegates to cli_permission_decision, retaining original request ID and putting toolUseID inside the decision.",
+    "legacy_dialog": "cli_dialog_response now delegates to the authoritative behavior=completed/cancelled builder, not the old status field.",
+    "upstream_reuse": "Extends the existing fork and captured browser/worker contracts. Prior-art evaluation is in the research handoff; no additional framework or alternate client introduced."
+  },
+  "integration_contract": {
+    "imports": "from claude_rc.prompts import PendingRequest, Question, QuestionOption, PromptsMixin, build_answers, find_pending, pending_from_initialize",
+    "pending": "pending_requests(session_id, *, limit=200, initialize=False, initialized=None) -> list[PendingRequest]. limit is page size, not history cutoff. initialize=True reconciles full paged history with a fresh authoritative worker snapshot. Default remains read-only. A supplied earlier snapshot is seeded then settled by response/cancellation IDs from history.",
+    "questions": "answer_questions(session_id, request, selections=None, *, other=None, skipped=(), notes=None, previews=None, unanswered=None, unanswered_encoding=\"worker\") -> dict. All keyed inputs accept question text, unique header or zero-based index. unanswered values: skipped/dismissed/replied_in_chat.",
+    "browser_semantics": "unanswered_encoding=\"browser\" inserts exact browser sentinel strings; worker encoding leaves unanswered values absent and only annotates. These are not equivalent. UI should deliberately choose browser encoding.",
+    "convenience": "skip_questions/dismiss_questions/questions_replied_in_chat(session_id, request, *, encoding=\"worker\"). Browser parity callers pass encoding=\"browser\". questions_replied_in_chat does NOT send the chat text; send_prompt separately, as live-verified.",
+    "question_fields": "Question.kind, description, placeholder, number_constraints expose captured optional fields. number_constraints preserves min/max/step/defaultValue/unit without fabricating missing values. Numeric Other values validate finite decimal/min/max/step. Original raw question/input fields are retained, including future fields.",
+    "permissions": "allow_once(session_id, request, *, updated_input=None); always_allow(session_id, request, *, permissions=None, updated_input=None); deny_permission(session_id, request, message=..., *, interrupt=None). Exact caller rules or request suggestions only; no invented broad always-allow rules.",
+    "dialogs": "answer_dialog(session_id, request, *, completed=True, result=None); answer_elicitation(session_id, request, action=\"accept\", content=None); answer_hook_callback(session_id, request, output). Typed PendingRequest inputs reject mismatched subtypes.",
+    "renderers": "No supportedDialogKinds advertised: codecs are not renderers. Integration must advertise only dialog kinds it actually renders.",
+    "cli": "No registration/dispatch edits are needed for existing pending/answer CLI entrypoints: their legacy imports continue to work. Group08 owns adding preview/notes/unanswered-encoding flags and browser sentinel selection in the panel.",
+    "breaking_wire_corrections": "Updated two old test_client assertions for toolUseID placement and dialog behavior key; all public method call signatures remain compatible."
+  },
+  "capabilities": [
+    {
+      "name": "four-question card, single choice, two-label multi-select, Other alone, notes, preview annotations",
+      "status": "accepted-live",
+      "evidence": "group04-live-four-card-evidence.json"
+    },
+    {
+      "name": "single-item multi-select and selected-label plus Other",
+      "status": "accepted-live",
+      "evidence": "group04-live-variants-evidence.json"
+    },
+    {
+      "name": "partial skip, whole skip, dismissed, replied-in-chat worker annotations",
+      "status": "accepted-live-with-limitation",
+      "evidence": "group04-live-variants-evidence.json",
+      "limitation": "Empty answered maps all produce generic The user did not answer the questions; annotations do not reproduce distinct browser sentinel semantics."
+    },
+    {
+      "name": "distinct browser skip/dismiss/replied-in-chat sentinel values",
+      "status": "accepted-live",
+      "evidence": "group04-live-browser-encoding-evidence.json",
+      "qualification": "Worker tool_result contains exact sentinel text and reaches success; not a claim of hard runtime enforcement of the instruction text."
+    },
+    {
+      "name": "separate follow-up chat after replied-in-chat card",
+      "status": "accepted-live",
+      "evidence": "group04-live-chat-reply-evidence.json",
+      "assertion": "CHAT_REPLY_RECEIVED, success, zero pending requests and no re-ask."
+    },
+    {
+      "name": "initialized pending discovery and settled-request disappearance",
+      "status": "accepted-live",
+      "evidence": [
+        "group04-live-variants-evidence.json",
+        "group04-live-browser-encoding-evidence.json",
+        "group04-live-chat-reply-evidence.json"
+      ]
+    },
+    {
+      "name": "history pagination, cancellation/response reconciliation, origin gates, 1-4 cards",
+      "status": "offline-verified",
+      "evidence": "tests/test_prompts.py"
+    },
+    {
+      "name": "text and bounded numeric question kinds/default/unit constraints",
+      "status": "current-cloud-worker-unavailable",
+      "evidence": "group04-live-four-card-evidence.json",
+      "detail": "Actual AskUserQuestion emitted only choice schemas; worker explicitly reported text/number kinds absent. Browser 74.js has optional kind=text/number, min/max/step/defaultValue/unit; 77.js adapts them only behind extended renderer support. Numeric/metadata implementation is tested offline, not claimed live."
+    },
+    {
+      "name": "permission allow once, deny/interrupt, always allow and identical-operation rule reuse",
+      "status": "offline-only-no-genuine-generator",
+      "evidence": "group04-live-permissions-evidence.json",
+      "detail": "Initialized throwaway worker confirmed default mode, then executed the exact harmless Bash marker write without emitting can_use_tool. No real user permission was answered; no rule was installed. Genuine permission acceptance remains unverified."
+    },
+    {
+      "name": "completed/cancelled user dialog, elicitation, hook callback",
+      "status": "offline-only-no-dedicated-integration",
+      "evidence": "tests/test_interaction.py and tests/test_prompts.py",
+      "detail": "No dedicated MCP/hook/dialog generator configured; do not advertise renderer capabilities."
+    },
+    {
+      "name": "browser extended numeric defaults, followUp UI flow and full UI rendering",
+      "status": "integration-owner-follow-up",
+      "detail": "Group08 must integrate presentation using preserved raw schemas and rerun UI tests; cloud worker currently cannot emit text/number forms."
+    }
+  ],
+  "remaining_plan": [
+    "Group08: expose previews, notes and explicit browser unanswered encoding; use initialized pending discovery for live attach without changing read-only CLI semantics accidentally.",
+    "A dedicated isolated worker with exact test-only permission rules must generate genuine can_use_tool before allow/deny/always outcomes and repeated-operation rule reuse can be marked live.",
+    "Dedicated harmless MCP elicitation/hook/dialog integration is required to qualify their response codecs live.",
+    "When the cloud tool schema admits extended text/number fields, rerun numeric bounds/defaults/unit and follow-up renderer acceptance instead of treating synthetic tests as proof."
+  ],
+  "runs": {
+    "group04-live-four-card-evidence.json": {
+      "created": [
+        "cse_0154EsXRKDFC4doDyrLYuHbf"
+      ],
+      "checks": [
+        {
+          "name": "read_only_preflight",
+          "status": "passed",
+          "source": "cookies:cdp",
+          "environments": 4
+        },
+        {
+          "name": "create",
+          "status": "passed",
+          "session_id": "cse_0154EsXRKDFC4doDyrLYuHbf",
+          "marker": "group04-2292de742f0d"
+        },
+        {
+          "name": "actual_prompt",
+          "kind": "question",
+          "request_id": "8d3e4a7d-f892-40d6-89b7-953946cd9c0f",
+          "schema": {
+            "questions": [
+              {
+                "header": "Colour",
+                "multiSelect": false,
+                "options": [
+                  {
+                    "description": "Select Red.",
+                    "label": "Red"
+                  },
+                  {
+                    "description": "Select Blue.",
+                    "label": "Blue",
+                    "preview": "Blue: a primary colour, commonly associated with calm and trust."
+                  }
+                ],
+                "question": "Colour?"
+              },
+              {
+                "header": "Toppings",
+                "multiSelect": true,
+                "options": [
+                  {
+                    "description": "Add ham.",
+                    "label": "Ham"
+                  },
+                  {
+                    "description": "Add egg.",
+                    "label": "Egg"
+                  }
+                ],
+                "question": "Toppings?"
+              },
+              {
+                "header": "Name",
+                "multiSelect": false,
+                "options": [
+                  {
+                    "description": "Use the first placeholder name.",
+                    "label": "Name A"
+                  },
+                  {
+                    "description": "Use the second placeholder name.",
+                    "label": "Name B"
+                  }
+                ],
+                "question": "Name? (free text not supported by this tool schema; choose one option)"
+              },
+              {
+                "header": "Count",
+                "multiSelect": false,
+                "options": [
+                  {
+                    "description": "Count of 1 item.",
+                    "label": "1 item"
+                  },
+                  {
+                    "description": "Count of 2 items.",
+                    "label": "2 items (default)"
+                  }
+                ],
+                "question": "Count? (numeric 1-5 not supported by this tool schema; choose one option)"
+              }
+            ]
+          }
+        },
+        {
+          "name": "four_card_response",
+          "status": "posted_not_yet_verified"
+        },
+        {
+          "name": "rate_limit",
+          "status": "observed",
+          "subtype": null
+        },
+        {
+          "name": "worker_tool_result",
+          "content": "The user answered: \"Colour?\"=\"Blue\" selected preview:\nblue preview notes: acceptance note, \"Toppings?\"=\"Ham,Egg\", \"Name? (free text not supported by this tool schema; choose one option)\"=\"Ada\", \"Count? (numeric 1-5 not supported by this tool schema; choose one option)\"=\"3\". Read the answers carefully \u2014 they may request clarification, changes, or that you not proceed \u2014 and follow what they actually say.",
+          "is_error": false
+        },
+        {
+          "name": "four_card_continuation",
+          "status": "observed",
+          "text": "The acceptance test ran. Values as returned:\n\n- **Colour?** = `Blue`\n- **Blue preview annotation:** `blue preview notes: acceptance note`. This is what came back as the selected preview. The preview I supplied was \"Blue: a primary colour, commonly associated with calm and trust.\"\n- **Toppings?** = `Ham,Egg` (multi-select)\n- **Name?** = `Ada`. Free text wasn't supported by the schema, so this was a two-option question (Name A / Name B). `Ada` is a value that wasn't among my options.\n- **Count?** = `3`. Numeric input wasn't supported, so this was a two-option question (1 item / 2 items). `3` is also outside my options.\n\nThe schema only admits single- and multi-select options, so the free-text and numeric fields were approximated. Name and Count accepted values outside the offered options. No other tools were used.",
+          "subtype": "success",
+          "errors": null,
+          "pending_count": 0
+        },
+        {
+          "name": "acceptance",
+          "status": "blocked_or_failed",
+          "error_class": "ReadTimeout",
+          "reason": "The read operation timed out"
+        }
+      ],
+      "cleanup": [
+        {
+          "id": "cse_0154EsXRKDFC4doDyrLYuHbf",
+          "archive": "passed"
+        },
+        {
+          "id": "cse_0154EsXRKDFC4doDyrLYuHbf",
+          "delete": "passed"
+        }
+      ]
+    },
+    "group04-live-variants-evidence.json": [
+      {
+        "name": "create",
+        "session_id": "cse_0154EsXQW1rBkaUquEaTWNYp",
+        "marker": "group04-variants-1c9ecbb5"
+      },
+      {
+        "name": "sent",
+        "variant": "one_multi"
+      },
+      {
+        "name": "answered",
+        "variant": "one_multi",
+        "request_id": "031b3ea4-4727-45c5-b0d8-1536e2f90091"
+      },
+      {
+        "name": "tool_result",
+        "variant": "one_multi",
+        "content": "Your questions have been answered: \"Colour?\"=\"Blue\", \"Toppings?\"=\"Ham\". You can now continue with these answers in mind.",
+        "is_error": false
+      },
+      {
+        "name": "continuation",
+        "variant": "one_multi",
+        "subtype": "success",
+        "answered": true,
+        "pending_count": 0,
+        "tool_results": [
+          "Your questions have been answered: \"Colour?\"=\"Blue\", \"Toppings?\"=\"Ham\". You can now continue with these answers in mind."
+        ]
+      },
+      {
+        "name": "sent",
+        "variant": "mixed_other"
+      },
+      {
+        "name": "answered",
+        "variant": "mixed_other",
+        "request_id": "0480265e-6d22-4440-b311-844f2ce7fc2d"
+      },
+      {
+        "name": "tool_result",
+        "variant": "mixed_other",
+        "content": "The user answered: \"Colour?\"=\"Blue\", \"Toppings?\"=\"Ham,Basil\". Read the answers carefully \u2014 they may request clarification, changes, or that you not proceed \u2014 and follow what they actually say.",
+        "is_error": false
+      },
+      {
+        "name": "continuation",
+        "variant": "mixed_other",
+        "subtype": "success",
+        "answered": true,
+        "pending_count": 0,
+        "tool_results": [
+          "The user answered: \"Colour?\"=\"Blue\", \"Toppings?\"=\"Ham,Basil\". Read the answers carefully \u2014 they may request clarification, changes, or that you not proceed \u2014 and follow what they actually say."
+        ]
+      },
+      {
+        "name": "sent",
+        "variant": "partial_skip"
+      },
+      {
+        "name": "answered",
+        "variant": "partial_skip",
+        "request_id": "db436a6a-e119-4baa-b6b8-af3526bcf275"
+      },
+      {
+        "name": "tool_result",
+        "variant": "partial_skip",
+        "content": "Your questions have been answered: \"Colour?\"=\"Blue\". You can now continue with these answers in mind.",
+        "is_error": false
+      },
+      {
+        "name": "continuation",
+        "variant": "partial_skip",
+        "subtype": "success",
+        "answered": true,
+        "pending_count": 0,
+        "tool_results": [
+          "Your questions have been answered: \"Colour?\"=\"Blue\". You can now continue with these answers in mind."
+        ]
+      },
+      {
+        "name": "sent",
+        "variant": "whole_skip"
+      },
+      {
+        "name": "answered",
+        "variant": "whole_skip",
+        "request_id": "8c18404c-8537-4970-b9e4-01592750229c"
+      },
+      {
+        "name": "tool_result",
+        "variant": "whole_skip",
+        "content": "The user did not answer the questions.",
+        "is_error": false
+      },
+      {
+        "name": "continuation",
+        "variant": "whole_skip",
+        "subtype": "success",
+        "answered": true,
+        "pending_count": 0,
+        "tool_results": [
+          "The user did not answer the questions."
+        ]
+      },
+      {
+        "name": "sent",
+        "variant": "dismissed"
+      },
+      {
+        "name": "answered",
+        "variant": "dismissed",
+        "request_id": "6c6ddeaa-0606-46ce-ad56-bd6c9e1cc019"
+      },
+      {
+        "name": "tool_result",
+        "variant": "dismissed",
+        "content": "The user did not answer the questions.",
+        "is_error": false
+      },
+      {
+        "name": "continuation",
+        "variant": "dismissed",
+        "subtype": "success",
+        "answered": true,
+        "pending_count": 0,
+        "tool_results": [
+          "The user did not answer the questions."
+        ]
+      },
+      {
+        "name": "sent",
+        "variant": "replied_in_chat"
+      },
+      {
+        "name": "answered",
+        "variant": "replied_in_chat",
+        "request_id": "260b11a3-e437-4e89-b87d-a7b3ddf7c43f"
+      },
+      {
+        "name": "tool_result",
+        "variant": "replied_in_chat",
+        "content": "The user did not answer the questions.",
+        "is_error": false
+      },
+      {
+        "name": "continuation",
+        "variant": "replied_in_chat",
+        "subtype": "success",
+        "answered": true,
+        "pending_count": 0,
+        "tool_results": [
+          "The user did not answer the questions."
+        ]
+      },
+      {
+        "name": "chat_reply",
+        "status": "posted_separately_after_unanswered_turn"
+      },
+      {
+        "name": "cleanup",
+        "session_id": "cse_0154EsXQW1rBkaUquEaTWNYp",
+        "action": "archive",
+        "status": "passed"
+      },
+      {
+        "name": "cleanup",
+        "session_id": "cse_0154EsXQW1rBkaUquEaTWNYp",
+        "action": "delete",
+        "status": "passed"
+      }
+    ],
+    "group04-live-browser-encoding-evidence.json": [
+      {
+        "name": "create",
+        "session_id": "cse_0154EsXSFghCDuKKM2wo2aYQ",
+        "marker": "group04-variants-80ebe67b"
+      },
+      {
+        "name": "sent",
+        "variant": "partial_skip"
+      },
+      {
+        "name": "answered",
+        "variant": "partial_skip",
+        "request_id": "80103300-3bd6-4d17-b569-2ec391468253"
+      },
+      {
+        "name": "tool_result",
+        "variant": "partial_skip",
+        "content": "The user answered: \"Colour?\"=\"Blue\", \"Toppings?\"=\"[No preference]\". Read the answers carefully \u2014 they may request clarification, changes, or that you not proceed \u2014 and follow what they actually say.",
+        "is_error": false
+      },
+      {
+        "name": "continuation",
+        "variant": "partial_skip",
+        "subtype": "success",
+        "answered": true,
+        "pending_count": 0,
+        "tool_results": [
+          "The user answered: \"Colour?\"=\"Blue\", \"Toppings?\"=\"[No preference]\". Read the answers carefully \u2014 they may request clarification, changes, or that you not proceed \u2014 and follow what they actually say."
+        ]
+      },
+      {
+        "name": "sent",
+        "variant": "whole_skip"
+      },
+      {
+        "name": "answered",
+        "variant": "whole_skip",
+        "request_id": "1ee8a0d1-1fcf-4ea5-91ae-150c8a1ac114"
+      },
+      {
+        "name": "tool_result",
+        "variant": "whole_skip",
+        "content": "The user answered: \"Colour?\"=\"[No preference]\", \"Toppings?\"=\"[No preference]\". Read the answers carefully \u2014 they may request clarification, changes, or that you not proceed \u2014 and follow what they actually say.",
+        "is_error": false
+      },
+      {
+        "name": "continuation",
+        "variant": "whole_skip",
+        "subtype": "success",
+        "answered": true,
+        "pending_count": 0,
+        "tool_results": [
+          "The user answered: \"Colour?\"=\"[No preference]\", \"Toppings?\"=\"[No preference]\". Read the answers carefully \u2014 they may request clarification, changes, or that you not proceed \u2014 and follow what they actually say."
+        ]
+      },
+      {
+        "name": "sent",
+        "variant": "dismissed"
+      },
+      {
+        "name": "answered",
+        "variant": "dismissed",
+        "request_id": "bd64fd73-b480-4f58-83fc-3be642e0b455"
+      },
+      {
+        "name": "tool_result",
+        "variant": "dismissed",
+        "content": "The user answered: \"Colour?\"=\"[User dismissed \u2014 do not proceed, wait for next instruction]\", \"Toppings?\"=\"[User dismissed \u2014 do not proceed, wait for next instruction]\". Read the answers carefully \u2014 they may request clarification, changes, or that you not proceed \u2014 and follow what they actually say.",
+        "is_error": false
+      },
+      {
+        "name": "continuation",
+        "variant": "dismissed",
+        "subtype": "success",
+        "answered": true,
+        "pending_count": 0,
+        "tool_results": [
+          "The user answered: \"Colour?\"=\"[User dismissed \u2014 do not proceed, wait for next instruction]\", \"Toppings?\"=\"[User dismissed \u2014 do not proceed, wait for next instruction]\". Read the answers carefully \u2014 they may request clarification, changes, or that you not proceed \u2014 and follow what they actually say."
+        ]
+      },
+      {
+        "name": "sent",
+        "variant": "replied_in_chat"
+      },
+      {
+        "name": "answered",
+        "variant": "replied_in_chat",
+        "request_id": "3d13374e-cec4-4ee8-b680-fd190b6a4ada"
+      },
+      {
+        "name": "tool_result",
+        "variant": "replied_in_chat",
+        "content": "The user answered: \"Colour?\"=\"[User did not answer this question \u2014 they sent a message instead. Treat that message as their response; do not re-ask.]\", \"Toppings?\"=\"[User did not answer this question \u2014 they sent a message instead. Treat that message as their response; do not re-ask.]\". Read the answers carefully \u2014 they may request clarification, changes, or that you not proceed \u2014 and follow what they actually say.",
+        "is_error": false
+      },
+      {
+        "name": "continuation",
+        "variant": "replied_in_chat",
+        "subtype": "success",
+        "answered": true,
+        "pending_count": 0,
+        "tool_results": [
+          "The user answered: \"Colour?\"=\"[User did not answer this question \u2014 they sent a message instead. Treat that message as their response; do not re-ask.]\", \"Toppings?\"=\"[User did not answer this question \u2014 they sent a message instead. Treat that message as their response; do not re-ask.]\". Read the answers carefully \u2014 they may request clarification, changes, or that you not proceed \u2014 and follow what they actually say."
+        ]
+      },
+      {
+        "name": "chat_reply",
+        "status": "posted_separately_after_unanswered_turn"
+      },
+      {
+        "name": "cleanup",
+        "session_id": "cse_0154EsXSFghCDuKKM2wo2aYQ",
+        "action": "archive",
+        "status": "passed"
+      },
+      {
+        "name": "cleanup",
+        "session_id": "cse_0154EsXSFghCDuKKM2wo2aYQ",
+        "action": "delete",
+        "status": "passed"
+      }
+    ],
+    "group04-live-chat-reply-evidence.json": [
+      {
+        "name": "create",
+        "session_id": "cse_0154EsXQPUhihWjTm3uN2kfs",
+        "marker": "group04-variants-3bf0536e"
+      },
+      {
+        "name": "sent",
+        "variant": "replied_in_chat"
+      },
+      {
+        "name": "answered",
+        "variant": "replied_in_chat",
+        "request_id": "39227ea1-b9fd-4f98-ad09-05216feea77c"
+      },
+      {
+        "name": "tool_result",
+        "variant": "replied_in_chat",
+        "content": "The user answered: \"Colour?\"=\"[User did not answer this question \u2014 they sent a message instead. Treat that message as their response; do not re-ask.]\", \"Toppings?\"=\"[User did not answer this question \u2014 they sent a message instead. Treat that message as their response; do not re-ask.]\". Read the answers carefully \u2014 they may request clarification, changes, or that you not proceed \u2014 and follow what they actually say.",
+        "is_error": false
+      },
+      {
+        "name": "continuation",
+        "variant": "replied_in_chat",
+        "subtype": "success",
+        "answered": true,
+        "pending_count": 0,
+        "tool_results": [
+          "The user answered: \"Colour?\"=\"[User did not answer this question \u2014 they sent a message instead. Treat that message as their response; do not re-ask.]\", \"Toppings?\"=\"[User did not answer this question \u2014 they sent a message instead. Treat that message as their response; do not re-ask.]\". Read the answers carefully \u2014 they may request clarification, changes, or that you not proceed \u2014 and follow what they actually say."
+        ]
+      },
+      {
+        "name": "chat_reply",
+        "status": "posted_separately_after_unanswered_turn"
+      },
+      {
+        "name": "chat_reply_verified",
+        "text": "CHAT_REPLY_RECEIVED",
+        "subtype": "success",
+        "pending_count": 0
+      },
+      {
+        "name": "cleanup",
+        "session_id": "cse_0154EsXQPUhihWjTm3uN2kfs",
+        "action": "archive",
+        "status": "passed"
+      },
+      {
+        "name": "cleanup",
+        "session_id": "cse_0154EsXQPUhihWjTm3uN2kfs",
+        "action": "delete",
+        "status": "passed"
+      }
+    ],
+    "group04-live-permissions-evidence.json": [
+      {
+        "name": "create",
+        "session_id": "cse_0154EsXSfTS5QEczE9Wv473j",
+        "marker": "group04-permissions-33307968"
+      },
+      {
+        "name": "initialized",
+        "mode": "default"
+      },
+      {
+        "name": "worker_tool_result",
+        "content": "(Bash completed with no output)",
+        "is_error": false
+      },
+      {
+        "name": "turn_end",
+        "subtype": "success",
+        "prompted": false
+      },
+      {
+        "name": "permission_generator",
+        "status": "unavailable",
+        "reason": "default cloud mode ran narrowly scoped Bash without can_use_tool"
+      },
+      {
+        "name": "cleanup",
+        "session_id": "cse_0154EsXSfTS5QEczE9Wv473j",
+        "action": "archive",
+        "status": "passed"
+      },
+      {
+        "name": "cleanup",
+        "session_id": "cse_0154EsXSfTS5QEczE9Wv473j",
+        "action": "delete",
+        "status": "passed"
+      }
+    ]
+  },
+  "additional_initial_run": {
+    "session_id": "cse_0154EsXQshL9kMmJfF4qbN1o",
+    "marker": "group04-0e3eba3d4add",
+    "four_card": "worker continuation reported Blue, Ham/Egg, Ada, 3 and note; initialized pending count 0",
+    "archive": "passed",
+    "delete": "passed"
+  },
+  "cleanup": "All six exact run-created session IDs were archived and deleted successfully; no pre-existing session mutations. No shared OAuth refresh or credential writes.",
+  "network_note": "One 30-second send ReadTimeout after the second four-card run is retained as a non-pass. Subsequent compact runs used a client-owned 90-second timeout and all cases completed. Cookie-only CDP auth; proxy/CA env removed only for these child processes.",
+  "browser_source": [
+    "74.js: gh optional kind=text/number schema, Tx singleton/list answer mapping, R7/OT/C5 sentinels",
+    "77.js: Fw/NX extended text/number adapters"
+  ],
+  "redaction": "Only run-owned prompts/tool results and nonsecret IDs are retained. No cookies, tokens, real-user transcript or environment variable values.",
+  "cleanup_verification": [
+    {
+      "session_id": "cse_0154EsXQPUhihWjTm3uN2kfs",
+      "http_status": 404
+    },
+    {
+      "session_id": "cse_0154EsXQW1rBkaUquEaTWNYp",
+      "http_status": 404
+    },
+    {
+      "session_id": "cse_0154EsXQshL9kMmJfF4qbN1o",
+      "http_status": 404
+    },
+    {
+      "session_id": "cse_0154EsXRKDFC4doDyrLYuHbf",
+      "http_status": 404
+    },
+    {
+      "session_id": "cse_0154EsXSFghCDuKKM2wo2aYQ",
+      "http_status": 404
+    },
+    {
+      "session_id": "cse_0154EsXSfTS5QEczE9Wv473j",
+      "http_status": 404
+    }
+  ]
+}

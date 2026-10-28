@@ -1,0 +1,503 @@
+{
+  "date": "2026-10-28",
+  "group": "04-permissions-questions-and-dialogs",
+  "independently_verified_builder_commit": "4ea3273f1e5320f8f06cad11d8624389bcdde4c5",
+  "offline": {
+    "command": "uv --directory /home/service/Projects/claude-rc-api/worktrees/04-permissions-questions-and-dialogs run --extra test --extra web --extra cli pytest -q",
+    "before_fix": {
+      "passed": 301,
+      "skipped": 1
+    },
+    "regression_command": "uv --directory /home/service/Projects/claude-rc-api/worktrees/04-permissions-questions-and-dialogs run --extra test pytest -q tests/test_prompts.py -k duplicate_other",
+    "regression_before_fix": "1 failed: DID NOT RAISE ValueError; invalid control response was posted",
+    "after_fix": {
+      "passed": 302,
+      "skipped": 1
+    },
+    "diff_check": "git diff --check passed"
+  },
+  "fixed": {
+    "file": "claude_rc/prompts.py",
+    "defect": "Other aliases for one multi-select question were appended separately; selecting both options plus two Other aliases produced four entries, exceeding the documented options+1 wire bound.",
+    "change": "Reject repeated resolved Other question text before send_events; one selected-label set plus one Other remains supported.",
+    "test": "tests/test_prompts.py::test_duplicate_other_aliases_rejected_without_post",
+    "qualification": "Malformed over-bound responses were reproduced offline only, not injected into live workers."
+  },
+  "live_commands": [
+    "env -u HTTPS_PROXY -u HTTP_PROXY -u ALL_PROXY -u SSL_CERT_FILE uv --directory /home/service/Projects/claude-rc-api/worktrees/04-permissions-questions-and-dialogs run --extra web python /tmp/claude-1000/-home-service/4413ea3d-c451-4c0c-9bd3-b32599c70712/scratchpad/group04_independent_verify.py",
+    "env -u HTTPS_PROXY -u HTTP_PROXY -u ALL_PROXY -u SSL_CERT_FILE uv --directory /home/service/Projects/claude-rc-api/worktrees/04-permissions-questions-and-dialogs run --extra web python /tmp/claude-1000/-home-service/4413ea3d-c451-4c0c-9bd3-b32599c70712/scratchpad/group04_independent_permissions.py"
+  ],
+  "questions": [
+    {
+      "name": "created",
+      "session_id": "cse_0154EsXTwLhR7aNJiiP7mNgj",
+      "source": "cookies:cdp"
+    },
+    {
+      "name": "schema",
+      "case": "four",
+      "input": {
+        "questions": [
+          {
+            "header": "Colour",
+            "multiSelect": false,
+            "options": [
+              {
+                "description": "Red colour",
+                "label": "Red"
+              },
+              {
+                "description": "Blue colour",
+                "label": "Blue",
+                "preview": "Blue swatch: #1E63D6"
+              }
+            ],
+            "question": "Colour?"
+          },
+          {
+            "header": "Toppings",
+            "multiSelect": true,
+            "options": [
+              {
+                "description": "Ham topping",
+                "label": "Ham"
+              },
+              {
+                "description": "Egg topping",
+                "label": "Egg"
+              }
+            ],
+            "question": "Toppings?"
+          },
+          {
+            "header": "Name",
+            "multiSelect": false,
+            "options": [
+              {
+                "description": "Name option A",
+                "label": "A"
+              },
+              {
+                "description": "Name option B",
+                "label": "B"
+              }
+            ],
+            "question": "Name? (schema has no free-text type, so A/B choices; use Other to type your own)"
+          },
+          {
+            "header": "Count",
+            "multiSelect": false,
+            "options": [
+              {
+                "description": "Count of one",
+                "label": "One"
+              },
+              {
+                "description": "Count of two (default)",
+                "label": "Two"
+              }
+            ],
+            "question": "Count? (schema has no numeric type, so One/Two choices; use Other to type a number 1-5)"
+          }
+        ]
+      }
+    },
+    {
+      "name": "verified",
+      "case": "four",
+      "tool_results": [
+        "The user answered: \"Colour?\"=\"Blue\" selected preview:\nindependent preview notes: independent note, \"Toppings?\"=\"Ham,Egg\", \"Name? (schema has no free-text type, so A/B choices; use Other to type your own)\"=\"Ada\", \"Count? (schema has no numeric type, so One/Two choices; use Other to type a number 1-5)\"=\"3\". Read the answers carefully \u2014 they may request clarification, changes, or that you not proceed \u2014 and follow what they actually say."
+      ],
+      "text": "Received:\n\n- **Colour:** `Blue`. The selected preview came back empty. The result shows only the label \"independent preview notes: independent note\", not the swatch text I attached to Blue.\n- **Toppings:** `Ham,Egg`\n- **Name:** `Ada`, typed via \"Other\", not A or B.\n- **Count:** `3`, typed via \"Other\", not One or Two.\n\nNo notes were attached to any answer apart from that preview line. I made no other tool calls.",
+      "pending_count": 0
+    },
+    {
+      "name": "schema",
+      "case": "one_multi",
+      "input": {
+        "questions": [
+          {
+            "header": "Colour",
+            "multiSelect": false,
+            "options": [
+              {
+                "description": "Red colour",
+                "label": "Red"
+              },
+              {
+                "description": "Blue colour",
+                "label": "Blue"
+              }
+            ],
+            "question": "Colour?"
+          },
+          {
+            "header": "Toppings",
+            "multiSelect": true,
+            "options": [
+              {
+                "description": "Ham topping",
+                "label": "Ham"
+              },
+              {
+                "description": "Egg topping",
+                "label": "Egg"
+              }
+            ],
+            "question": "Toppings?"
+          }
+        ]
+      }
+    },
+    {
+      "name": "verified",
+      "case": "one_multi",
+      "tool_results": [
+        "Your questions have been answered: \"Colour?\"=\"Blue\", \"Toppings?\"=\"Ham\". You can now continue with these answers in mind."
+      ],
+      "text": "Colour: `Blue`. Toppings: `Ham`.",
+      "pending_count": 0
+    },
+    {
+      "name": "schema",
+      "case": "mixed_other",
+      "input": {
+        "questions": [
+          {
+            "header": "Colour",
+            "multiSelect": false,
+            "options": [
+              {
+                "description": "Red colour",
+                "label": "Red"
+              },
+              {
+                "description": "Blue colour",
+                "label": "Blue"
+              }
+            ],
+            "question": "Colour?"
+          },
+          {
+            "header": "Toppings",
+            "multiSelect": true,
+            "options": [
+              {
+                "description": "Ham topping",
+                "label": "Ham"
+              },
+              {
+                "description": "Egg topping",
+                "label": "Egg"
+              }
+            ],
+            "question": "Toppings?"
+          }
+        ]
+      }
+    },
+    {
+      "name": "verified",
+      "case": "mixed_other",
+      "tool_results": [
+        "The user answered: \"Colour?\"=\"Blue\", \"Toppings?\"=\"Ham,Basil\". Read the answers carefully \u2014 they may request clarification, changes, or that you not proceed \u2014 and follow what they actually say."
+      ],
+      "text": "Colour: `Blue`. Toppings: `Ham,Basil`.\n\nBasil wasn't one of the options I offered, so this answer was typed in through \"Other\".",
+      "pending_count": 0
+    },
+    {
+      "name": "schema",
+      "case": "partial_skip",
+      "input": {
+        "questions": [
+          {
+            "header": "Colour",
+            "multiSelect": false,
+            "options": [
+              {
+                "description": "Red colour",
+                "label": "Red"
+              },
+              {
+                "description": "Blue colour",
+                "label": "Blue"
+              }
+            ],
+            "question": "Colour?"
+          },
+          {
+            "header": "Toppings",
+            "multiSelect": true,
+            "options": [
+              {
+                "description": "Ham topping",
+                "label": "Ham"
+              },
+              {
+                "description": "Egg topping",
+                "label": "Egg"
+              }
+            ],
+            "question": "Toppings?"
+          }
+        ]
+      }
+    },
+    {
+      "name": "verified",
+      "case": "partial_skip",
+      "tool_results": [
+        "The user answered: \"Colour?\"=\"Blue\", \"Toppings?\"=\"[No preference]\". Read the answers carefully \u2014 they may request clarification, changes, or that you not proceed \u2014 and follow what they actually say."
+      ],
+      "text": "Colour: `Blue`. Toppings: `[No preference]`.",
+      "pending_count": 0
+    },
+    {
+      "name": "schema",
+      "case": "whole_skip",
+      "input": {
+        "questions": [
+          {
+            "header": "Colour",
+            "multiSelect": false,
+            "options": [
+              {
+                "description": "Red colour",
+                "label": "Red"
+              },
+              {
+                "description": "Blue colour",
+                "label": "Blue"
+              }
+            ],
+            "question": "Colour?"
+          },
+          {
+            "header": "Toppings",
+            "multiSelect": true,
+            "options": [
+              {
+                "description": "Ham topping",
+                "label": "Ham"
+              },
+              {
+                "description": "Egg topping",
+                "label": "Egg"
+              }
+            ],
+            "question": "Toppings?"
+          }
+        ]
+      }
+    },
+    {
+      "name": "verified",
+      "case": "whole_skip",
+      "tool_results": [
+        "The user answered: \"Colour?\"=\"[No preference]\", \"Toppings?\"=\"[No preference]\". Read the answers carefully \u2014 they may request clarification, changes, or that you not proceed \u2014 and follow what they actually say."
+      ],
+      "text": "Colour: `[No preference]`. Toppings: `[No preference]`.",
+      "pending_count": 0
+    },
+    {
+      "name": "schema",
+      "case": "dismissed",
+      "input": {
+        "questions": [
+          {
+            "header": "Colour",
+            "multiSelect": false,
+            "options": [
+              {
+                "description": "Red colour",
+                "label": "Red"
+              },
+              {
+                "description": "Blue colour",
+                "label": "Blue"
+              }
+            ],
+            "question": "Colour?"
+          },
+          {
+            "header": "Toppings",
+            "multiSelect": true,
+            "options": [
+              {
+                "description": "Ham topping",
+                "label": "Ham"
+              },
+              {
+                "description": "Egg topping",
+                "label": "Egg"
+              }
+            ],
+            "question": "Toppings?"
+          }
+        ]
+      }
+    },
+    {
+      "name": "verified",
+      "case": "dismissed",
+      "tool_results": [
+        "The user answered: \"Colour?\"=\"[User dismissed \u2014 do not proceed, wait for next instruction]\", \"Toppings?\"=\"[User dismissed \u2014 do not proceed, wait for next instruction]\". Read the answers carefully \u2014 they may request clarification, changes, or that you not proceed \u2014 and follow what they actually say."
+      ],
+      "text": "Both questions were dismissed, and you said not to proceed. I'll wait for your next instruction.",
+      "pending_count": 0
+    },
+    {
+      "name": "schema",
+      "case": "replied_in_chat",
+      "input": {
+        "questions": [
+          {
+            "header": "Colour",
+            "multiSelect": false,
+            "options": [
+              {
+                "description": "Red colour",
+                "label": "Red"
+              },
+              {
+                "description": "Blue colour",
+                "label": "Blue"
+              }
+            ],
+            "question": "Colour?"
+          },
+          {
+            "header": "Toppings",
+            "multiSelect": true,
+            "options": [
+              {
+                "description": "Ham topping",
+                "label": "Ham"
+              },
+              {
+                "description": "Egg topping",
+                "label": "Egg"
+              }
+            ],
+            "question": "Toppings?"
+          }
+        ]
+      }
+    },
+    {
+      "name": "verified",
+      "case": "replied_in_chat",
+      "tool_results": [
+        "The user answered: \"Colour?\"=\"[User did not answer this question \u2014 they sent a message instead. Treat that message as their response; do not re-ask.]\", \"Toppings?\"=\"[User did not answer this question \u2014 they sent a message instead. Treat that message as their response; do not re-ask.]\". Read the answers carefully \u2014 they may request clarification, changes, or that you not proceed \u2014 and follow what they actually say."
+      ],
+      "text": "Neither question was answered. The tool says you sent a message instead, but I don't see one in this conversation, so I don't have a Colour or Toppings value. What would you like me to do?",
+      "pending_count": 0
+    },
+    {
+      "name": "verified",
+      "case": "chat_followup",
+      "tool_results": [],
+      "text": "INDEPENDENT_CHAT_OK",
+      "pending_count": 0
+    },
+    {
+      "name": "cleanup",
+      "action": "archive",
+      "session_id": "cse_0154EsXTwLhR7aNJiiP7mNgj",
+      "status": "passed"
+    },
+    {
+      "name": "cleanup",
+      "action": "delete",
+      "session_id": "cse_0154EsXTwLhR7aNJiiP7mNgj",
+      "status": "passed"
+    },
+    {
+      "name": "cleanup",
+      "action": "verify_deleted",
+      "session_id": "cse_0154EsXTwLhR7aNJiiP7mNgj",
+      "status": "passed"
+    }
+  ],
+  "permissions": [
+    {
+      "name": "create",
+      "session_id": "cse_0154EsXQiUhD543PJ52qR6iA",
+      "marker": "group04-permissions-c23575b1"
+    },
+    {
+      "name": "initialized",
+      "mode": "default"
+    },
+    {
+      "name": "worker_tool_result",
+      "content": "(Bash completed with no output)",
+      "is_error": false
+    },
+    {
+      "name": "turn_end",
+      "subtype": "success",
+      "prompted": false
+    },
+    {
+      "name": "permission_generator",
+      "status": "unavailable",
+      "reason": "default cloud mode ran narrowly scoped Bash without can_use_tool"
+    },
+    {
+      "name": "cleanup",
+      "session_id": "cse_0154EsXQiUhD543PJ52qR6iA",
+      "action": "archive",
+      "status": "passed"
+    },
+    {
+      "name": "cleanup",
+      "session_id": "cse_0154EsXQiUhD543PJ52qR6iA",
+      "action": "delete",
+      "status": "passed"
+    },
+    {
+      "name": "cleanup",
+      "session_id": "cse_0154EsXQiUhD543PJ52qR6iA",
+      "action": "verify_deleted",
+      "status": "passed"
+    }
+  ],
+  "qualifications": [
+    "Assertions inspect actual durable worker tool_result values, successful turn end, and initialized pending disappearance; HTTP enqueue is not used as execution proof.",
+    "History page size 3 exercises actual paginated discovery before and after answers, including old prompt settlement.",
+    "The worker consumed notes/preview text in tool_result, although its four-card prose misinterpreted the preview formatting; this is payload-consumption proof, not exact model paraphrase proof.",
+    "The first four-card question schema omitted text/number kinds and explicitly reported that limitation. Ada/3 were Other text in choice questions, not native text/number verification.",
+    "Cookie CDP was read explicitly in these probes. This verifies cookie-only prompt behavior, not group01 automatic auth discovery or auth recovery.",
+    "Question probe started before the duplicate-Other guard edit; its happy paths test the builder commit. The final edited module passed the complete offline suite.",
+    "The default-mode cloud worker again executed harmless Bash without can_use_tool. No allow, deny or always rule was applied; those live outcomes remain unverified.",
+    "No existing-user session mutation, shared OAuth refresh, credential persistence, UI automation or real-user transcript capture."
+  ],
+  "remaining_acceptance": [
+    {
+      "capability": "Allow once execution, deny no-execution, always exact rule plus second-operation reuse, interrupt",
+      "status": "offline-only",
+      "next": "Dedicated isolated worker must genuinely emit can_use_tool for the test-owned operation; harmless default-mode Bash did not."
+    },
+    {
+      "capability": "Native text/number constraints, defaults, unit and followUp",
+      "status": "cloud-worker-unavailable / renderer-unverified",
+      "next": "Use a worker admitting the browser extended schema; group08 must test its rendered flow."
+    },
+    {
+      "capability": "request_user_dialog completed/cancelled, elicitation, hook callback",
+      "status": "offline-only",
+      "next": "Configure dedicated harmless prompt generators; do not advertise supportedDialogKinds merely because codecs exist."
+    },
+    {
+      "capability": "CLI/panel previews, notes, native text/number fields, full-card browser parity",
+      "status": "group08-integration-required",
+      "next": "Integrate helpers with explicit browser unanswered encoding and verify real rendered UI."
+    },
+    {
+      "capability": "Worker-only empty unanswered annotations",
+      "status": "builder-live-evidence-not-repeated-independently",
+      "next": "Existing builder evidence records generic unanswered semantics; the independent run deliberately checked distinct browser encodings instead."
+    }
+  ]
+}
