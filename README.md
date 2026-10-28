@@ -13,6 +13,26 @@ uses.
 > break at any time. Use your own account, at your own risk. Full protocol
 > writeup in [`API_REFERENCE.md`](./API_REFERENCE.md).
 
+## This fork (0.5.0): Claude Code on the web
+
+`FarisHijazi/claude-rc-api` adds the rest of claude.ai/code on top of
+upstream 0.4.0: create/unarchive/delete/share/tag cloud sessions, environments
+(list/get/create/edit), scheduled tasks, every control request (model,
+permission mode, effort, interrupt), permission and AskUserQuestion answers,
+slash commands, the account watch feed, attachments, claude.ai TTS, and
+claude.ai `sessionKey` cookie auth read from a signed-in Chrome
+(`CLAUDE_AI_CDP_URL=http://127.0.0.1:9222`). Shapes and live status:
+[`docs/web-api.md`](./docs/web-api.md).
+
+```bash
+uv add "claude-rc-api[web,cli] @ git+https://github.com/FarisHijazi/claude-rc-api"
+CLAUDE_AI_CDP_URL=http://127.0.0.1:9222 claude-rc whoami
+claude-rc envs list
+claude-rc create --model claude-haiku-5-5 "reply with PONG"
+claude-rc pending <session_id>
+claude-rc answer <session_id> question --select "Blue"   # or allow | always | deny
+```
+
 ---
 
 ## How it works
