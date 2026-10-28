@@ -28,7 +28,8 @@ module that owns the area, or a new mixin module plus one line in the
 | `credentials.py` | OAuth credentials (file / macOS Keychain), refresh with CAS save, trusted devices, `resolve_auth` (the auth chain), cswap slots |
 | `webauth.py` | claude.ai cookie jar: env, state file, Chrome cookie DB, Chrome CDP; Cloudflare detection |
 | `lifecycle.py` | create/unarchive/delete/share/tag/mark-read, teleport events |
-| `environments.py` | environments (public + private org routes), create/update, self-hosted pools |
+| `environments.py` | environments (cookie private writes + bearer lineage), recursive config merging, archive, self-hosted pool reads, network profiles/rules/credentials |
+| `account.py` | read-only web usage/settings/profile/subscription/connectors/skills; distinct from session worker settings and usage |
 | `triggers.py` | scheduled tasks (routines) |
 | `interaction.py` | pending prompts, permission + AskUserQuestion answers, slash commands, generic controls, `stream_session` (keeps meta frames), account `watch` feed |
 | `files.py` | attachments / Files API |
@@ -82,3 +83,8 @@ On dev, uv needs the proxy CA plus the system bundle:
 - Never touch sessions you did not create, except read-only listing.
 - Record what ran live in `docs/web-api.md` ("LIVE CHECK"). Devlogs go in
   `docs/devlog/claude_<date>-<desc>.md`.
+- Group06 evidence/contracts: `docs/devlog/claude_2026-10-28-group06-contracts.json`
+  and `docs/devlog/claude_2026-10-28-group06-live-evidence.json` (plain paths,
+  not includes). Environment archive removes it from lists but GET may still
+  return `state: active`; permanent environment deletion is unsupported.
+  Network profile/secret writes are captured-contract/offline-only, not live verified.

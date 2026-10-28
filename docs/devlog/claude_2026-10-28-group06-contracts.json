@@ -1,0 +1,72 @@
+{
+  "group": "06-environments-network-profiles-and-account-discovery",
+  "date": "2026-10-28",
+  "summary": [
+    "Preserved and completed recovered environment merge/redaction edits.",
+    "Cookie create/edit/archive use private organization routes; bearer create/edit preserve existing public lineage.",
+    "Nested configuration updates preserve unspecified environment variables and network policy; arrays replace and explicit empty objects clear fields.",
+    "Added account discovery as AccountMixin through a two-line client compatibility adapter.",
+    "Network profile, binding, credential, rule and environment-secret methods use captured browser request contracts, not invented endpoints."
+  ],
+  "reuse": {
+    "base": "Existing canonical claude_rc mixins and sole client._send transport owner; no second HTTP/auth implementation.",
+    "prior_art": "Research handoff evaluated claude-rc-api, ccweb, otherside-cli, rclaude, ahp-py, ducktape and agent-quickstart; none supplied these missing canonical web surfaces as a drop-in.",
+    "auth": "Existing cookies:cdp provider; no pasted cookies, OAuth refresh, shared credential writes or browser cookie writes."
+  },
+  "source_contracts": {
+    "53.js": "Private organization environments GET; cloud/create POST; environments/{id} POST and environments/{id}/archive POST. Browser default config includes Python 3.11 and Node 20.",
+    "ca9a464a4-Dp1JIRIH.js": "Profiles GET/detail, POST slug/display_name, PATCH including agent_proxy_profile_id and updated_at; DELETE {}; bindings and bindings:unbind POST profile id plus scope.",
+    "c005f625a-Dchun-N1.js": "Profile transform I passes variables unchanged unless setup_entrypoint is provided.",
+    "4.js": "Environment profile create uses slug/display_name; bind scope is {kind: KIND_ENVIRONMENT, id: environment_id}.",
+    "c82544477-BlU1LMzT.js": "Profile list include_bindings=true and include_github_permissions=true; credentials/rules GET envelopes.",
+    "c9928c88a-C4bsuLEz.js": "Credential POST, PATCH display_name/host_constraint, rotate POST {credential}, DELETE {}; rules POST {rule}, PATCH {rule, expected_version}, DELETE {}.",
+    "9.js": "Credential POST body {credential:{agent_proxy_profile_id,display_name,host_constraint,spec}, create_paired_allow_rule?}; real bearer/basic/AWS spec builders; explicit rule create examples.",
+    "c58f0efa3-BvsQODHF.js": "Environment-credentials GET ?environment_id; POST {environment_id,host,display_name?,...secret}; DELETE /{credentialId}?environment_id with {}.",
+    "c36c67bb6-B5Yawkd_.js": "Environment secret is {bearer:{header_name,prefix,value}} or {basic:{username,password}}; separate from config.environment.",
+    "55.js": "GET /api/organizations/{org}/skills/list-skills.",
+    "56.js": "GET /api/organizations/{org}/subscription_details, optional cached=true.",
+    "59.js": "GET /api/claude_code/organizations/{org}/user_settings; 404 means absent; GET /api/organizations/{org}/mcp/remote_servers_with_connection.",
+    "61.js": "GET /api/account_profile.",
+    "research-handoff-2026-10-28.md": "Captured usage route and private environment paging envelope; preserves public bearer route history."
+  },
+  "integration_contract": {
+    "client": "RemoteControlClient inherits AccountMixin; no transport, auth, interaction, streaming, CLI, static, webui or top-level export changes.",
+    "account_cli": "claude_rc.account.register_account_commands(subparsers) -> None; dispatch_account_command(client, args) -> JSON-serializable output. Register account usage/profile/subscription/connectors/skills/settings-shape. Group08 must call both helpers in its existing registration/dispatch flow.",
+    "settings_cli_safety": "settings-shape emits existence and key names only, never sync-row content.",
+    "environments": "Existing list/create/update/get/last-used/pool APIs retained; new archive_environment(environment_id), network_config option on create, list/get/create/update/delete_agent_proxy_profile, bind_environment_profile(profile_id, environment_id, unbind=False), list/create/update/rotate/delete_network_credential, list/create/update/delete_network_rule, list/create/delete_environment_credential. Signatures in environments.py are authoritative.",
+    "exports": "Group08 owns public exports/version and CLI/panel integration. No __init__.py edits were made.",
+    "ledger": "Group08 should merge this JSON and live evidence into docs/web-api.md; that shared ledger was deliberately not edited."
+  },
+  "verification": {
+    "offline": "300 passed, 1 skipped; 35 new environment/account tests. Full suite run using uv run --extra test --extra web --extra cli pytest -q.",
+    "lint": "ruff check and format on group-owned account.py, environments.py and test_environments.py; no shared-client reformat.",
+    "live_evidence": "claude_2026-10-28-group06-live-evidence.json",
+    "initial_live_evidence": "claude_2026-10-28-group06-live-initial.json preserves the first failed strict language readback and cleanup. Subsequent owned-resource inspection identified server normalization, not loss of marker/setup/network config.",
+    "live_passed": [
+      "Default cookies:cdp auth; list sessions read-only, environments, environment detail and pools.",
+      "Read-only browser fetch comparison: environment id/name/kind/state metadata matches client; account usage/settings/profile/subscription/connectors/skills response shapes match browser.",
+      "Create disposable environment, assert marker/setup/network policy and Python language; server additionally defaults Node 20.",
+      "Description/init_script-only update preserves original environment variables, languages, cwd and network policy.",
+      "Marker-only nested update reads back exactly; values redacted from evidence.",
+      "Owned Haiku session actually executed Bash and returned updated marker plus setup-script file content; proof is worker output, not only storage acknowledgement.",
+      "Owned session archived/deleted; subsequent GET returns 404. Both test environments archived and excluded from listing; test browser tab closed.",
+      "Network profiles, credential metadata and rules list reads return 200. Last-used environment returns 404, mapped to None."
+    ]
+  },
+  "capability_status_and_remaining_plan": [
+    {"capability": "Cookie environment create/edit/archive and configuration preservation", "status": "live_verified"},
+    {"capability": "Environment marker and setup applied to worker", "status": "live_verified"},
+    {"capability": "Account usage/settings/profile/subscription/connectors/skills reads", "status": "live_verified_browser_shape_comparison"},
+    {"capability": "Network profiles/credential metadata/rules list", "status": "live_verified_read_only"},
+    {"capability": "Network profile create/edit/delete/bind/unbind; credential/rule/environment-secret writes", "status": "captured_contract_offline_only", "remaining": "After explicit network-write authorization, create a dummy credential-free profile and bind/unbind only a fresh owned environment, then delete and verify absence; test secret/rule writes separately on dummy owned resources (~15 min)."},
+    {"capability": "Network profile detail", "status": "live_verified_read_only"},
+    {"capability": "Environment-secret metadata list", "status": "live_server_rejected_403_permission_error", "remaining": "GET on this run's archived test environment returned 403; retry only on a fresh owned editable environment during the authorized network-write acceptance (~2 min)."},
+    {"capability": "Private environment after_id continuation", "status": "live_verified_four_pages", "remaining": "limit=1 yielded all four environments across four pages; repeated-cursor and page-budget guards additionally verified offline."},
+    {"capability": "Self-hosted pool selection", "status": "read_route_live_verified_empty_pool_list", "remaining": "No existing pool to GET/select; retain environment_target(ccpool_id) existing contract. Use a separately provisioned HQ-owned pool to qualify an actual session (~10 min after provisioning)."},
+    {"capability": "Last-used environment success shape", "status": "live_404_absence_only", "remaining": "No write route invented. Qualify 200 only after an authorized real browser selection produces a value (~2 min)."},
+    {"capability": "Exact arbitrary language subset", "status": "server_normalized", "remaining": "Server added default Node 20 to Python-only create; return/read server configuration rather than promising exact subset."},
+    {"capability": "Permanent environment deletion", "status": "unsupported_no_captured_contract", "remaining": "Archive is the evidenced browser delete-equivalent; no DELETE route invented. Archived GET still reports active while listing excludes it."},
+    {"capability": "OAuth connector consent, runner registry, memory service, SCM tunnels", "status": "outside_group_scope", "remaining": "Keep ownership in auth/connector and HQ services; discovery here is read-only."},
+    {"capability": "CLI/panel wiring and final public exports", "status": "integration_owner_pending", "remaining": "Group08 registers account helper and exposes environment/network methods through its existing dispatch/panel (~20 min)."}
+  ]
+}
