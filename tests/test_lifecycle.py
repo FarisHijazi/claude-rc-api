@@ -231,41 +231,42 @@ def test_unarchive_403_exposes_resource():
     assert ei.value.resource == "untrusted_device"
 
 
-def test_delete_session_v2_then_legacy_fallback():
+def test_delete_session_uses_empty_body_without_destructive_fallback():
     seen, handler = _recorder([(204, None)])
     with _client(handler) as c:
         assert c.delete_session("cse_01ABC") is True
     assert [(r.method, r.url.path) for r in seen] == [("DELETE", "/v1/code/sessions/cse_01ABC")]
-
-    seen, handler = _recorder([(405, {"error": {}}), (200, {})])
-    with _client(handler) as c:
-        assert c.delete_session("cse_01ABC") is True
-    assert [(r.method, r.url.path) for r in seen] == [
-        ("DELETE", "/v1/code/sessions/cse_01ABC"), ("DELETE", "/v1/sessions/session_01ABC")]
+    assert _body(seen[0]) == {}
 
 
-def test_delete_session_other_errors_raise():
-    seen, handler = _recorder([(403, {"error": {"type": "permission_error"}})])
+@pytest.mark.parametrize("status", [403, 404, 405])
+def test_delete_session_errors_never_guess_a_legacy_route(status):
+    seen, handler = _recorder([(status, {"error": {}})])
     with _client(handler) as c, pytest.raises(APIError):
-        c.delete_session("cse_1")
-    assert len(seen) == 1
-    seen, handler = _recorder([(404, {"error": {}})])
-    with _client(handler) as c, pytest.raises(APIError):
-        c.delete_session("cse_1", legacy_fallback=False)
+        c.delete_session("cse_1", legacy_fallback=True)
     assert len(seen) == 1
 
 
-# --- share / heartbeat ---------------------------------------------------------
-def test_share_get_and_set():
-    share = {"current_last_sequence_num": "6", "effective_visibility": "private",
-             "prospective_visibility_type": "sign_in_only", "sharing_settings": None}
-    seen, handler = _recorder([(200, share), (200, {})])
+def test_share_get_create_revoke_and_public_read():
+    share = {"effective_visibility": "private", "sharing_settings": None}
+    seen, handler = _recorder([(200, share), (200, {"share_id": "share_1"}), (204, None), (200, SESSION)])
     with _client(handler) as c:
         assert c.get_share("session_1") == share
-        c.set_share("session_1", visibility_type="sign_in_only")
-    assert (seen[0].method, seen[0].url.path) == ("GET", "/v1/code/sessions/session_1/share")
-    assert (seen[1].method, seen[1].url.path) == ("PUT", "/v1/code/sessions/session_1/share")
-    assert _body(seen[1]) == {"visibility_type": "sign_in_only"}
+        assert c.set_share("session_1", confirm=True)["share_id"] == "share_1"
+        c.revoke_share("session_1")
+        assert c.get_shared_session("share_1") == SESSION
+    assert [r.method for r in seen] == ["GET", "POST", "DELETE", "GET"]
+    assert _body(seen[1]) == _body(seen[2]) == {}
+    assert seen[3].url.path == "/v1/code/shared-sessions/share_1"
+
+
+@pytest.mark.parametrize("kwargs", [{}, {"method": "PUT", "confirm": True},
+    {"confirm": True, "visibility_type": "sign_in_only"}])
+def test_share_writes_fail_closed_before_http(kwargs):
+    seen, handler = _recorder([(200, {})])
+    with _client(handler) as c, pytest.raises(ValueError):
+        c.set_share("cse_1", **kwargs)
+    assert not seen
 
 
 def test_heartbeat_check_sends_cse_ids():
@@ -333,3 +334,133 @@ def test_get_code_repo_bearer_route():
     assert req.url.path == "/api/oauth/organizations/org-1/code/repos/o/r"
     assert req.headers["x-organization-uuid"] == "org-1"
     assert "anthropic-beta" not in req.headers
+
+
+def _cookie_client(handler):
+    return RemoteControlClient(session_key="test-cookie", org_uuid="org-1", transport=httpx.MockTransport(handler))
+
+
+def test_cookie_repo_picker_preserves_response_and_observed_query_fields():
+    response = {"repos": [{"repo": {"name": "widget"}}], "is_complete": False,
+                "next_cursor": "opaque", "sso_required_orgs": []}
+    seen, handler = _recorder([(200, response)])
+    with _cookie_client(handler) as c:
+        assert c.list_code_repos(page=2, per_page=5, skip_status=False) == response
+    assert seen[0].url.path == "/api/organizations/org-1/code/repos"
+    assert dict(seen[0].url.params) == {"page": "2", "per_page": "5", "skip_status": "false", "include_link_optional": "true"}
+    assert "authorization" not in seen[0].headers
+
+
+def test_cookie_branch_and_github_status_routes():
+    seen, handler = _recorder([(200, {"branches": []})])
+    with _cookie_client(handler) as c:
+        c.list_repo_branches("git@github.com:acme/widget.git")
+        c.github_installations_status(include_viewer_install_probe=False)
+        c.github_auth_status()
+    assert [r.url.path for r in seen] == [
+        "/api/github/organizations/org-1/github/acme/widget/branches",
+        "/v1/code/github/org-connection/installations-status",
+        "/api/organizations/org-1/sync/github/auth"]
+    assert seen[1].url.params["include_viewer_install_probe"] == "false"
+
+
+def test_repository_auth_routes_fail_closed():
+    seen, handler = _recorder([(200, {})])
+    with _client(handler) as c:
+        for call in (c.list_code_repos, c.github_auth_status, lambda: c.list_repo_branches("acme/widget")):
+            with pytest.raises(ValueError, match="cookie"):
+                call()
+    with _cookie_client(handler) as c, pytest.raises(ValueError, match="bearer-only"):
+        c.get_code_repo("acme/widget")
+    assert not seen
+
+
+@pytest.mark.parametrize("repo", ["", "acme", "acme/widget/extra", "/widget"])
+def test_invalid_branch_repository_never_reaches_http(repo):
+    seen, handler = _recorder([(200, {})])
+    with _cookie_client(handler) as c, pytest.raises(ValueError):
+        c.list_repo_branches(repo)
+    assert not seen
+
+
+def test_title_search_is_local_and_pages_filtered_sessions():
+    seen, handler = _recorder([
+        (200, {"data": [{"title": "Release FIX"}, {"title": None}], "next_cursor": "next"}),
+        (200, {"data": [{"title": "fix tests"}], "next_cursor": None}),
+    ])
+    with _client(handler) as c:
+        assert [r["title"] for r in c.search_sessions("FiX", statuses=["active"], tags=["owned"])] == ["Release FIX", "fix tests"]
+    assert seen[1].url.params["cursor"] == "next"
+    assert all("search" not in r.url.params for r in seen)
+    assert seen[0].url.params["tags"] == "owned"
+
+
+def test_session_pagination_repeated_cursor_is_bounded():
+    seen, handler = _recorder([(200, {"data": [], "next_cursor": "same"})])
+    with _client(handler) as c, pytest.raises(RuntimeError, match="repeated cursor"):
+        list(c.iter_sessions())
+    assert len(seen) == 2
+
+
+def test_session_pagination_rejects_nonpositive_max_pages():
+    seen, handler = _recorder([(200, {})])
+    with _client(handler) as c, pytest.raises(ValueError):
+        list(c.iter_sessions(max_pages=0))
+    assert not seen
+
+
+def test_captured_optional_repo_and_branch_query_fields():
+    seen, handler = _recorder([(200, {})])
+    with _cookie_client(handler) as c:
+        c.list_code_repos(sort="updated", affiliation="owner", ghe_configuration_id=7, include_link_optional=False)
+        c.list_repo_branches("acme/widget", query="feature/a", ghe_configuration_id=7)
+    assert seen[0].url.params["sort"] == "updated"
+    assert seen[0].url.params["affiliation"] == "owner"
+    assert "include_link_optional" not in seen[0].url.params
+    assert dict(seen[1].url.params) == {"query": "feature/a", "ghe_configuration_id": "7"}
+
+
+def test_secret_scan_preserves_incomplete_state():
+    response = {"secret_types": [], "complete": False}
+    seen, handler = _recorder([(200, response)])
+    with _cookie_client(handler) as c:
+        assert c.scan_share_secrets("cse_1") == response
+    assert seen[0].url.path == "/v1/code/sessions/cse_1/share/secret-scan"
+    assert seen[0].method == "GET"
+    assert not seen[0].content
+
+
+def test_secret_scan_fallback_requires_explicit_caller_text():
+    seen, handler = _recorder([(404, {}), (200, {"secrets": []})])
+    with _cookie_client(handler) as c:
+        assert c.scan_share_secrets("cse_1", fallback_text="test marker") == {"secrets": []}
+    assert seen[1].url.path == "/api/organizations/org-1/code/shares/scan_secrets"
+    assert _body(seen[1]) == {"text_content": ["test marker"]}
+
+
+@pytest.mark.parametrize("status,text", [(404, None), (403, "test"), (400, "test")])
+def test_secret_scan_does_not_hide_unavailable_or_auth_failures(status, text):
+    seen, handler = _recorder([(status, {})])
+    with _cookie_client(handler) as c, pytest.raises(APIError):
+        c.scan_share_secrets("cse_1", fallback_text=text)
+    assert len(seen) == 1
+
+
+@pytest.mark.parametrize("method", ["create_support_share", "debug_export"])
+def test_support_and_debug_require_explicit_confirmation(method):
+    seen, handler = _recorder([(200, {})])
+    with _client(handler) as c, pytest.raises(ValueError, match="confirm=True"):
+        getattr(c, method)("cse_1")
+    assert not seen
+
+
+def test_captured_support_share_and_debug_export_bodies():
+    seen, handler = _recorder([(200, {})])
+    with _client(handler) as c:
+        c.create_support_share("cse_1", confirm=True)
+        c.revoke_support_share("cse_1")
+        c.debug_export("cse_1", caption="owned test", confirm=True)
+        c.debug_export("cse_1", confirm=True)
+    assert [r.method for r in seen] == ["POST", "DELETE", "POST", "POST"]
+    assert [r.url.path.rsplit("/", 1)[1] for r in seen] == ["support-share", "support-share", "debug-export", "debug-export"]
+    assert [_body(r) for r in seen] == [{}, {}, {"caption": "owned test"}, {}]

@@ -1,0 +1,60 @@
+{
+  "group": "02-session-discovery-creation-and-lifecycle",
+  "date": "2026-10-28",
+  "baseline": "ab77994",
+  "implementation": "Extends the existing LifecycleMixin and single client._request/_send transport; no duplicate client or auth path. No CLI, exports, static, streaming, or HTTP/auth changes.",
+  "tests": {"baseline": "265 passed, 1 skipped", "final": "289 passed, 1 skipped"},
+  "live_auth": "Default RemoteControlClient(), no credential arguments, source cookies:cdp; no shared OAuth refresh or credential writes.",
+  "manifest": [
+    {"id": "cse_0154EsXSmQ8QWNhuNg23iWec", "variant": "inline initial events", "run": "7720e8c7e863", "deleted": true, "fetch_after_delete": 404, "excluded_from_tag_filtered_list": true},
+    {"id": "cse_0154EsXQNeqhVZetYR1vTwXX", "variant": "deferred initial events", "run": "6ad9022bacc6", "deleted": true, "fetch_after_delete": 404, "excluded_from_tag_filtered_list": true}
+  ],
+  "live_checks": [
+    {"capability": "repository picker", "status": "accepted live", "evidence": "GET page=1 and page=2, per_page=100, skip_status=true, include_link_optional=true. Both returned 99 repos, is_complete=false and no next_cursor. Paging parameters are supported by the browser contract, but exhaustive repo enumeration is NOT proven; the two responses may overlap."},
+    {"capability": "branch picker", "status": "accepted live", "evidence": "Selected the available canonical fork and main revision. Unfiltered and query=main requests returned data, has_more, first_id, last_id, default_branch. No branch cursor request fields were invented."},
+    {"capability": "GitHub installations and auth status", "status": "accepted live", "evidence": "Installations response included any_active/installations/viewer linkage; auth response included is_authenticated/check_status/auth_sources. Values and account handles not logged."},
+    {"capability": "repo lookup auth routing", "status": "cookie pickers accepted live; bearer single lookup offline-only", "evidence": "Cookie mode uses /api/organizations/{org}/code/repos and /api/github/organizations/{org}/github/{owner}/{repo}/branches. Existing CLI /api/oauth/... individual lookup remains bearer-only. Cross-auth acceptance is not asserted; mismatched helpers fail before HTTP."},
+    {"capability": "session list/status/tag/cursor/detail", "status": "accepted live", "evidence": "Active/paused cursor request returned another page. Unique test tag initially matched zero; GET detail persisted environment, model, source revision and distinct outcome branch. Server appended a suffix to the requested outcome branch."},
+    {"capability": "local title search", "status": "accepted live", "evidence": "Casefold title substring search over tag-filtered live pages found exactly the owned session. No unverified server search field is sent."},
+    {"capability": "create inline/deferred", "status": "accepted live", "evidence": "Both created one owned session with an existing cloud environment, available repo/main, unique output branch/tag and catalog-listed claude-haiku-5-5. Both returned the exact LIFECYCLE_OK marker; prompt prohibited tools/edits/commit/push/PR. Deferred initialize returned current_permission_mode=plan. Inline initialize succeeded but its mode was not recorded correctly, so inline mode application is not independently claimed."},
+    {"capability": "effort/pool/legacy/multi-source creation", "status": "offline-only", "evidence": "Existing body tests retained. No self-hosted pool or legacy session was started; no claim that configuration serialization proves applied worker effort."},
+    {"capability": "title generation", "status": "accepted live", "evidence": "generate_title_and_branch on a harmless tiny message with Haiku returned title and branch_name."},
+    {"capability": "rename/tags/read", "status": "accepted live", "evidence": "Rename and add/remove tag verified with subsequent GET. mark_read with the latest owned event uuid returned unread=false."},
+    {"capability": "presence and heartbeat", "status": "accepted live", "evidence": "Presence and clear presence succeeded on both owned sessions. Heartbeat returned checks_enabled and results. Presence helpers return None; no persisted presence field is claimed."},
+    {"capability": "archive/unarchive", "status": "accepted live state readback; watch event unverified in this group", "evidence": "GET changed to archived then active on both sessions. Watch acceptance is owned by group03; this run did not attach watch."},
+    {"capability": "delete", "status": "accepted live", "evidence": "DELETE /v1/code/sessions/{id} with {} succeeded for both exact manifest IDs; later GET 404 and tag-filtered list exclusion. Removed guessed legacy destructive fallback; compatibility keyword remains inert."},
+    {"capability": "share read", "status": "accepted live", "evidence": "GET returned current_last_sequence_num, effective_visibility, prospective_visibility_type, sharing_settings."},
+    {"capability": "share creation/revoke/shared transcript", "status": "blocked permission for live writes; browser-contract/offline covered", "evidence": "No explicit approval to expose transcripts, so no share created. Captured POST/DELETE empty-body contracts replace guessed PUT. Creating requires confirm=True; revoke does not widen access."},
+    {"capability": "secret scan read", "status": "server unavailable", "evidence": "GET /share/secret-scan returned 404 on the owned active session; not treated as a clean scan."},
+    {"capability": "secret scan text fallback", "status": "feature-gated/server-rejected", "evidence": "Browser source gives POST /api/organizations/{org}/code/shares/scan_secrets. Harmless scalar text_content returned 400 requiring a list; corrected [text] request returned 403: the share secret scan is not enabled. Client preserves failures and falls back only with caller-supplied text after 404/405/501, never implicitly fetching/uploading a transcript."},
+    {"capability": "support share and debug export", "status": "blocked permission for live writes; browser-contract/offline covered", "evidence": "Captured support-share POST/DELETE {}, debug-export POST {caption?}. Creation/export require confirm=True. Never invoked live; would expose support data/logs."},
+    {"capability": "batch branch status", "status": "accepted live", "evidence": "Read-only status request for the selected repo/main returned one branch status."},
+    {"capability": "teleport/move-to-cloud", "status": "offline-only; dedicated bridge resource unavailable", "evidence": "Preserved bridge-only move qualification and existing teleport pagination/fallback. Ordinary cloud sessions are not migration test targets."},
+    {"capability": "session fork", "status": "unsupported: contract not established", "next": "Capture an actual session fork request, distinct from routine fork, before implementing; test only a dedicated owned source session."},
+    {"capability": "grouping/spaces/templates", "status": "unsupported: contracts not established", "next": "Capture server CRUD contracts before implementation. Existing session_grouping_id create passthrough is not a grouping management API; client-local pinning is not server grouping."},
+    {"capability": "compare/file/commit/PR actions", "status": "unsupported here: action contracts not established", "next": "Capture actual SCM operation contracts and service ownership first. Keep branch-status read separate; no guessed action enumerations or external PR writes. Workspace file methods belong to group07/worker controls group05."}
+  ],
+  "captured_browser_sources": [
+    {"file": "c9106b145-B4jRDQkp.js", "contracts": ["share POST/DELETE {}", "shared-sessions GET", "support-share POST/DELETE {}", "debug-export POST {caption?}", "share/secret-scan GET", "scan_secrets POST {text_content}"]},
+    {"file": "cbf215181-BOxa7912.js", "contracts": ["repo page/per_page/skip_status/ghe_configuration_id/sort/affiliation/include_link_optional"]},
+    {"file": "cdf4b63bf-BW_NnNZp.js", "contracts": ["branch query/ghe_configuration_id", "encoded owner/repo path"]}
+  ],
+  "integration_signatures": [
+    "list_code_repos(*, page=1, per_page=100, skip_status=True, include_link_optional=True, sort=None, affiliation=None, ghe_configuration_id=None) -> dict",
+    "list_repo_branches(repo, *, query=None, ghe_configuration_id=None) -> dict",
+    "github_installations_status(*, include_viewer_install_probe=True) -> dict",
+    "github_auth_status() -> dict",
+    "query_sessions(**filters) -> dict; iter_sessions(*, max_pages=None, **filters) -> Iterator[dict]",
+    "search_sessions(text, **filters) -> Iterator[dict] (local title search)",
+    "set_share(session_id, *, method='POST', confirm=False) -> dict; revoke_share(session_id); get_shared_session(share_id)",
+    "scan_share_secrets(session_id, *, fallback_text=None) -> dict (raw result; failure/incomplete never means clean)",
+    "create_support_share(session_id, *, confirm=False); revoke_support_share(session_id)",
+    "debug_export(session_id, *, caption=None, confirm=False)",
+    "delete_session(session_id, *, legacy_fallback=False) -> bool (keyword retained, no legacy fallback)"
+  ],
+  "integration_actions": [
+    "Group08 must wire new methods in CLI/panel and update the central docs/web-api.md ledger from these per-capability rows; do not label blocked/gated checks passed.",
+    "Existing client.py list/get/update/rename/archive/mark_read/presence were preserved to avoid overlapping transport-owner edits; query_sessions is the filtered lifecycle entry point.",
+    "No new exports or CLI helpers are required to call these inherited client methods; use the signatures listed here."
+  ]
+}
