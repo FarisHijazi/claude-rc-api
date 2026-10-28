@@ -1,0 +1,477 @@
+{
+  "run": "ceab8de80f89",
+  "steps": [
+    {
+      "step": "independent_pagination",
+      "status": "passed",
+      "count": 4
+    },
+    {
+      "step": "read_environment_and_pools",
+      "status": "passed",
+      "auth_source": "cookies:cdp",
+      "environments": 4,
+      "pools": 0
+    },
+    {
+      "step": "browser_environment_comparison",
+      "status": "passed",
+      "fields": [
+        "environment_id",
+        "name",
+        "kind",
+        "state"
+      ]
+    },
+    {
+      "step": "account_usage",
+      "status": "passed",
+      "browser_shape_matches": true,
+      "keys": [
+        "amber_cistern",
+        "amber_cistern_offer",
+        "amber_gauge",
+        "amber_ladder",
+        "brass_thimble",
+        "cedar_ember",
+        "cinder_cove",
+        "copper_kite",
+        "extra_usage",
+        "five_hour",
+        "granite_teacup",
+        "harbor_lantern",
+        "iguana_necktie",
+        "juniper_tide",
+        "limits",
+        "member_dashboard_available",
+        "nimbus_quill",
+        "omelette_promotional",
+        "pace",
+        "seven_day",
+        "seven_day_breakdown",
+        "seven_day_cowork",
+        "seven_day_oauth_apps",
+        "seven_day_omelette",
+        "seven_day_opus",
+        "seven_day_sonnet",
+        "spend",
+        "starry_waterfall",
+        "tangelo",
+        "wattle_ember",
+        "weekly_scoped_shares"
+      ]
+    },
+    {
+      "step": "account_settings",
+      "status": "passed",
+      "browser_shape_matches": true,
+      "keys": [
+        "checksum",
+        "content",
+        "lastModified",
+        "userId",
+        "version"
+      ]
+    },
+    {
+      "step": "account_profile",
+      "status": "passed",
+      "browser_shape_matches": true,
+      "keys": [
+        "avatar",
+        "avatar_image_url",
+        "conversation_preferences",
+        "conversation_preferences_cloud_max_chars",
+        "conversation_preferences_over_cloud_max_chars",
+        "cowork_global_instructions",
+        "cowork_instructions_union",
+        "display_avatar",
+        "locale",
+        "onboarding_topics",
+        "pixel_avatar",
+        "science_fields",
+        "work_function"
+      ]
+    },
+    {
+      "step": "account_subscription",
+      "status": "passed",
+      "browser_shape_matches": true,
+      "keys": [
+        "billing_interval",
+        "currency",
+        "eligible_for_past_due_cycle_reset",
+        "gift_details",
+        "has_discounts",
+        "has_schedule",
+        "manual_pause_scheduled_at",
+        "next_charge_at",
+        "next_charge_date",
+        "payment_auth_hosted_invoice_url",
+        "payment_method",
+        "payment_paused_until",
+        "pending_purchase",
+        "plan_ending_at",
+        "plan_ending_before",
+        "scheduled_downgrade",
+        "seat_tier_quantities",
+        "status",
+        "subscription_details_url",
+        "subscription_payment_type",
+        "team_promo_discount_amount_off",
+        "team_promo_discount_currency",
+        "team_promo_discount_percent_off",
+        "team_promo_ends_at",
+        "test_clock_frozen_time",
+        "trial_end_ts"
+      ]
+    },
+    {
+      "step": "account_connectors",
+      "status": "passed",
+      "browser_shape_matches": true,
+      "keys": [
+        "list"
+      ]
+    },
+    {
+      "step": "account_skills",
+      "status": "passed",
+      "browser_shape_matches": true,
+      "keys": [
+        "skills"
+      ]
+    },
+    {
+      "step": "last_used_environment",
+      "status": "passed",
+      "absent": true
+    },
+    {
+      "step": "network_read_profiles",
+      "status": "passed",
+      "envelope_keys": [
+        "agent_proxy_profiles"
+      ]
+    },
+    {
+      "step": "network_read_credentials",
+      "status": "passed",
+      "envelope_keys": [
+        "data"
+      ]
+    },
+    {
+      "step": "network_read_rules",
+      "status": "passed",
+      "envelope_keys": [
+        "data"
+      ]
+    },
+    {
+      "step": "network_profile_writes",
+      "status": "not_run",
+      "reason": "No explicit authorization to change network profiles, bindings, credentials or rules"
+    },
+    {
+      "step": "language_normalization",
+      "status": "server_normalized",
+      "requested": [
+        {
+          "name": "python",
+          "version": "3.11"
+        }
+      ],
+      "stored": [
+        {
+          "name": "python",
+          "version": "3.11"
+        },
+        {
+          "name": "node",
+          "version": "20"
+        }
+      ]
+    },
+    {
+      "step": "create_environment",
+      "status": "passed",
+      "marker_value": "<redacted>"
+    },
+    {
+      "step": "partial_update_preserves_configuration",
+      "status": "passed"
+    },
+    {
+      "step": "marker_update_readback",
+      "status": "passed",
+      "marker_value": "<redacted>"
+    },
+    {
+      "step": "worker_environment_and_setup",
+      "status": "passed",
+      "marker_verified": true,
+      "setup_verified": true
+    },
+    {
+      "step": "archive_environment",
+      "status": "passed",
+      "excluded_from_list": true
+    },
+    {
+      "step": "independent_profile_detail",
+      "status": "passed",
+      "keys": [
+        "agent_proxy_profile"
+      ]
+    },
+    {
+      "step": "independent_environment_credentials",
+      "status": "server_rejected",
+      "http_status": 403,
+      "error_type": "permission_error",
+      "qualification": "archived owned environment; not proof of fresh editable environment support"
+    }
+  ],
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/v1/code/sessions",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/environment_providers/private/organizations/{org}/environments",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/environment_providers/private/organizations/{org}/environments",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/environment_providers/private/organizations/{org}/environments",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/environment_providers/private/organizations/{org}/environments",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/environment_providers/private/organizations/{org}/environments",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/code/runners/self-hosted/pools",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/environment_providers/private/organizations/{org}/environments/env_01E8beumcDsQvAeEqkB2gQ8D",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/organizations/{org}/usage",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/claude_code/organizations/{org}/user_settings",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/account_profile",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/organizations/{org}/subscription_details",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/organizations/{org}/mcp/remote_servers_with_connection",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/organizations/{org}/skills/list-skills",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/code/last_used_environment",
+      "status": 404
+    },
+    {
+      "method": "GET",
+      "path": "/v1/code/agent-proxy-profiles",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/code/agent-proxy/credentials",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/code/agent-proxy/rules",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/v1/environment_providers/private/organizations/{org}/cloud/create",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/environment_providers/private/organizations/{org}/environments/env_01EJSLWRxd7vMJ1jRSXzYf5w",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/environment_providers/private/organizations/{org}/environments/env_01EJSLWRxd7vMJ1jRSXzYf5w",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/v1/environment_providers/private/organizations/{org}/environments/env_01EJSLWRxd7vMJ1jRSXzYf5w",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/environment_providers/private/organizations/{org}/environments/env_01EJSLWRxd7vMJ1jRSXzYf5w",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/environment_providers/private/organizations/{org}/environments/env_01EJSLWRxd7vMJ1jRSXzYf5w",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/v1/environment_providers/private/organizations/{org}/environments/env_01EJSLWRxd7vMJ1jRSXzYf5w",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/environment_providers/private/organizations/{org}/environments/env_01EJSLWRxd7vMJ1jRSXzYf5w",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/v1/code/sessions",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/code/sessions/cse_0154EsXQeeGUcENLktAYKLgD/events/stream",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/v1/code/sessions/cse_0154EsXQeeGUcENLktAYKLgD/archive",
+      "status": 200
+    },
+    {
+      "method": "DELETE",
+      "path": "/v1/code/sessions/cse_0154EsXQeeGUcENLktAYKLgD",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/code/sessions/cse_0154EsXQeeGUcENLktAYKLgD",
+      "status": 404
+    },
+    {
+      "method": "POST",
+      "path": "/v1/environment_providers/private/organizations/{org}/environments/env_01EJSLWRxd7vMJ1jRSXzYf5w/archive",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/v1/environment_providers/private/organizations/{org}/environments",
+      "status": 200
+    }
+  ],
+  "created": {
+    "environment_id": "env_01EJSLWRxd7vMJ1jRSXzYf5w",
+    "session_id": "cse_0154EsXQeeGUcENLktAYKLgD"
+  },
+  "cleanup": {
+    "session_archive": "passed",
+    "session_delete": "passed",
+    "session_get_after_delete": {
+      "http_status": 404
+    },
+    "environment_archive": "passed",
+    "browser_tab": "closed_owned_target",
+    "independent_fresh_client_verified": true
+  },
+  "browser_target": "025C918CCC9E799E5454ECDAAA61A5AF",
+  "worker_proof": {
+    "bash_tool_calls": 1,
+    "matched_tool_results": 1,
+    "marker_from_tool_result": true,
+    "setup_from_tool_result": true,
+    "turn_complete": true
+  },
+  "verification": {
+    "baseline_commit": "e82d8bc588845cc2af15f849cc408d4d3a77b75c",
+    "offline_command": "uv --directory /home/service/Projects/claude-rc-api/worktrees/06-environments-network-profiles-and-account-discovery run --extra test --extra web --extra cli pytest -q",
+    "offline_result": "300 passed, 1 skipped in 2.96s",
+    "live_command": "env -u SSL_CERT_FILE -u HTTPS_PROXY -u HTTP_PROXY -u ALL_PROXY CLAUDE_AI_CDP_URL=http://127.0.0.1:9222 uv --directory /home/service/Projects/claude-rc-api/worktrees/06-environments-network-profiles-and-account-discovery run --extra test --extra web --extra cli python /tmp/claude-1000/-home-service/4413ea3d-c451-4c0c-9bd3-b32599c70712/scratchpad/group06_independent_verify.py",
+    "live_result": "exit 0; marker/setup verified in successful correlated Bash tool results and assistant continuation; result turn completed; owned resource cleanup rechecked with fresh client",
+    "lint_command": "uv --directory /home/service/Projects/claude-rc-api/worktrees/06-environments-network-profiles-and-account-discovery run --with ruff python -m ruff check --config /home/service/Projects/claude-rc-api/worktrees/06-environments-network-profiles-and-account-discovery/pyproject.toml /home/service/Projects/claude-rc-api/worktrees/06-environments-network-profiles-and-account-discovery/claude_rc/environments.py /home/service/Projects/claude-rc-api/worktrees/06-environments-network-profiles-and-account-discovery/claude_rc/account.py /home/service/Projects/claude-rc-api/worktrees/06-environments-network-profiles-and-account-discovery/tests/test_environments.py",
+    "lint_result": "All checks passed!",
+    "format_result": "same python -m ruff invocation with format --check: 3 files already formatted",
+    "diff_result": "git diff --check: exit 0",
+    "fixes": [
+      "Added missing import-group separator in tests/test_environments.py; no functional defects confirmed."
+    ],
+    "browser_contract_check": "Independently read downloaded browser bundles for private environment create/update/archive, profile bind/unbind/delete, credential PATCH/rotate/delete, rule PATCH expected_version/delete. Matches implementation; these reads are not live write proof."
+  },
+  "remaining_gaps": [
+    {
+      "capability": "Network profile/credential/rule/environment-secret writes and bindings",
+      "status": "captured_contract_offline_only",
+      "plan": "After explicit authorization, use dummy credential-free profile with fresh owned environment; bind/unbind/delete and verify cleanup (~15 min)."
+    },
+    {
+      "capability": "Environment-secret listing on fresh editable environment",
+      "status": "not_verified",
+      "plan": "Retry on a fresh editable owned environment during authorized network acceptance; current rejection is on archived environment (~2 min)."
+    },
+    {
+      "capability": "Self-hosted pool detail/selection/execution",
+      "status": "no_live_pool_available",
+      "plan": "Use HQ-owned provisioned test pool, not a duplicate runner registry (~10 min after provisioning)."
+    },
+    {
+      "capability": "Last-used environment 200 shape",
+      "status": "live_404_only",
+      "plan": "Read after authorized browser selection naturally establishes a value (~2 min)."
+    },
+    {
+      "capability": "Bearer create/edit lineage",
+      "status": "offline_regression_only_this_run",
+      "plan": "Qualify with separately client-owned bearer grant; never refresh shared login (~10 min after grant)."
+    },
+    {
+      "capability": "Permanent environment deletion",
+      "status": "unsupported_no_captured_contract",
+      "plan": "Use evidenced archive; do not invent DELETE."
+    },
+    {
+      "capability": "CLI/panel wiring and public exports",
+      "status": "group08_integration_owner",
+      "plan": "Integration owner consumes account helpers and stable environment APIs (~20 min)."
+    }
+  ]
+}

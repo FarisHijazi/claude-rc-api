@@ -31,6 +31,8 @@ module that owns the area, or a new mixin module plus one line in the
 | `lifecycle.py` | create/unarchive/delete/share/tag/mark-read, teleport events |
 | `lifecycle.py` | create/unarchive/delete/share/tag, filtered/local-title discovery, cookie repo/branch pickers, guarded support/debug export, secret scan, teleport events |
 | `environments.py` | environments (public + private org routes), create/update, self-hosted pools |
+| `environments.py` | environments (cookie private writes + bearer lineage), recursive config merging, archive, self-hosted pool reads, network profiles/rules/credentials |
+| `account.py` | read-only web usage/settings/profile/subscription/connectors/skills; distinct from session worker settings and usage |
 | `triggers.py` | scheduled tasks (routines) |
 | `interaction.py` | pending prompts, permission + AskUserQuestion answers, slash commands, generic controls; stream methods delegate to `streaming.py` |
 | `streaming.py` | paginated durable history, metadata/ephemeral session streams, bounded reconnect/backfill, live control correlation, account watch; opt-in CLI registration helpers |
@@ -160,3 +162,11 @@ On dev, uv needs the proxy CA plus the system bundle:
   transport timeouts.
 - Record what ran live in `docs/web-api.md` ("LIVE CHECK"). Devlogs go in
   `docs/devlog/claude_<date>-<desc>.md`.
+- Group06 evidence/contracts: `docs/devlog/claude_2026-10-28-group06-contracts.json`
+  and `docs/devlog/claude_2026-10-28-group06-live-evidence.json` (plain paths,
+  not includes). Environment archive removes it from lists but GET may still
+  return `state: active`; permanent environment deletion is unsupported.
+  Network profile/secret writes are captured-contract/offline-only, not live verified.
+  Independent rerun: `docs/devlog/claude_2026-10-28-group06-independent-evidence.json`
+  correlates Bash tool results to tool-use IDs and requires turn completion; POST
+  acknowledgement or assistant text alone is not environment execution proof.

@@ -49,6 +49,7 @@ from .credentials import (
     shared_credentials,
     resolve_auth,
 )
+from .account import AccountMixin
 from .environments import EnvironmentsMixin
 from .files import FilesMixin
 from .interaction import InteractionMixin
@@ -343,7 +344,7 @@ class ControlTimeout(TimeoutError):
 # OAuth (Remote Control) client
 # ---------------------------------------------------------------------------
 class RemoteControlClient(
-    LifecycleMixin, EnvironmentsMixin, TriggersMixin, InteractionMixin, FilesMixin, TTSMixin
+    LifecycleMixin, EnvironmentsMixin, AccountMixin, TriggersMixin, InteractionMixin, FilesMixin, TTSMixin
 ):
     """Controller-side client for Remote Control sessions (``/v1/code/sessions``).
 

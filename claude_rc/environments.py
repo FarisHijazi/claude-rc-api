@@ -16,13 +16,18 @@ to show.
 from __future__ import annotations
 
 import copy
-from typing import Any, Iterable, Iterator, Mapping, Optional, Sequence
+from collections.abc import Iterable, Iterator, Mapping, Sequence
+from typing import Any
+from urllib.parse import quote
 
 #: Known ``kind`` values (CLI 2.1.312 enum).
 ENVIRONMENT_KINDS = ("anthropic_cloud", "bridge", "byoc", "snap", "ccs")
 
 #: Languages the CLI's default cloud environment installs.
-DEFAULT_LANGUAGES = ({"name": "python", "version": "3.11"}, {"name": "node", "version": "20"})
+DEFAULT_LANGUAGES = (
+    {"name": "python", "version": "3.11"},
+    {"name": "node", "version": "20"},
+)
 
 _PROVIDERS = "/v1/environment_providers"
 _POOLS = "/v1/code/runners/self-hosted/pools"
@@ -35,7 +40,7 @@ _MAX_PAGES = 50
 def environment_items(body: Any) -> list[dict]:
     """The environment list out of a list response: ``{environments: […]}``
     (``/v1/environment_providers``), a bare list, or ``{data: […]}``. The private
-    web route's envelope is unverified, so every form is accepted."""
+    browser route uses ``{environments, has_more, first_id, last_id}``."""
     if isinstance(body, list):
         return body
     if isinstance(body, dict):
@@ -56,7 +61,9 @@ def bridge_machines(environments: Iterable[dict]) -> list[dict]:
     return environments_of_kind(environments, "bridge")
 
 
-def default_environment(environments: Sequence[dict], preferred_id: str | None = None) -> Optional[dict]:
+def default_environment(
+    environments: Sequence[dict], preferred_id: str | None = None
+) -> dict | None:
     """Pick an environment the way the CLI's teleport does: ``preferred_id``
     if present, else the first ``anthropic_cloud``, else the first non-bridge,
     else the first. ``None`` for an empty list (the CLI then auto-creates one,
@@ -92,7 +99,58 @@ def redact_environment(environment: dict) -> dict:
     config = out.get("config")
     if isinstance(config, dict) and "environment" in config:
         env = config["environment"]
-        config["environment"] = {k: "<redacted>" for k in env} if isinstance(env, dict) else "<redacted>"
+        config["environment"] = (
+            {k: "<redacted>" for k in env} if isinstance(env, dict) else "<redacted>"
+        )
+    return redact_network_material(out)
+
+
+def redact_network_material(value: Any) -> Any:
+    """Copy network responses, hiding secret payloads while retaining metadata."""
+    if isinstance(value, list):
+        return [redact_network_material(item) for item in value]
+    if isinstance(value, dict):
+        return {
+            key: "<redacted>"
+            if key.lower()
+            in {
+                "credential",
+                "secret",
+                "value",
+                "token",
+                "password",
+                "headers",
+                "network_secrets",
+                "access_token",
+                "refresh_token",
+                "api_key",
+                "inline",
+                "secret_value",
+                "password_value",
+                "secret_access_key_value",
+                "session_token_value",
+                "spec",
+                "authorization",
+            }
+            else redact_network_material(item)
+            for key, item in value.items()
+        }
+    return copy.deepcopy(value)
+
+
+def merge_environment_config(
+    current: Mapping[str, Any], patch: Mapping[str, Any]
+) -> dict:
+    """Merge object keys recursively; arrays/scalars replace, null explicitly clears.
+
+    An empty object clears that object (use environment={} to remove all variables).
+    """
+    out = copy.deepcopy(dict(current))
+    for key, value in patch.items():
+        if isinstance(value, Mapping) and value and isinstance(out.get(key), Mapping):
+            out[key] = merge_environment_config(out[key], value)
+        else:
+            out[key] = copy.deepcopy(value)
     return out
 
 
@@ -107,6 +165,7 @@ def cloud_environment_body(
     allowed_hosts: Iterable[str] = (),
     allow_default_hosts: bool = True,
     allow_mcp_servers: bool | None = None,
+    network_config: Mapping[str, Any] | None = None,
 ) -> dict:
     """The ``POST /v1/environment_providers/cloud/create`` body. All defaults
     reproduce the CLI's auto-created environment exactly (spec surface §2.2).
@@ -115,19 +174,29 @@ def cloud_environment_body(
     but not in the CLI's create body; it is only sent when given (unverified on
     create). ``allowed_hosts=["*"]`` is what claude.ai shows as a fully open
     network."""
-    network: dict[str, Any] = {"allowed_hosts": list(allowed_hosts), "allow_default_hosts": allow_default_hosts}
+    network: dict[str, Any] = {
+        "allowed_hosts": list(allowed_hosts),
+        "allow_default_hosts": allow_default_hosts,
+    }
     if allow_mcp_servers is not None:
         network["allow_mcp_servers"] = allow_mcp_servers
+    if network_config is not None:
+        network = merge_environment_config(network, network_config)
     return {
         "name": name,
         "kind": "anthropic_cloud",
-        "description": f"{name} - trusted network access" if description is None else description,
+        "description": f"{name} - trusted network access"
+        if description is None
+        else description,
         "config": {
             "environment_type": "anthropic",
             "cwd": cwd,
             "init_script": init_script,
             "environment": dict(environment or {}),
-            "languages": [dict(lang) for lang in (DEFAULT_LANGUAGES if languages is None else languages)],
+            "languages": [
+                dict(lang)
+                for lang in (DEFAULT_LANGUAGES if languages is None else languages)
+            ],
             "network_config": network,
         },
     }
@@ -159,39 +228,63 @@ class EnvironmentsMixin:
         """Yield every environment from ``GET /v1/environment_providers``,
         following ``after_id`` = ``last_id`` while ``has_more`` is true (the
         CLI's paging; it stops on an empty page or a missing ``last_id``)."""
-        params: dict[str, Any] = {"limit": page_size}
+        path = (
+            self._private_environments_path()
+            if self._cookie_environments
+            else _PROVIDERS
+        )
+        yield from self._iter_environment_pages(path, page_size)
+
+    @property
+    def _cookie_environments(self) -> bool:
+        return bool(getattr(getattr(self, "_auth", None), "is_cookie", False))
+
+    def _iter_environment_pages(self, path: str, limit: int) -> Iterator[dict]:
+        if limit < 1:
+            raise ValueError("page size must be positive")
+        params: dict[str, Any] = {"limit": limit}
+        seen: set[str] = set()
         for _ in range(_MAX_PAGES):
-            body = self._request("GET", _PROVIDERS, params=params)
+            body = self._request("GET", path, params=params)
             items = environment_items(body)
             yield from items
-            last_id = body.get("last_id") if isinstance(body, dict) else None
-            if not items or not isinstance(body, dict) or body.get("has_more") is not True or not isinstance(last_id, str):
+            if not isinstance(body, dict) or body.get("has_more") is not True:
                 return
-            params = {"limit": page_size, "after_id": last_id}
+            last_id = body.get("last_id")
+            if not items or not isinstance(last_id, str) or not last_id:
+                return
+            if last_id in seen:
+                raise RuntimeError("environment pagination made no progress")
+            seen.add(last_id)
+            params = {"limit": limit, "after_id": last_id}
+        raise RuntimeError("environment pagination exceeded page budget")
 
-    def list_environments(self, *, kind: str | Sequence[str] | None = None, page_size: int = 100) -> list[dict]:
+    def list_environments(
+        self, *, kind: str | Sequence[str] | None = None, page_size: int = 100
+    ) -> list[dict]:
         """All environments (every page), each ``{environment_id, name, kind, …}``.
         ``kind`` filters, e.g. ``kind="bridge"`` for Remote Control machines or
         ``kind=("anthropic_cloud", "byoc")``. Under cookie auth this is the web
         app's private org route: the public one answers 403 "Authentication
         method not allowed" to a cookie (live, 2026-10-28)."""
-        auth = getattr(self, "_auth", None)
-        if auth is not None and auth.is_cookie:
-            envs = self.list_org_environments()
-        else:
-            envs = list(self.iter_environments(page_size=page_size))
+        envs = list(self.iter_environments(page_size=page_size))
         if kind is None:
             return envs
         return environments_of_kind(envs, *((kind,) if isinstance(kind, str) else kind))
 
     def create_cloud_environment(self, name: str = "Default", **options: Any) -> dict:
-        """``POST /v1/environment_providers/cloud/create`` — a new claude.ai
-        cloud environment; returns the environment object. ``options`` are
-        :func:`cloud_environment_body`'s (``description``, ``cwd``,
-        ``init_script``, ``environment`` vars, ``languages``, ``allowed_hosts``,
-        ``allow_default_hosts``, ``allow_mcp_servers``); with none it is the
-        CLI's default environment. Not idempotent: never retried on 5xx."""
-        return self._request("POST", f"{_PROVIDERS}/cloud/create", json=cloud_environment_body(name, **options))
+        """Create a cloud environment. Cookies use the browser's private org
+        ``/cloud/create``; bearer auth retains the CLI's public route.
+        Options are :func:`cloud_environment_body`'s. Not idempotent: never
+        retried on 5xx. The live service adds default Node to requested Python.
+        """
+        path = (
+            self._private_environments_path().removesuffix("/environments")
+            + "/cloud/create"
+            if self._cookie_environments
+            else f"{_PROVIDERS}/cloud/create"
+        )
+        return self._request("POST", path, json=cloud_environment_body(name, **options))
 
     def update_environment(
         self,
@@ -201,34 +294,57 @@ class EnvironmentsMixin:
         description: str | None = None,
         config: Mapping[str, Any] | None = None,
     ) -> Any:
-        """``POST /v1/environment_providers/{id}`` ``{name, description, config}``
-        — the claude.ai edit dialog's route (live with a Bearer token in
-        claude-web-api, 2026-10-28; unverified under cookie auth). It replaces
-        the whole body, so unset fields are read back first and sent as stored;
-        ``config`` keys are merged over the stored config (e.g.
-        ``{"init_script": …}``). The newer ``/v1/environments/{id}`` route caps
-        each env var at 512 chars, which is why this one is used."""
+        """Read/merge/write the complete name, description and configuration.
+
+        Cookies use the private org ``/environments/{id}`` POST (live verified);
+        bearer auth retains ``/v1/environment_providers/{id}``. Nested config
+        objects merge recursively, lists replace, and an explicit empty object
+        clears its field. There is no evidenced compare-and-swap on this route:
+        callers must serialize edits to the same environment.
+        """
         current = self.get_environment(environment_id)
         body = {
             "name": current.get("name", "") if name is None else name,
-            "description": current.get("description") or "" if description is None else description,
-            "config": {**(current.get("config") or {}), **(config or {})},
+            "description": current.get("description") or ""
+            if description is None
+            else description,
+            "config": merge_environment_config(
+                current.get("config") or {}, config or {}
+            ),
         }
-        return self._request("POST", f"{_PROVIDERS}/{environment_id}", json=body)
+        path = (
+            self._private_environments_path(environment_id)
+            if self._cookie_environments
+            else f"{_PROVIDERS}/{quote(environment_id, safe='')}"
+        )
+        return self._request("POST", path, json=body)
+
+    def archive_environment(self, environment_id: str) -> Any:
+        """Archive via the browser's private route; no permanent delete is evidenced."""
+        return self._request(
+            "POST", self._private_environments_path(environment_id, "archive"), json={}
+        )
 
     # -- private org route (web app) ----------------------------------------
     def _private_environments_path(self, *parts: str) -> str:
         org = self.org_uuid
         if not org:
             raise ValueError("organization uuid unknown; pass org_uuid= to the client")
-        return "/".join((f"{_PROVIDERS}/private/organizations/{org}/environments", *parts)).rstrip("/")
+        return "/".join(
+            (
+                f"{_PROVIDERS}/private/organizations/{quote(org, safe='')}/environments",
+                *(quote(p, safe="") for p in parts),
+            )
+        ).rstrip("/")
 
     def list_org_environments(self, *, limit: int = 1000) -> list[dict]:
         """``GET /v1/environment_providers/private/organizations/{org}/environments?limit=1000``
         — the web app's environment list (same data as :meth:`list_environments`).
-        The response envelope is unverified; :func:`environment_items` accepts
-        ``{environments}``, ``{data}`` or a bare list."""
-        return environment_items(self._request("GET", self._private_environments_path(), params={"limit": limit}))
+        The browser requests limit=1000; follows the same observed after_id /
+        last_id envelope as the public route when has_more is true."""
+        return list(
+            self._iter_environment_pages(self._private_environments_path(), limit)
+        )
 
     def get_environment(self, environment_id: str) -> dict:
         """``GET /v1/environment_providers/private/organizations/{org}/environments/{id}``
@@ -240,7 +356,7 @@ class EnvironmentsMixin:
         :func:`redact_environment` before showing it."""
         return self._request("GET", self._private_environments_path(environment_id))
 
-    def last_used_environment(self) -> Optional[dict]:
+    def last_used_environment(self) -> dict | None:
         """``GET /v1/code/last_used_environment`` — the environment the web app
         preselects, or ``None`` when the server has none (the captured call
         returned a plain-text 404, HAR #2). The 200 shape is unverified."""
@@ -268,4 +384,174 @@ class EnvironmentsMixin:
         (``{pool}`` unwrapped). The CLI's admin tool sends this with neither the
         org header nor a beta, so neither is sent here."""
         body = self._request("GET", f"{_POOLS}/{pool_id}", web=False, org=False)
-        return body["pool"] if isinstance(body, dict) and isinstance(body.get("pool"), dict) else body
+        return (
+            body["pool"]
+            if isinstance(body, dict) and isinstance(body.get("pool"), dict)
+            else body
+        )
+
+    # Contracts captured in browser bundles ca9a464a4, c9928c88a, c58f0efa3.
+    def list_agent_proxy_profiles(
+        self,
+        *,
+        include_bindings: bool = False,
+        include_github_permissions: bool = False,
+    ) -> dict:
+        params = {}
+        if include_bindings:
+            params["include_bindings"] = "true"
+        if include_github_permissions:
+            params["include_github_permissions"] = "true"
+        return self._request("GET", "/v1/code/agent-proxy-profiles", params=params)
+
+    def _profile_path(self, profile_id: str) -> str:
+        return f"/v1/code/agent-proxy-profiles/{quote(profile_id, safe='')}"
+
+    def get_agent_proxy_profile(self, profile_id: str) -> dict:
+        return self._request("GET", self._profile_path(profile_id))
+
+    def create_agent_proxy_profile(
+        self, slug: str, *, display_name: str, setup_entrypoint: str | None = None
+    ) -> dict:
+        body = {"slug": slug, "display_name": display_name}
+        if setup_entrypoint is not None:
+            body["setup_entrypoint"] = setup_entrypoint
+        return self._request("POST", "/v1/code/agent-proxy-profiles", json=body)
+
+    def update_agent_proxy_profile(
+        self, profile_id: str, patch: Mapping[str, Any]
+    ) -> dict:
+        """Browser PATCH fields, including updated_at for optimistic concurrency.
+
+        The browser sends agent_proxy_profile_id in the body as well as the URL.
+        Profile changes are distinct from credential material; never put secrets here.
+        """
+        return self._request(
+            "PATCH",
+            self._profile_path(profile_id),
+            json={**patch, "agent_proxy_profile_id": profile_id},
+        )
+
+    def delete_agent_proxy_profile(self, profile_id: str) -> Any:
+        return self._request("DELETE", self._profile_path(profile_id), json={})
+
+    def bind_environment_profile(
+        self, profile_id: str, environment_id: str, *, unbind: bool = False
+    ) -> Any:
+        suffix = "bindings:unbind" if unbind else "bindings"
+        return self._request(
+            "POST",
+            f"{self._profile_path(profile_id)}/{suffix}",
+            json={
+                "agent_proxy_profile_id": profile_id,
+                "scope": {"kind": "KIND_ENVIRONMENT", "id": environment_id},
+            },
+        )
+
+    def list_network_credentials(self) -> dict:
+        """Credential metadata; redact_network_material before printing."""
+        return self._request("GET", "/v1/code/agent-proxy/credentials")
+
+    def create_network_credential(
+        self, credential: Mapping[str, Any], *, create_paired_allow_rule: bool = False
+    ) -> dict:
+        """Explicit secret write: browser credential object (profile, host, spec).
+
+        No automatic binding, credential discovery, or OAuth consent flow is started.
+        """
+        body = {"credential": dict(credential)}
+        if create_paired_allow_rule:
+            body["create_paired_allow_rule"] = True
+        return self._request("POST", "/v1/code/agent-proxy/credentials", json=body)
+
+    def update_network_credential(
+        self,
+        credential_id: str,
+        *,
+        display_name: str | None = None,
+        host_constraint: Sequence[str] | None = None,
+    ) -> dict:
+        body = {}
+        if display_name is not None:
+            body["display_name"] = display_name
+        if host_constraint is not None:
+            body["host_constraint"] = list(host_constraint)
+        return self._request(
+            "PATCH",
+            f"/v1/code/agent-proxy/credentials/{quote(credential_id, safe='')}",
+            json=body,
+        )
+
+    def rotate_network_credential(
+        self, credential_id: str, credential: Mapping[str, Any]
+    ) -> dict:
+        return self._request(
+            "POST",
+            f"/v1/code/agent-proxy/credentials/{quote(credential_id, safe='')}/rotate",
+            json={"credential": dict(credential)},
+        )
+
+    def delete_network_credential(self, credential_id: str) -> Any:
+        return self._request(
+            "DELETE",
+            f"/v1/code/agent-proxy/credentials/{quote(credential_id, safe='')}",
+            json={},
+        )
+
+    def list_network_rules(self) -> dict:
+        return self._request("GET", "/v1/code/agent-proxy/rules")
+
+    def create_network_rule(self, rule: Mapping[str, Any]) -> dict:
+        return self._request(
+            "POST", "/v1/code/agent-proxy/rules", json={"rule": dict(rule)}
+        )
+
+    def update_network_rule(
+        self, rule_id: str, rule: Mapping[str, Any], *, expected_version: int
+    ) -> dict:
+        return self._request(
+            "PATCH",
+            f"/v1/code/agent-proxy/rules/{quote(rule_id, safe='')}",
+            json={"rule": dict(rule), "expected_version": expected_version},
+        )
+
+    def delete_network_rule(self, rule_id: str) -> Any:
+        return self._request(
+            "DELETE", f"/v1/code/agent-proxy/rules/{quote(rule_id, safe='')}", json={}
+        )
+
+    def list_environment_credentials(self, environment_id: str) -> dict:
+        return self._request(
+            "GET",
+            "/v1/code/agent-proxy/environment-credentials",
+            params={"environment_id": environment_id},
+        )
+
+    def create_environment_credential(
+        self,
+        environment_id: str,
+        host: str,
+        secret: Mapping[str, Any],
+        *,
+        display_name: str | None = None,
+    ) -> dict:
+        """Browser network-secret body; secret is the captured bearer/basic spec.
+
+        Never log the request or response. This is separate from config.environment.
+        """
+        body = {**secret, "environment_id": environment_id, "host": host}
+        if display_name is not None:
+            body["display_name"] = display_name
+        return self._request(
+            "POST", "/v1/code/agent-proxy/environment-credentials", json=body
+        )
+
+    def delete_environment_credential(
+        self, environment_id: str, credential_id: str
+    ) -> Any:
+        return self._request(
+            "DELETE",
+            f"/v1/code/agent-proxy/environment-credentials/{quote(credential_id, safe='')}",
+            params={"environment_id": environment_id},
+            json={},
+        )
