@@ -445,10 +445,12 @@ def test_stream_session_yields_meta_frames_and_control_only():
 
     def handler(req):
         seen.append(req)
+        if req.url.path.endswith("/events"):
+            return httpx.Response(200, json={"data": []})
         return httpx.Response(200, content=STREAM, headers={"content-type": "text/event-stream"})
 
     with _client(handler) as rc:
-        events = list(rc.stream_control(SID, from_sequence_num=3, reconnect=False))
+        events = list(rc.stream_control(SID, from_sequence_num=3, reconnect=False, server_filter=True))
     assert seen[0].url.params["control_only"] == "1"
     assert seen[0].url.params["from_sequence_num"] == "3"
     assert seen[0].headers["Last-Event-ID"] == "3"

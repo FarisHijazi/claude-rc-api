@@ -30,7 +30,8 @@ module that owns the area, or a new mixin module plus one line in the
 | `lifecycle.py` | create/unarchive/delete/share/tag/mark-read, teleport events |
 | `environments.py` | environments (public + private org routes), create/update, self-hosted pools |
 | `triggers.py` | scheduled tasks (routines) |
-| `interaction.py` | pending prompts, permission + AskUserQuestion answers, slash commands, generic controls, `stream_session` (keeps meta frames), account `watch` feed |
+| `interaction.py` | pending prompts, permission + AskUserQuestion answers, slash commands, generic controls; stream methods delegate to `streaming.py` |
+| `streaming.py` | paginated durable history, metadata/ephemeral session streams, bounded reconnect/backfill, live control correlation, account watch; opt-in CLI registration helpers |
 | `files.py` | attachments / Files API |
 | `tts.py` | claude.ai text-to-speech websocket + Ogg muxer |
 | `events.py`, `sse.py` | wire event builders/parsers, SSE parser |
@@ -80,5 +81,10 @@ On dev, uv needs the proxy CA plus the system bundle:
   `scripts/claude-rc-smoke` runs the full create → answer → archive → delete
   loop.
 - Never touch sessions you did not create, except read-only listing.
+- Streaming acceptance: `uv run --extra web python scripts/claude-rc-stream-smoke --direct`.
+  History pages accept 1–500 events. `stream_control` filters locally by default:
+  the live server's `control_only=1` omits ephemeral `mcp_status liveReply` responses.
+  Group03 contracts/evidence: `docs/devlog/claude_2026-10-28-streaming-recovery.json`
+  (deliberately a plain path, not an `@` include).
 - Record what ran live in `docs/web-api.md` ("LIVE CHECK"). Devlogs go in
   `docs/devlog/claude_<date>-<desc>.md`.

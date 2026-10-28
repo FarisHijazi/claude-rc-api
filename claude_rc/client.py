@@ -833,6 +833,8 @@ class RemoteControlClient(
         (``read_file``, ``file_suggestions``, ``mcp_status`` …, see
         API_REFERENCE.md).
         """
+        if fields.get("liveReply"):
+            return self.request_control_live(session_id, subtype, timeout=timeout, **fields)
         return self._control(session_id, subtype, timeout, **fields)[1].get("response") or {}
 
     def wait_control_response(
@@ -1070,67 +1072,11 @@ class RemoteControlClient(
         reconnect: bool = True,
         max_reconnects: int = 20,
     ) -> Iterator[Event]:
-        """``GET /v1/code/sessions/{id}/events/stream`` — live SSE events.
-
-        Replays every persisted event after ``from_sequence_num`` (exclusive — 0
-        replays the whole backlog), then follows live. A ``client_event`` frame is
-        an envelope ``{event_type, sequence_num, source, payload}``; this unwraps
-        ``payload`` into an :class:`Event`. ``ephemeral_event`` frames (partial
-        ``stream_event`` deltas, ``system/thinking_tokens``) come through with no
-        sequence number; ``session_update`` / ``delivery_update`` frames are
-        skipped. Resumes with both ``?from_sequence_num=`` and a ``Last-Event-ID``
-        header, de-duping by ``sequence_num``, so a dropped connection neither
-        replays nor skips events. Reconnects with exponential backoff.
-        """
-        seen: set[int] = set()
-        last_seq = from_sequence_num
-        attempts = 0
-        while True:
-            params: dict[str, Any] = {"from_sequence_num": last_seq}
-            headers = {"Accept": "text/event-stream"}
-            if last_seq:
-                headers["Last-Event-ID"] = str(last_seq)
-            try:
-                with closing(self._send(
-                    "GET", self._path(session_id, "events", "stream"), headers=headers, params=params,
-                    accept=(200,), retry=False, stream=True, timeout=httpx.Timeout(30.0, read=None),
-                )) as resp:
-                    attempts = 0
-                    for frame in parse_sse(resp.iter_lines()):
-                        if frame.is_heartbeat:
-                            continue
-                        # The RC stream marks each frame's sequence_num on the id: line.
-                        if frame.id:
-                            try:
-                                last_seq = max(last_seq, int(frame.id))
-                            except ValueError:
-                                pass
-                        # Ignore purely informational top-level events.
-                        if frame.event in ("session_update", "delivery_update"):
-                            continue
-                        try:
-                            data = json.loads(frame.data)
-                        except (json.JSONDecodeError, TypeError):
-                            continue
-                        # `catch_up_truncated` signals a history gap; surface it raw.
-                        if frame.event == "catch_up_truncated" or "payload" not in data:
-                            yield Event.from_wire(data)
-                            continue
-                        ev = Event.from_wire(data)
-                        if ev.sequence_num is not None:
-                            if ev.sequence_num in seen:
-                                continue
-                            seen.add(ev.sequence_num)
-                            last_seq = max(last_seq, ev.sequence_num)
-                        yield ev
-            except httpx.HTTPError:
-                if not reconnect or attempts >= max_reconnects:
-                    raise
-                attempts += 1
-                _backoff_sleep(attempts)
-                continue
-            if not reconnect:
-                return
+        """Metadata-preserving alias of stream_session; resume and recovery are shared."""
+        return self.stream_session(
+            session_id, from_sequence_num=from_sequence_num,
+            reconnect=reconnect, max_reconnects=max_reconnects,
+        )
 
     # -- presence ----------------------------------------------------------
     def presence(self, session_id: str, *, clear: bool = False) -> None:
@@ -1152,39 +1098,18 @@ class RemoteControlClient(
         text: str,
         *,
         print_stream: bool = False,
+        timeout: float = 300.0,
+        **prompt_options: Any,
     ) -> list[Event]:
-        """Send a message and stream until the session goes idle again.
+        """Attach before send; stop on result, terminal or blocking control.
 
-        Returns every event received during the turn. This is the "ask and wait
-        for the answer" pattern.
-
-        Nothing is lost to the gap between sending and connecting. :meth:`stream_events`
-        is a generator, so the HTTP connection only opens on the first iteration
-        below — *after* the send — but the stream is resumed from the newest
-        sequence number that existed beforehand, so the server replays anything
-        that happened in between.
+        Uses the shared metadata-preserving stream and existing prompt writer.
+        timeout bounds the turn; prompt_options accepts send_prompt options.
+        The owned HTTP response closes on every exit, including blocking prompts.
         """
-        # Seed the resume cursor from the newest event so we only see new ones.
-        try:
-            history = self.list_events(session_id, limit=1, sort_order="desc")
-            start = max((e.sequence_num or 0) for e in history) if history else 0
-        except APIError:
-            start = 0
-
-        collected: list[Event] = []
-        stream = self.stream_events(session_id, from_sequence_num=start, reconnect=False)
-        self.send_message(session_id, text)
-        for ev in stream:
-            collected.append(ev)
-            if print_stream and ev.role == "assistant":
-                t = ev.text()
-                if t:
-                    print(t)
-            # Stop when the turn ends, the session dies, or it blocks on us
-            # (a permission prompt / dialog that needs a controller response).
-            if ev.is_turn_end or ev.is_terminal or ev.is_blocking_control:
-                break
-        return collected
+        from .streaming import send_and_collect
+        return send_and_collect(self, session_id, text, print_stream=print_stream,
+                                timeout=timeout, **prompt_options)
 
 
 # ---------------------------------------------------------------------------

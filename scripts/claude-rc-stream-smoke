@@ -1,0 +1,234 @@
+#!/usr/bin/env python3
+"""Opt-in LIVE streaming acceptance on exactly one new, tagged cloud session.
+
+Uses automatic browser-cookie authentication, never copies/prints credentials.
+Run: uv run --extra web python scripts/claude-rc-stream-smoke --direct
+Prints only run-owned IDs, statuses and counts; no existing session data.
+Only test-owned HTTP connections are closed. No processes are signalled.
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import signal
+import sys
+import time
+import uuid
+from contextlib import closing, contextmanager
+from pathlib import Path
+
+import httpx
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from claude_rc import RemoteControlClient, default_environment
+from claude_rc.client import APIError
+from claude_rc import streaming
+
+
+class LiveDeadline(Exception):
+    """Not OSError: HTTP stacks must not reclassify the test deadline as I/O."""
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--direct', action='store_true', help='Ignore proxy variables for this client only')
+    parser.add_argument('--timeout', type=float, default=90)
+    args = parser.parse_args()
+    run = f'stream-smoke-{uuid.uuid4().hex[:12]}'
+    evidence = {'run': run, 'checks': {}, 'created_sessions': []}
+    checks = evidence['checks']
+    def timeout(signum, frame):
+        raise LiveDeadline('live step deadline')
+    signal.signal(signal.SIGALRM, timeout)
+    def check(name, fn):
+        signal.setitimer(signal.ITIMER_REAL, args.timeout)
+        try:
+            result = fn()
+            checks[name] = {'status': 'passed', 'evidence': result}
+            return result
+        except Exception as exc:
+            details = {'status': 'failed', 'error': type(exc).__name__}
+            if isinstance(exc, APIError):
+                details.update(http_status=exc.status, error_type=exc.error_type)
+            checks[name] = details
+            return None
+        finally:
+            signal.setitimer(signal.ITIMER_REAL, 0)
+            print(json.dumps({'step': name, **checks[name]}), flush=True)
+    transport = httpx.HTTPTransport(trust_env=False) if args.direct else None
+    with RemoteControlClient(transport=transport, auto_refresh=False) as rc:
+        evidence['auth_source'] = rc._auth.origin
+        check('list', lambda: {'count': len(rc.list_sessions(limit=1).get('data', []))})
+        envs = rc.list_environments()
+        checks['environments'] = {'status': 'passed', 'count': len(envs)}
+        catalog = rc._request('GET', f'/api/organizations/{rc.org_uuid}/model_selector/cc')
+        models = [m['id'] for group in catalog.get('model_selector_config', []) for m in group.get('models', [])]
+        assert 'claude-haiku-5-5' in models
+        usage = rc._request('GET', f'/api/organizations/{rc.org_uuid}/usage')
+        evidence['weekly_utilization'] = (usage.get('seven_day') or {}).get('utilization')
+        env = default_environment(envs)
+        session = rc.create_session(env.get('environment_id') or env['id'], title=run,
+                                    model='claude-haiku-5-5', tags=[run], sources=[], outcomes=[])
+        sid = session['id']
+        evidence['created_sessions'].append(sid)
+        print(json.dumps({'run': run, 'created_session': sid}), flush=True)
+        original_send = rc._send
+
+        @contextmanager
+        def fault(mode):
+            """Fault-inject only stream responses; history/POST still reach the service."""
+            count, sleeps = [], []
+            original_sleep = streaming.time.sleep
+            def send(method, path, **kw):
+                response = original_send(method, path, **kw)
+                if str(path).endswith('/events/stream'):
+                    count.append(1)
+                    response.close()
+                    content = b'event: catch_up_truncated\ndata: {}\n\n' if mode == 'truncation' else b''
+                    return httpx.Response(200, content=content, request=response.request)
+                return response
+            def sleep(delay):
+                sleeps.append(delay)
+                original_sleep(delay)
+            rc._send = send
+            streaming.time.sleep = sleep
+            try:
+                yield count, sleeps
+            finally:
+                rc._send = original_send
+                streaming.time.sleep = original_sleep
+
+        try:
+            # Attach both HTTP streams before the first prompt; socket closure is
+            # limited to our transcript response and its control sibling.
+            def first_turn():
+                with closing(original_send('GET', rc._path(sid, 'events', 'stream'),
+                             params={'from_sequence_num': 0, 'control_only': '1'},
+                             headers={'Accept': 'text/event-stream'}, stream=True, retry=False)):
+                    events = []
+                    with closing(rc.stream_session(sid, reconnect=False,
+                         deadline=time.monotonic() + args.timeout,
+                         on_ready=lambda: rc.send_prompt(sid, 'Reply exactly STREAM_OK'))) as stream:
+                        for event in stream:
+                            events.append(event)
+                            if event.sequence_num is not None:
+                                break  # force-close this test's socket after its first durable frame
+                    start = max(e.sequence_num or 0 for e in events)
+                    with closing(rc.stream_session(sid, from_sequence_num=start, reconnect=False,
+                                 deadline=time.monotonic() + args.timeout)) as stream:
+                        for event in stream:
+                            events.append(event)
+                            if event.is_turn_end or event.is_terminal or event.is_blocking_control:
+                                break
+                    durable = [e for e in events if e.sequence_num is not None]
+                    history = list(rc.iter_history(sid, page_size=2))
+                    assert [e.sequence_num for e in durable] == [e.sequence_num for e in history]
+                    assert [e.payload for e in durable] == [e.payload for e in history]
+                    assert len(set(e.sequence_num for e in durable)) == len(durable)
+                    assert any('STREAM_OK' in e.text() for e in durable if e.role == 'assistant')
+                    assert events[-1].is_turn_end
+                    return {'durable_events': len(durable), 'history_equal': True, 'closed_after_first_durable': True}
+            first = check('reply_reconnect_and_history', first_turn)
+            def second_turn():
+                before = list(rc.iter_history(sid))
+                cursor = max((e.sequence_num or 0 for e in before), default=0)
+                rc.send_prompt(sid, 'Reply exactly STREAM_TWO')
+                # No transcript connection while the worker runs: poll only owned history.
+                deadline = time.monotonic() + args.timeout
+                while time.monotonic() < deadline:
+                    rows = list(rc.iter_history(sid, after_sequence_num=cursor, page_size=2))
+                    if any(e.is_turn_end for e in rows):
+                        break
+                    time.sleep(.5)
+                else:
+                    raise TimeoutError('second turn')
+                with fault('truncation'):
+                    recovered = list(rc.stream_session(sid, from_sequence_num=cursor, reconnect=False))
+                durable = [e for e in recovered if e.sequence_num is not None]
+                assert [e.payload for e in durable] == [e.payload for e in rows]
+                assert any('STREAM_TWO' in e.text() for e in durable if e.role == 'assistant')
+                assert any(e.type == 'catch_up_truncated' for e in recovered)
+                return {'trigger': 'fault-injected', 'backfill': 'live GET', 'durable_events': len(durable)}
+            if first:
+                check('disconnected_second_turn_truncated_backfill', second_turn)
+            else:
+                checks['disconnected_second_turn_truncated_backfill'] = {'status': 'blocked', 'reason': 'first turn failed'}
+            def bounded():
+                with fault('eof') as (calls, sleeps):
+                    try:
+                        list(rc.stream_session(sid, max_reconnects=2, base_delay=.1))
+                    except streaming.StreamExhausted:
+                        pass
+                    else:
+                        raise AssertionError('missing budget exhaustion')
+                assert len(calls) == 3 and sleeps == [.1, .2]
+                return {'trigger': 'fault-injected EOF on live owned sockets', 'attempts': len(calls), 'backoff_seconds': sleeps}
+            check('bounded_live_socket_eof', bounded)
+            def live_reply(control_only=True):
+                init = rc.initialize(sid, timeout=15)
+                print(json.dumps({'initialize': {'version': init.get('claude_code_version'), 'keys': sorted(init)}}), flush=True)
+                frames = []
+                original_stream = streaming.stream_control
+                def recording(*a, **kw):
+                    source = original_stream(*a, **kw) if control_only else streaming.stream_session(*a, **kw)
+                    for event in source:
+                        frames.append(event)
+                        yield event
+                streaming.stream_control = recording
+                try:
+                    result = rc.request_control_live(sid, 'mcp_status', liveReply=True, timeout=15)
+                finally:
+                    streaming.stream_control = original_stream
+                    print(json.dumps({'control_frames': [{'type': e.type, 'durable': e.sequence_num is not None} for e in frames]}), flush=True)
+                replies = [e for e in frames if e.type == 'control_response' and e.sequence_num is None]
+                assert replies, 'no actual ephemeral response'
+                return {'ephemeral_reply': True, 'result_keys': sorted(result)}
+            if check('ephemeral_mcp_status', live_reply) is None:
+                check('ephemeral_mcp_status_unfiltered_probe', lambda: live_reply(False))
+            def watch_change():
+                def shape(event):
+                    print(json.dumps({'watch_frame': event.kind, 'keys': sorted(event.session), 'owned_id': event.session_id == sid}), flush=True)
+                with closing(rc.watch(channels_changed=True, max_reconnects=1)) as watch:
+                    for event in watch:
+                        shape(event)
+                        if event.kind == 'sync':
+                            token = event.resume_token
+                            break
+                    rc.rename_session(sid, run + '-seen')
+                    for event in watch:
+                        shape(event)
+                        if event.session_id == sid and event.kind in ('added', 'changed') and event.session.get('title') == run + '-seen':
+                            break
+                    rc.rename_session(sid, run + '-renamed')
+                    for event in watch:
+                        shape(event)
+                        if event.session_id == sid and event.kind == 'changed' and event.session.get('title') == run + '-renamed':
+                            break
+                # Resume from the sync token across a locally closed watch socket.
+                with closing(rc.watch(resume_token=token, channels_changed=True, max_reconnects=1)) as watch:
+                    for event in watch:
+                        if event.kind == 'sync':
+                            break
+                    rc.archive_session(sid)
+                    for event in watch:
+                        if event.session_id == sid and event.session.get('status') == 'archived':
+                            return {'changed': True, 'archived': True, 'resumed_after_local_close': True}
+                raise AssertionError('archive notification not observed')
+            check('watch_rename_archive_resume', watch_change)
+        finally:
+            rc._send = original_send
+            check('archive_cleanup', lambda: rc.archive_session(sid))
+            # Canonical captured route, not the older lifecycle method's guessed fallback.
+            check('delete_cleanup', lambda: rc._request('DELETE', rc._path(sid), json={}, accept=(200, 204)))
+            try:
+                rc.get_session(sid)
+            except APIError as exc:
+                checks['deleted_fetch'] = {'status': 'passed' if exc.status == 404 else 'failed', 'http_status': exc.status}
+            else:
+                checks['deleted_fetch'] = {'status': 'failed', 'reason': 'still fetchable'}
+    print(json.dumps(evidence, indent=2), flush=True)
+    return int(any(c['status'] != 'passed' for c in checks.values()))
+
+
+if __name__ == '__main__':
+    raise SystemExit(main())

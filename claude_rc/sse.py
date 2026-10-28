@@ -25,8 +25,8 @@ class SSEFrame:
         return not self.event and not self.data
 
 
-def parse_sse(lines: Iterable[str]) -> Iterator[SSEFrame]:
-    """Turn a stream of text lines into SSE frames."""
+def parse_sse(lines: Iterable[str], *, include_heartbeats: bool = False) -> Iterator[SSEFrame]:
+    """Parse frames; optional comment heartbeats let callers enforce deadlines."""
     event: Optional[str] = None
     data: list[str] = []
     ident: Optional[str] = None
@@ -44,7 +44,8 @@ def parse_sse(lines: Iterable[str]) -> Iterator[SSEFrame]:
             continue
 
         if line.startswith(":"):
-            # Comment / heartbeat line — ignore.
+            if include_heartbeats:
+                yield SSEFrame(event=None, data="")
             continue
 
         field, _, value = line.partition(":")
@@ -55,13 +56,10 @@ def parse_sse(lines: Iterable[str]) -> Iterator[SSEFrame]:
             event = value
         elif field == "data":
             data.append(value)
-        elif field == "id":
+        elif field == "id" and "\x00" not in value:
             ident = value
-        elif field == "retry":
-            try:
-                retry = int(value)
-            except ValueError:
-                pass
+        elif field == "retry" and value.isascii() and value.isdecimal():
+            retry = int(value)
 
     # Flush a trailing frame that wasn't terminated by a blank line.
     if event is not None or data:
