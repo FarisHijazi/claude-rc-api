@@ -59,7 +59,8 @@ uv sync --extra cli --extra test    # + pytest
 Credentials load automatically: the OAuth token from `~/.claude/.credentials.json`
 (on macOS, first from the login Keychain item `Claude Code-credentials`, as the
 CLI does) and the `organizationUuid` from `~/.claude.json`. Override them with
-`CLAUDE_RC_ACCESS_TOKEN` / `CLAUDE_CODE_OAUTH_TOKEN` and `CLAUDE_RC_ORG_UUID`.
+`CLAUDE_RC_ACCESS_TOKEN` / `CLAUDE_CODE_OAUTH_TOKEN` and `CLAUDE_RC_ORG_UUID`,
+and the Trusted Devices token with the CLI's `CLAUDE_TRUSTED_DEVICE_TOKEN`.
 
 ## CLI
 
@@ -215,16 +216,18 @@ ev.attestation   # "UNSPECIFIED" | "VERIFIED" | "ABSENT" … (Trusted Devices)
 - Orgs that require Trusted Devices refuse an unenrolled machine with a 403
   `untrusted_device`. The client then enrolls it as the CLI does
   (`enroll_trusted_device`, which emails the account owner), saves the token
-  as `trustedDeviceToken` next to the login, and retries, with the CLI's
-  guards against enrolling in a loop. Workers can still drop controller events
-  that carry no device signature; this library doesn't sign. `ev.attestation`
-  shows what the server recorded, and API_REFERENCE.md §3.4 has the details.
+  as `trustedDeviceToken` next to the login that enrolled, and retries, with
+  the CLI's guards against enrolling in a loop. Workers can still drop
+  controller events that carry no device signature; this library doesn't
+  sign. `ev.attestation` shows what the server recorded, and
+  API_REFERENCE.md §3.4 has the details.
 - Token refresh writes the new tokens back where they came from (the
   credentials file or the macOS Keychain item) the way the CLI's own refresh
   does: only over the login it refreshed, keeping the rest of the document.
-  It doesn't take the CLI's lock files, so a write racing one of the CLI's can
-  lose one side. `persist_refresh=False` keeps refreshes in memory, but the
-  refresh token they spend is the CLI's too, so the CLI must sign in again.
+  Neither that nor an enrollment takes the CLI's lock files, so a write
+  racing one of the CLI's can lose one side. `persist_refresh=False` keeps
+  refreshes in memory and turns lazy enrollment off, but the refresh token a
+  refresh spends is the CLI's too, so the CLI must sign in again.
 - This project never prints or transmits your tokens.
 
 ## Used by

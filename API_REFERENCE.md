@@ -392,19 +392,24 @@ sending device in Trusted Devices."* This library does not sign (it does send
 `api.anthropic.com` with the OAuth bearer and
 `{"display_name": "Claude Code on <host> · <platform>"}` returns
 `{device_token, device_id}`, and emails the account owner. The token goes in
-the credentials store's top-level `trustedDeviceToken` (the CLI's
-`CLAUDE_TRUSTED_DEVICE_TOKEN` env var overrides it, and stops enrollment; this
-library doesn't read that) and rides requests as `X-Trusted-Device-Token`. An
-org that requires Trusted Devices refuses an unenrolled caller with
+the credentials store's top-level `trustedDeviceToken` (the
+`CLAUDE_TRUSTED_DEVICE_TOKEN` env var overrides it and stops enrollment, for
+the CLI and this library alike) and rides requests as
+`X-Trusted-Device-Token`. An org that requires Trusted Devices refuses an
+unenrolled caller with
 `403 {"error": {"resource": "untrusted_device", "sub_reason": …}}`. The CLI
-enrolls at sign-in, and lazily on such a refusal: only when the token itself
-was refused (no `sub_reason`, or `bound_unattested`; `served_call_unsigned`
-wants a device signature instead), at most once every 5 minutes, and not
-while the refused token is one a refusal enrolled less than a day ago (it
-stamps `trustedDeviceEnrolledAfterRefusalAtMs`). A token the store gained
-meanwhile is retried first. `RemoteControlClient` does the same lazy
-enrollment, as `claude-rc-api on <host> · <platform>`, when its credentials
-came from a store it may write to.
+enrolls at sign-in, and lazily on such a refusal from its session client:
+only when the token itself was refused (no `sub_reason`, or
+`bound_unattested`; `served_call_unsigned` wants a device signature instead),
+at most once every 5 minutes per process, and not while the refused token is
+one a refusal enrolled less than a day ago (it stamps
+`trustedDeviceEnrolledAfterRefusalAtMs`). A token the store gained meanwhile
+is retried first, and enrollment uses the login the store holds; a
+server-side switch can also turn enrollment off. `RemoteControlClient` does
+the same lazy enrollment, as `claude-rc-api on <host> · <platform>`, when its
+credentials came from a store it may write to, except that it can't see that
+switch. It first retries as the store's login if a sign-in replaced its own,
+and saves the token only next to the login that enrolled.
 
 ---
 

@@ -18,6 +18,8 @@ officially supported interface; endpoints and headers can change without notice.
 from __future__ import annotations
 
 import json
+import os
+import threading
 import time
 import uuid
 from datetime import datetime, timezone
@@ -28,6 +30,7 @@ import httpx
 from ._version import __version__
 from . import credentials as _credentials
 from .credentials import (
+    ENV_TRUSTED_DEVICE_TOKEN,
     CredentialsError,
     OAuthCredentials,
     _stored_device_token,
@@ -73,9 +76,22 @@ USER_AGENT = f"claude-rc-api-python/{__version__}"
 _VERDICT_SCAN = 50
 _MAX_POLL_INTERVAL = 2.0
 
-# The CLI's floor between lazy trusted-device enrollments (each one emails the
-# account owner).
+# The CLI's floor between lazy trusted-device enrollments, per process (each
+# one emails the account owner).
 _ENROLL_RETRY_S = 300.0
+_enrollment_lock = threading.Lock()
+_last_enrollment = float("-inf")  # time.monotonic()
+
+
+def _may_try_enrolling() -> bool:
+    """Claim this process's next lazy enrollment, if the floor allows one."""
+    global _last_enrollment
+    with _enrollment_lock:
+        now = time.monotonic()
+        if now - _last_enrollment < _ENROLL_RETRY_S:
+            return False
+        _last_enrollment = now
+        return True
 
 
 def _backoff_sleep(attempt: int, base: float = 0.5, cap: float = 30.0) -> None:
@@ -152,9 +168,6 @@ class RemoteControlClient:
     This plays the same role as the browser at claude.ai/code: it does not run
     Claude, it *steers* a session that is running on someone's machine.
     """
-
-    # When this client last enrolled a trusted device (time.monotonic()).
-    _enroll_attempted_at = float("-inf")
 
     def __init__(
         self,
@@ -266,17 +279,25 @@ class RemoteControlClient:
         when there is a different trusted-device token to retry with.
 
         Only a refusal of the token itself qualifies (see
-        :func:`_device_token_refused`). A token the store gained meanwhile (the
-        CLI enrolled) is taken as is. Otherwise this machine is enrolled
-        (:func:`~claude_rc.credentials.enroll_trusted_device`, which emails the
-        account owner), with the CLI's guards against a loop: one attempt per
-        client every 5 minutes at most, and none while the refused token is one
-        a refusal enrolled less than a day ago. That guard lives in the store,
-        so enrolling needs credentials from one and ``persist_refresh``.
+        :func:`_device_token_refused`), and nothing changes while
+        ``CLAUDE_TRUSTED_DEVICE_TOKEN`` is set, as with the CLI. If the store
+        has moved on (a sign-in, rotated tokens), the retry goes out as its
+        login first. A token the store gained meanwhile (the CLI enrolled) is
+        taken as is. Otherwise this machine is enrolled for the login the store
+        holds (:func:`~claude_rc.credentials.enroll_trusted_device`, which
+        emails the account owner), with the CLI's guards against a loop: one
+        attempt per process every 5 minutes at most, and none while the
+        refused token is one a refusal enrolled less than a day ago. That guard
+        lives in the store, so enrolling needs credentials from one and
+        ``persist_refresh``.
         """
         creds = self._creds
         if not _device_token_refused(body) or not (creds.source_path or creds.source_keychain):
             return False
+        if os.environ.get(ENV_TRUSTED_DEVICE_TOKEN):
+            return False
+        if self._reload_credentials():
+            return True
         refused = creds.trusted_device_token
         try:
             stored, may_enroll = _stored_device_token(creds)
@@ -284,16 +305,8 @@ class RemoteControlClient:
             return False
         if stored and stored != refused:
             creds.trusted_device_token = stored
-        elif (
-            may_enroll
-            and self._persist_refresh
-            and time.monotonic() - self._enroll_attempted_at >= _ENROLL_RETRY_S
-        ):
-            self._enroll_attempted_at = time.monotonic()
-            try:
-                enroll_trusted_device(creds, base_url=self.base_url, client=self._refresher, after_refusal=True)
-            except CredentialsError:
-                pass  # enrolled but not saved: the token still serves this client
+        elif may_enroll and self._persist_refresh and _may_try_enrolling():
+            enroll_trusted_device(creds, base_url=self.base_url, client=self._refresher, after_refusal=True)
         return bool(creds.trusted_device_token) and creds.trusted_device_token != refused
 
     # -- low-level request: one 401 -> refresh retry, one 403 -> device retry ----
@@ -719,7 +732,9 @@ class RemoteControlClient:
         sequence number; ``session_update`` / ``delivery_update`` frames are
         skipped. Resumes with both ``?from_sequence_num=`` and a ``Last-Event-ID``
         header, de-duping by ``sequence_num``, so a dropped connection neither
-        replays nor skips events. Reconnects with exponential backoff.
+        replays nor skips events. Reconnects with exponential backoff. A connect
+        refused for want of a trusted device reconnects at once (even with
+        ``reconnect=False``) when a new device token is in hand.
         """
         seen: set[int] = set()
         last_seq = from_sequence_num
