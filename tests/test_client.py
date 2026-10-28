@@ -843,8 +843,6 @@ class _FakeHttp:
 
 
 def _oauth_creds(**kw):
-    from claude_rc.credentials import OAuthCredentials
-
     base = dict(access_token="tok", refresh_token="ref", expires_at_ms=9999999999999,
                 scopes=["user:inference"], subscription_type="max")
     base.update(kw)
@@ -882,57 +880,167 @@ def test_enroll_trusted_device_declined(tmp_path: Path):
     assert "trustedDeviceToken" not in json.loads(p.read_text())
 
 
+_REFUSED = '{"error":{"resource":"untrusted_device"}}'
+_EVENTS_URL = "https://api.anthropic.com/v1/code/sessions/x/events"
+
+
 def _bare_rc_with(creds, http):
     from claude_rc.client import RemoteControlClient
 
     rc = RemoteControlClient.__new__(RemoteControlClient)
     rc._creds = creds
-    rc._persist_refresh = False
+    rc._persist_refresh = True
     rc._auto_refresh = False
     rc.base_url = "https://api.anthropic.com"
     rc._org_uuid = None
-    rc._trusted_device_enroll_attempted = False
     rc._http = http
     rc._refresher = http
     return rc
 
 
-def test_request_enrolls_and_retries_on_untrusted_device(monkeypatch):
-    from claude_rc.client import RemoteControlClient
+def _stored_creds(tmp_path: Path):
+    """A credentials file and the credentials loaded from it."""
+    p = tmp_path / ".credentials.json"
+    _write_creds(p, "tok", "ref", 9999999999999)
+    return p, load_credentials(p)
 
-    creds = _oauth_creds()
+
+def _enrolls_dev_tok_1(c, **kw):
+    c.trusted_device_token = "dev-tok-1"  # the real one sets it on the creds too
+    return "dev-tok-1"
+
+
+def test_device_token_refusal_kinds():
+    """Only a refused token is worth enrolling for, as the CLI reads the 403."""
+    from claude_rc.client import _device_token_refused
+
+    def body(**error):
+        return json.dumps({"error": {"resource": "untrusted_device", **error}})
+
+    assert _device_token_refused(body())
+    assert _device_token_refused(body(sub_reason=""))
+    assert _device_token_refused(body(sub_reason="bound_unattested"))
+    assert not _device_token_refused(body(sub_reason="served_call_unsigned"))  # wants a signature
+    assert not _device_token_refused(body(sub_reason="something_new"))
+    assert not _device_token_refused('{"error":{"resource":"session_stale_relogin"}}')
+    assert not _device_token_refused("upstream says untrusted_device")
+    assert not _device_token_refused("[1]")
+
+
+def test_request_enrolls_and_retries_on_untrusted_device(tmp_path: Path, monkeypatch):
+    _, creds = _stored_creds(tmp_path)
     http = _FakeHttp([
-        _FakeResp(403, '{"error":{"resource":"untrusted_device"}}'),
+        _FakeResp(403, _REFUSED),
         _FakeResp(200, "{}", {"ok": True}),
     ])
     rc = _bare_rc_with(creds, http)
     calls = []
+    monkeypatch.setattr(
+        "claude_rc.client.enroll_trusted_device", lambda c, **kw: calls.append(kw) or _enrolls_dev_tok_1(c))
 
-    def _fake_enroll(c, **kw):
-        calls.append(kw)
-        c.trusted_device_token = "dev-tok-1"  # real fn mutates creds in place
-        return "dev-tok-1"
-
-    monkeypatch.setattr("claude_rc.client.enroll_trusted_device", _fake_enroll)
-
-    resp = rc._request("GET", "https://api.anthropic.com/v1/code/sessions/x/events")
+    resp = rc._request("GET", _EVENTS_URL, extra_headers={"anthropic-beta": "b"})
 
     assert resp.status_code == 200
-    assert calls and len(calls) == 1  # enrolled exactly once
+    assert len(calls) == 1 and calls[0]["after_refusal"] is True  # enrolled exactly once
     retry_headers = http.calls[1][2]
     assert retry_headers.get("X-Trusted-Device-Token") == "dev-tok-1"
+    assert retry_headers.get("anthropic-beta") == "b"  # the retry keeps the caller's headers
 
 
-def test_request_does_not_loop_when_enrollment_fails(monkeypatch):
-    from claude_rc.client import RemoteControlClient
-
-    creds = _oauth_creds()
+def test_lazy_enrollment_is_stamped_and_not_repeated(tmp_path: Path):
+    """Through the real enroll: the token and its refusal stamp land in the
+    store, and when the server refuses the new token too, nothing enrolls
+    again, in this client or a restarted one (each enrollment emails the
+    account owner)."""
+    p, creds = _stored_creds(tmp_path)
     http = _FakeHttp([
-        _FakeResp(403, '{"error":{"resource":"untrusted_device"}}'),
+        _FakeResp(403, _REFUSED),
+        _FakeResp(200, json_body={"device_token": "dev-tok-1"}),  # the enrollment POST
+        _FakeResp(403, _REFUSED),  # the retry, refused as well
     ])
-    rc = _bare_rc_with(creds, http)
-    monkeypatch.setattr("claude_rc.client.enroll_trusted_device", lambda c, **kw: None)
+    assert _bare_rc_with(creds, http)._request("GET", _EVENTS_URL).status_code == 403
+    doc = json.loads(p.read_text())
+    assert doc["trustedDeviceToken"] == "dev-tok-1" and doc["trustedDeviceEnrolledAfterRefusalAtMs"] > 0
+    assert doc["claudeAiOauth"]["accessToken"] == "tok"
+    restarted = _bare_rc_with(load_credentials(p), _FakeHttp([_FakeResp(403, _REFUSED)]))
+    assert restarted._request("GET", _EVENTS_URL).status_code == 403
+    assert [c[0] for c in restarted._http.calls] == ["GET"]
 
-    resp = rc._request("GET", "https://api.anthropic.com/v1/code/sessions/x/events")
 
-    assert resp.status_code == 403  # original error surfaces; no retry storm
+def test_request_takes_a_token_the_store_gained(tmp_path: Path, monkeypatch):
+    """The CLI enrolled after this client loaded: retry with its token."""
+    p, creds = _stored_creds(tmp_path)
+    p.write_text(json.dumps({**json.loads(p.read_text()), "trustedDeviceToken": "cli-token"}))
+    http = _FakeHttp([_FakeResp(403, _REFUSED), _FakeResp(200, "{}", {"ok": True})])
+    monkeypatch.setattr("claude_rc.client.enroll_trusted_device", lambda *a, **kw: pytest.fail("enrolled"))
+    assert _bare_rc_with(creds, http)._request("GET", _EVENTS_URL).status_code == 200
+    assert http.calls[1][2].get("X-Trusted-Device-Token") == "cli-token"
+
+
+def test_no_lazy_enrollment_without_a_store_to_guard_it(tmp_path: Path, monkeypatch):
+    """The guard against re-enrolling lives in the store, so env-token
+    credentials and a client told not to write surface the 403 instead."""
+    monkeypatch.setattr("claude_rc.client.enroll_trusted_device", lambda *a, **kw: pytest.fail("enrolled"))
+    no_store = _bare_rc_with(_oauth_creds(), _FakeHttp([_FakeResp(403, _REFUSED)]))
+    assert no_store._request("GET", _EVENTS_URL).status_code == 403
+    _, creds = _stored_creds(tmp_path)
+    in_memory = _bare_rc_with(creds, _FakeHttp([_FakeResp(403, _REFUSED)]))
+    in_memory._persist_refresh = False
+    assert in_memory._request("GET", _EVENTS_URL).status_code == 403
+
+
+def test_request_does_not_loop_when_enrollment_fails(tmp_path: Path, monkeypatch):
+    """A declined enrollment surfaces the 403, and another refusal within
+    5 minutes doesn't try again."""
+    _, creds = _stored_creds(tmp_path)
+    tries = []
+    monkeypatch.setattr("claude_rc.client.enroll_trusted_device", lambda c, **kw: tries.append(kw))
+    rc = _bare_rc_with(creds, _FakeHttp([_FakeResp(403, _REFUSED), _FakeResp(403, _REFUSED)]))
+    assert rc._request("GET", _EVENTS_URL).status_code == 403
+    assert rc._request("GET", _EVENTS_URL).status_code == 403  # original error; no retry storm
+    assert len(tries) == 1
+
+
+def test_stream_reconnects_after_a_recovered_refusal(tmp_path: Path, monkeypatch):
+    import httpx
+
+    _, creds = _stored_creds(tmp_path)
+    sent = []
+
+    def handler(req):
+        sent.append(req.headers.get("X-Trusted-Device-Token"))
+        if len(sent) == 1:
+            return httpx.Response(403, text=_REFUSED)
+        frame = 'event: client_event\nid: 1\ndata: {"sequence_num": 1, "payload": {"type": "result"}}\n\n'
+        return httpx.Response(200, text=frame)
+
+    rc = _bare_rc_with(creds, httpx.Client(transport=httpx.MockTransport(handler)))
+    monkeypatch.setattr("claude_rc.client.enroll_trusted_device", _enrolls_dev_tok_1)
+    assert [e.type for e in rc.stream_events("cse_x", reconnect=False)] == ["result"]
+    assert sent == [None, "dev-tok-1"]
+    rc._http.close()
+
+
+def test_enrollment_never_writes_a_store_without_a_login(tmp_path: Path):
+    from claude_rc.credentials import enroll_trusted_device
+
+    p, creds = _stored_creds(tmp_path)
+    p.write_text("{}")  # signed out meanwhile
+    fake = _FakeHttp([_FakeResp(200, json_body={"device_token": "dev-tok-1"})])
+    assert enroll_trusted_device(creds, client=fake) == "dev-tok-1" == creds.trusted_device_token
+    assert p.read_text() == "{}"
+
+
+def test_refresh_keeps_a_device_token_enrolled_since(tmp_path: Path):
+    """A refresh saves only the OAuth block, so a trusted-device token the CLI
+    enrolled after this process loaded survives it."""
+    from claude_rc.credentials import refresh_credentials
+
+    p = tmp_path / ".credentials.json"
+    _write_creds(p, "old-token", "old-refresh", 1)
+    p.write_text(json.dumps({**json.loads(p.read_text()), "trustedDeviceToken": "old-dev"}))
+    creds = load_credentials(p)
+    p.write_text(json.dumps({**json.loads(p.read_text()), "trustedDeviceToken": "new-dev"}))
+    with _token_endpoint() as http:
+        refresh_credentials(creds, client=http)
+    assert json.loads(p.read_text())["trustedDeviceToken"] == "new-dev"

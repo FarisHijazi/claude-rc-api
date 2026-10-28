@@ -31,12 +31,6 @@ your script ──► POST /v1/code/sessions/{id}/events    (send a message)
 It also ships a `ManagedAgentsClient` for the sibling public Sessions API
 (`/v1/sessions`, `x-api-key`) that runs agents in Anthropic's cloud.
 
-**Trusted Devices:** if your org requires Trusted Devices for Remote Control,
-the client enrolls this device automatically on the first `untrusted_device`
-(403) rejection — mirroring the official CLI's lazy enrollment — persists the
-token as `trustedDeviceToken` in `~/.claude/.credentials.json`, and retries the
-call. No manual step needed.
-
 ## Install
 
 As a library / CLI, straight from the repo:
@@ -218,9 +212,13 @@ ev.attestation   # "UNSPECIFIED" | "VERIFIED" | "ABSENT" … (Trusted Devices)
   worker queries (`ask`, `info`, `side_question`, `get_*`) leave a
   `control_request` / `control_response` pair in the event log, as claude.ai's
   own attach does; a side question also costs a model call.
-- Orgs that enforce Trusted Devices can make workers drop unsigned controller
-  events; this library doesn't sign. `ev.attestation` shows what the server
-  recorded, and API_REFERENCE.md §3.4 has the details.
+- Orgs that require Trusted Devices refuse an unenrolled machine with a 403
+  `untrusted_device`. The client then enrolls it as the CLI does
+  (`enroll_trusted_device`, which emails the account owner), saves the token
+  as `trustedDeviceToken` next to the login, and retries, with the CLI's
+  guards against enrolling in a loop. Workers can still drop controller events
+  that carry no device signature; this library doesn't sign. `ev.attestation`
+  shows what the server recorded, and API_REFERENCE.md §3.4 has the details.
 - Token refresh writes the new tokens back where they came from (the
   credentials file or the macOS Keychain item) the way the CLI's own refresh
   does: only over the login it refreshed, keeping the rest of the document.

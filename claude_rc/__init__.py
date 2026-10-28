@@ -63,6 +63,7 @@ __all__ = [
     "ControlTimeout",
     "OAuthCredentials",
     "CredentialsError",
+    "enroll_trusted_device",
     "load_credentials",
     "load_org_uuid",
     "refresh_credentials",

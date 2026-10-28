@@ -29,6 +29,7 @@ from ._version import __version__
 from .credentials import (
     CredentialsError,
     OAuthCredentials,
+    _stored_device_token,
     enroll_trusted_device,
     load_credentials,
     load_org_uuid,
@@ -71,6 +72,10 @@ USER_AGENT = f"claude-rc-api-python/{__version__}"
 _VERDICT_SCAN = 50
 _MAX_POLL_INTERVAL = 2.0
 
+# The CLI's floor between lazy trusted-device enrollments (each one emails the
+# account owner).
+_ENROLL_RETRY_S = 300.0
+
 
 def _backoff_sleep(attempt: int, base: float = 0.5, cap: float = 30.0) -> None:
     time.sleep(min(cap, base * (2 ** (attempt - 1))))
@@ -82,6 +87,23 @@ def _ack_sequence(ack: Any) -> Optional[int]:
     if isinstance(results, list) and results and isinstance(results[0], dict):
         return _to_int(results[0].get("sequence_num"))
     return None
+
+
+def _device_token_refused(body: str) -> bool:
+    """A 403 body that refuses the trusted-device token itself, the one kind
+    the CLI answers by enrolling: ``error.resource`` ``untrusted_device`` with
+    no ``sub_reason``, or ``bound_unattested``. ``served_call_unsigned`` wants a
+    device signature, which no token gives, and unknown sub-reasons are left
+    alone as well."""
+    try:
+        error = json.loads(body).get("error")
+    except (ValueError, AttributeError):
+        return False
+    return (
+        isinstance(error, dict)
+        and error.get("resource") == "untrusted_device"
+        and error.get("sub_reason") in (None, "", "bound_unattested")
+    )
 
 
 def _unwrap_session(body: Any) -> Any:
@@ -130,6 +152,9 @@ class RemoteControlClient:
     Claude, it *steers* a session that is running on someone's machine.
     """
 
+    # When this client last enrolled a trusted device (time.monotonic()).
+    _enroll_attempted_at = float("-inf")
+
     def __init__(
         self,
         credentials: OAuthCredentials | None = None,
@@ -153,7 +178,6 @@ class RemoteControlClient:
         self._persist_refresh = persist_refresh
         # A stable per-instance id for presence, like the web client.
         self.client_id = client_id or str(uuid.uuid4())
-        self._trusted_device_enroll_attempted = False
         self._http = httpx.Client(timeout=httpx.Timeout(timeout, read=timeout))
         self._refresher = httpx.Client(timeout=30.0)
 
@@ -229,9 +253,45 @@ class RemoteControlClient:
         tail = "/".join(str(p).strip("/") for p in parts if p != "")
         return f"{self.base_url}/v1/code/sessions" + (f"/{tail}" if tail else "")
 
-    # -- low-level request with one 401->refresh retry ---------------------
+    def _renew_device_token(self, body: str) -> bool:
+        """Recover from a 403 ``untrusted_device`` the way the CLI does: True
+        when there is a different trusted-device token to retry with.
+
+        Only a refusal of the token itself qualifies (see
+        :func:`_device_token_refused`). A token the store gained meanwhile (the
+        CLI enrolled) is taken as is. Otherwise this machine is enrolled
+        (:func:`~claude_rc.credentials.enroll_trusted_device`, which emails the
+        account owner), with the CLI's guards against a loop: one attempt per
+        client every 5 minutes at most, and none while the refused token is one
+        a refusal enrolled less than a day ago. That guard lives in the store,
+        so enrolling needs credentials from one and ``persist_refresh``.
+        """
+        creds = self._creds
+        if not _device_token_refused(body) or not (creds.source_path or creds.source_keychain):
+            return False
+        refused = creds.trusted_device_token
+        try:
+            stored, may_enroll = _stored_device_token(creds)
+        except CredentialsError:
+            return False
+        if stored and stored != refused:
+            creds.trusted_device_token = stored
+        elif (
+            may_enroll
+            and self._persist_refresh
+            and time.monotonic() - self._enroll_attempted_at >= _ENROLL_RETRY_S
+        ):
+            self._enroll_attempted_at = time.monotonic()
+            try:
+                enroll_trusted_device(creds, base_url=self.base_url, client=self._refresher, after_refusal=True)
+            except CredentialsError:
+                pass  # enrolled but not saved: the token still serves this client
+        return bool(creds.trusted_device_token) and creds.trusted_device_token != refused
+
+    # -- low-level request: one 401 -> refresh retry, one 403 -> device retry ----
     def _request(self, method: str, url: str, **kw) -> httpx.Response:
-        resp = self._http.request(method, url, headers=self._headers(kw.pop("extra_headers", None)), **kw)
+        extra = kw.pop("extra_headers", None)
+        resp = self._http.request(method, url, headers=self._headers(extra), **kw)
         if resp.status_code == 401 and self._auto_refresh:
             # Recover and retry once, mirroring the CLI's bridge client. Fresh
             # tokens on disk (rotated by another process) win; otherwise spend
@@ -248,23 +308,11 @@ class RemoteControlClient:
                     if not renewed:
                         raise
             if renewed:
-                resp = self._http.request(method, url, headers=self._headers(), **kw)
-        if resp.status_code == 403 and "untrusted_device" in resp.text:
-            # The org requires Trusted Devices and this device isn't enrolled.
-            # Mirror the CLI: enroll once, then retry once with the new token.
-            if not self._trusted_device_enroll_attempted:
-                self._trusted_device_enroll_attempted = True
-                try:
-                    token = enroll_trusted_device(
-                        self._creds,
-                        base_url=self.base_url,
-                        persist=self._persist_refresh,
-                        client=self._refresher,
-                    )
-                except CredentialsError:
-                    token = None
-                if token:
-                    resp = self._http.request(method, url, headers=self._headers(), **kw)
+                resp = self._http.request(method, url, headers=self._headers(extra), **kw)
+        if resp.status_code == 403 and self._renew_device_token(resp.text):
+            # The org requires Trusted Devices: retry once with the token the
+            # store gained or this machine just enrolled.
+            resp = self._http.request(method, url, headers=self._headers(extra), **kw)
         return resp
 
     @staticmethod
@@ -681,6 +729,8 @@ class RemoteControlClient:
                 ) as resp:
                     if resp.status_code != 200:
                         body = resp.read().decode(errors="replace")
+                        if resp.status_code == 403 and self._renew_device_token(body):
+                            continue  # reconnect with the new trusted-device token
                         raise APIError(resp.status_code, body, resp.headers.get("request-id"))
                     attempts = 0
                     for frame in parse_sse(resp.iter_lines()):

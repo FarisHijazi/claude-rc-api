@@ -33,6 +33,8 @@ from typing import Optional
 
 import httpx
 
+from ._version import __version__
+
 # --- reverse-engineered constants ------------------------------------------
 CLAUDE_CODE_CLIENT_ID = "9d1c250a-e61b-44d9-88ed-5944d1962f5e"
 # Token refresh is served by platform.claude.com, NOT api.anthropic.com.
@@ -54,6 +56,14 @@ _KEYCHAIN_FALLBACK_ACCOUNT = "claude-code-user"
 _KEYCHAIN_NOT_FOUND = 44  # `security` exit status for errSecItemNotFound
 # The longest command the CLI pipes into `security -i`; past it, it uses argv.
 _KEYCHAIN_STDIN_MAX = 4032
+
+# Trusted Devices: the enrolled device's token sits at the document's top
+# level next to the OAuth block, with a stamp when a refused call (not a
+# sign-in) enrolled it; a refused token that a refusal enrolled less than a day
+# ago isn't replaced by enrolling again (the CLI's guard against a loop).
+TRUSTED_DEVICES_PATH = "/api/auth/trusted_devices"
+_ENROLLED_AFTER_REFUSAL = "trustedDeviceEnrolledAfterRefusalAtMs"
+_REFUSAL_ENROLL_COOLDOWN_MS = 24 * 3600 * 1000
 
 # Environment overrides (handy in CI / other machines).
 ENV_ACCESS_TOKEN = "CLAUDE_RC_ACCESS_TOKEN"
@@ -448,6 +458,7 @@ def enroll_trusted_device(
     persist: bool = True,
     client: httpx.Client | None = None,
     display_name: str | None = None,
+    after_refusal: bool = False,
 ) -> str | None:
     """Enroll this device for Trusted Devices, returning the device token.
 
@@ -456,12 +467,16 @@ def enroll_trusted_device(
     with HTTP 403 ``untrusted_device`` unless the caller presents an
     ``X-Trusted-Device-Token`` header. The official CLI enrolls on demand when
     it hits that rejection ("lazy enrollment"); this mirrors that behavior.
+    Each enrollment registers a device on the account and emails its owner.
 
     On success the token is stored on ``creds.trusted_device_token`` and
-    (optionally) written back to the credentials file as the top-level
-    ``trustedDeviceToken`` key, exactly where the CLI keeps it. Returns
-    ``None`` when the server declines enrollment (e.g. the org does not use
-    Trusted Devices), so callers can fall through to the original error.
+    (optionally) written back to the store the credentials came from as the
+    top-level ``trustedDeviceToken`` key, exactly where the CLI keeps it, as
+    long as that store still holds a login. ``after_refusal`` (a refused call
+    prompted this) also stamps the time, which the client's guard against
+    re-enrolling reads. Returns ``None`` when no token came back (the server
+    declined, e.g. the org does not use Trusted Devices, or the request
+    failed), so callers can fall through to the original error.
     """
     import platform
     import socket
@@ -474,16 +489,18 @@ def enroll_trusted_device(
     try:
         name = display_name or f"claude-rc-api on {socket.gethostname()} · {platform.system().lower()}"
         resp = client.post(
-            base_url.rstrip("/") + "/api/auth/trusted_devices",
+            base_url.rstrip("/") + TRUSTED_DEVICES_PATH,
             headers={
                 "Authorization": f"Bearer {creds.access_token}",
                 "Content-Type": "application/json",
                 "anthropic-version": "2023-06-01",
-                "User-Agent": "claude-rc-api-python/0.2.1",
+                "User-Agent": f"claude-rc-api-python/{__version__}",
             },
             json={"display_name": name},
             timeout=10.0,
         )
+    except httpx.HTTPError:
+        return None
     finally:
         if owns_client:
             client.close()
@@ -497,10 +514,27 @@ def enroll_trusted_device(
     if not token or not isinstance(token, str):
         return None
 
-    creds.trusted_device_token = token
+    creds.trusted_device_token = token  # first: an unsaved token still serves this process
     if persist:
         data = _read_document(creds)
-        if data is not None:
+        if data and data.get("claudeAiOauth"):
             data["trustedDeviceToken"] = token
+            if after_refusal:
+                data[_ENROLLED_AFTER_REFUSAL] = _now_ms()
+            else:
+                data.pop(_ENROLLED_AFTER_REFUSAL, None)
             _write_document(creds, data)
     return token
+
+
+def _stored_device_token(creds: OAuthCredentials) -> tuple[Optional[str], bool]:
+    """The store's ``trustedDeviceToken`` and whether enrolling again may
+    replace it: not while it is a token a refusal enrolled less than a day ago,
+    or its stamp is unusable, as the CLI guards against an enrollment loop."""
+    data = _read_document(creds) or {}
+    token, stamp = data.get("trustedDeviceToken"), data.get(_ENROLLED_AFTER_REFUSAL)
+    if not token or stamp is None:
+        return token, True
+    if not isinstance(stamp, int) or isinstance(stamp, bool) or not 0 < stamp <= _now_ms():
+        return token, False
+    return token, _now_ms() - stamp >= _REFUSAL_ENROLL_COOLDOWN_MS
