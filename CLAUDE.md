@@ -88,3 +88,6 @@ On dev, uv needs the proxy CA plus the system bundle:
   not includes). Environment archive removes it from lists but GET may still
   return `state: active`; permanent environment deletion is unsupported.
   Network profile/secret writes are captured-contract/offline-only, not live verified.
+  Independent rerun: `docs/devlog/claude_2026-10-28-group06-independent-evidence.json`
+  correlates Bash tool results to tool-use IDs and requires turn completion; POST
+  acknowledgement or assistant text alone is not environment execution proof.
