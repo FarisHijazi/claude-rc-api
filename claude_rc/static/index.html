@@ -246,7 +246,7 @@
 "use strict";
 const $ = (id) => document.getElementById(id);
 const S = {
-  sessions: [], selectedId: null, session: null,
+  sessions: [], hasLoaded: false, loadError: null, selectedId: null, session: null,
   seen: new Set(), es: null, lastSeq: 0,
   prompts: new Map(),   // request_id → its "needs you" row, while unanswered
   lastDivider: null,    // {text, count, node} — folds repeated dividers
@@ -321,13 +321,21 @@ async function loadWhoami() {
 async function loadSessions() {
   let sessions;
   try { sessions = (await api("/api/sessions")).sessions || []; }
-  catch (e) { toast("List failed: " + e.message); return; }
+  catch (e) {
+    S.hasLoaded = true; S.loadError = e.message;
+    renderSessions(); toast("List failed: " + e.message); return;
+  }
+  S.hasLoaded = true; S.loadError = null;
   S.sessions = sessions;
   renderSessions();
 }
 function renderSessions() {
   const box = $("session-list");
   box.innerHTML = "";
+  if (!S.hasLoaded || (S.loadError && !S.sessions.length)) {
+    box.appendChild(el("div", "muted", S.loadError ? "Could not load sessions. Retry refresh." : "Loading sessions…"));
+    return;
+  }
   if (!S.sessions.length) {
     box.appendChild(el("div", "muted", "  No sessions. Run `claude remote-control`.")).style.padding = "14px";
     return;
@@ -363,16 +371,18 @@ async function selectSession(id) {
 
   try {
     const s = await api(`/api/sessions/${id}`);
+    if (S.selectedId !== id) return;
     S.session = s; renderSessionHeader(s);
   } catch (e) { toast("Load failed: " + e.message); }
 
   try {
     const { events } = await api(`/api/sessions/${id}/events?limit=200`);
+    if (S.selectedId !== id) return;
     for (const ev of events) appendEvent(ev, false);
     scrollLog(true);
   } catch (e) { toast("History failed: " + e.message); }
 
-  openStream(id);
+  if (S.selectedId === id) openStream(id);
 }
 function renderSessionHeader(s) {
   const meta = s.external_metadata || {};
@@ -427,7 +437,7 @@ function appendEvent(ev, live) {
   applyWorkerState(ev.worker_state);
   // Any controller's answer (ours echoing back included) or the turn ending
   // settles a prompt: its buttons go.
-  if (ev.type === "control_response" && ev.request_id) settlePrompt(ev.request_id);
+  if (["control_response", "control_cancel_request"].includes(ev.type) && ev.request_id) settlePrompt(ev.request_id);
   if (ev.type === "result") [...S.prompts.keys()].forEach(settlePrompt);
   const node = eventNode(ev);
   if (!node) return;
@@ -481,6 +491,11 @@ function eventNode(ev) {
     frag.appendChild(el("div", "divider", "turn complete" + (ev.subtype && ev.subtype !== "success" ? " · " + ev.subtype : "")));
   } else if (ev.is_blocking_control) {
     frag.appendChild(promptNode(ev));
+  } else if (ev.raw && ev.raw.event) {
+    const details = document.createElement("details");
+    details.appendChild(el("summary", "divider", ev.type));
+    details.appendChild(el("pre", null, JSON.stringify(ev.raw.data, null, 2)));
+    frag.appendChild(details);
   } else {
     return null;
   }
@@ -493,11 +508,12 @@ function promptNode(ev) {
   if (ev.blocking_subtype === "can_use_tool" && ev.tool_name === "AskUserQuestion") {
     row.appendChild(questionForm(ev));
   } else if (ev.blocking_subtype === "can_use_tool") {
-    for (const [label, allow] of [["Allow", true], ["Deny", false]]) {
-      const b = el("button", allow ? "primary" : "danger", label);
+    for (const [label, decision] of [["Allow", "allow"], ["Always allow", "always"], ["Deny", "deny"]]) {
+      const b = el("button", decision === "deny" ? "danger" : "primary", label);
+      b.disabled = decision === "always" && !(ev.permission_suggestions || []).length;
       b.onclick = () => steer(label, "permission", {
-        request_id: ev.request_id, allow, tool_input: ev.tool_input, tool_use_id: ev.tool_use_id,
-      }, label === "Allow" ? "Allowed" : "Denied");
+        request_id: ev.request_id, decision,
+      }, "Permission answered");
       row.appendChild(b);
     }
   }
@@ -519,15 +535,24 @@ function questionForm(ev) {
       lab.appendChild(inp);
       lab.appendChild(document.createTextNode(" " + o.label + (o.description ? " — " + o.description : "")));
       box.appendChild(lab);
+      if (o.preview) {
+        const details = document.createElement("details");
+        details.appendChild(el("summary", null, "Preview"));
+        details.appendChild(el("pre", null, typeof o.preview === "string" ? o.preview : JSON.stringify(o.preview, null, 2)));
+        box.appendChild(details);
+      }
     }
     const other = document.createElement("input");
     other.placeholder = "Other…"; other.dataset.other = i;
     box.appendChild(other);
+    const notes = document.createElement("input");
+    notes.placeholder = "Notes (optional)…"; notes.dataset.notes = i;
+    box.appendChild(notes);
     form.appendChild(box);
   });
   const submit = el("button", "primary", "Submit");
   submit.onclick = () => {
-    const selections = {}, other = {};
+    const selections = {}, other = {}, notes = {};
     form.querySelectorAll("input[data-q]:checked").forEach(inp => {
       const q = qs[inp.dataset.q];
       if (q.multiSelect) (selections[inp.dataset.q] ||= []).push(inp.value);
@@ -539,7 +564,10 @@ function questionForm(ev) {
         if (!qs[inp.dataset.other].multiSelect) delete selections[inp.dataset.other];
       }
     });
-    steer("Answer", "answer", { request_id: ev.request_id, selections, other }, "Answered");
+    form.querySelectorAll("input[data-notes]").forEach(inp => {
+      if (inp.value.trim()) notes[inp.dataset.notes] = inp.value.trim();
+    });
+    steer("Answer", "answer", { request_id: ev.request_id, selections, other, notes }, "Answered");
   };
   const skip = el("button", "danger", "Skip");
   skip.onclick = () => steer("Skip", "answer", { request_id: ev.request_id, skip: true }, "Skipped");
@@ -651,6 +679,7 @@ $("sel-effort").onchange = (e) => {
 };
 
 // ---- boot ----------------------------------------------------------------
+renderSessions();
 loadWhoami();
 loadSessions();
 setInterval(loadSessions, 6000);

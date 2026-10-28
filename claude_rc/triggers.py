@@ -7,16 +7,18 @@ disables itself with ``ended_reason: "run_once_fired"``). Each run is an
 ordinary session: :meth:`TriggersMixin.trigger_runs` lists them and
 ``list_events`` reads a run's log.
 
-**There is no delete.** The API the CLI uses has none, and the CLI tells users
-to delete routines at ``https://claude.ai/code/routines``. Use
-:meth:`TriggersMixin.disable_trigger` to stop one.
+The web client additionally deletes and forks triggers, cancels runs, and manages
+per-trigger API tokens. These contracts are distinct from the older CLI surface.
 
-:func:`fire_routine` is separate: the official, per-routine-token API.
+:func:`fire_routine` retains the unverified legacy route for compatibility only;
+use :meth:`TriggersMixin.run_trigger` for an authenticated manual run.
 """
 
 from __future__ import annotations
 
 import uuid
+import warnings
+from urllib.parse import quote
 from datetime import datetime, timezone
 from typing import Any, Iterable, Iterator, Optional
 
@@ -143,10 +145,20 @@ def trigger_items(body: Any) -> list[dict]:
     return []
 
 
+def trigger_item(body: dict) -> dict:
+    """Unwrap the live create/get/update/fork ``{trigger: ...}`` envelope.
+
+    Older callers and fixtures may already hold the trigger itself.
+    """
+    item = body.get("trigger")
+    return item if isinstance(item, dict) else body
+
+
 def trigger_prompt(trigger: dict) -> Optional[str]:
     """The prompt a trigger starts runs with. Reads both forms the server
     returns: ``job_config.ccr.events[].data.message`` (create form) and
     ``session_request.events[].payload.message`` (list/get form)."""
+    trigger = trigger_item(trigger)
     ccr = (trigger.get("job_config") or {}).get("ccr") or {}
     candidates = [(e or {}).get("data") for e in ccr.get("events") or []]
     candidates += [(e or {}).get("payload") for e in (trigger.get("session_request") or {}).get("events") or []]
@@ -191,28 +203,60 @@ class TriggersMixin:
     def _trigger_request(self, method: str, path: str, **kw: Any) -> Any:
         return self._request(method, path, betas=(_triggers_beta(),), timeout=_TIMEOUT, **kw)
 
-    def iter_triggers(self) -> Iterator[dict]:
-        """Yield every trigger from ``GET /v1/code/triggers``, following
-        ``next_cursor`` as ``?cursor=`` when the server returns one (paging is
-        unverified; the CLI reads a single page)."""
+    def iter_triggers(self, *, limit: int | None = None, cursor: str | None = None,
+                      tags: Iterable[str] = (), exclude_tags: Iterable[str] = (),
+                      exclude_session_bound_one_shots: bool | None = None) -> Iterator[dict]:
+        """Yield triggers with server-side filters, preserving them across pages.
+
+        Supports cursor envelopes and the web's ``has_more``/``last_id`` form.
+        A repeated continuation or an exhausted page bound raises rather than
+        silently returning an incomplete list.
+        """
         params: dict[str, Any] = {}
+        if limit is not None:
+            if limit < 1:
+                raise ValueError("limit must be positive")
+            params["limit"] = limit
+        if cursor is not None:
+            params["cursor"] = cursor
+        if tags:
+            params["tags"] = list(tags)
+        if exclude_tags:
+            params["exclude_tags"] = list(exclude_tags)
+        if exclude_session_bound_one_shots is not None:
+            params["exclude_session_bound_one_shots"] = str(exclude_session_bound_one_shots).lower()
+        seen = set()
         for _ in range(_MAX_PAGES):
             body = self._trigger_request("GET", _TRIGGERS, params=params or None)
             items = trigger_items(body)
             yield from items
-            cursor = body.get("next_cursor") if isinstance(body, dict) else None
-            if not items or not isinstance(cursor, str) or not cursor:
+            if not isinstance(body, dict) or body.get("has_more") is False:
                 return
-            params = {"cursor": cursor}
+            cursor = body.get("next_cursor")
+            key = "cursor"
+            if not cursor and body.get("has_more"):
+                cursor = body.get("last_id") or (items[-1].get("id") if items else None)
+                key = "after_id"
+            if not cursor:
+                if body.get("has_more"):
+                    raise RuntimeError("trigger page has_more without a continuation")
+                return
+            marker = (key, str(cursor))
+            if marker in seen:
+                raise RuntimeError("trigger pagination repeated a continuation")
+            seen.add(marker)
+            params.pop("cursor", None)
+            params.pop("after_id", None)
+            params[key] = cursor
+        raise RuntimeError("trigger pagination exceeded page bound")
 
-    def list_triggers(self) -> list[dict]:
-        """All scheduled tasks: ``{id, name, enabled, cron_expression,
-        run_once_at, next_run_at, ended_reason?, session_request|job_config, …}``."""
-        return list(self.iter_triggers())
+    def list_triggers(self, **filters: Any) -> list[dict]:
+        """All scheduled tasks; keyword filters are :meth:`iter_triggers`'s."""
+        return list(self.iter_triggers(**filters))
 
     def get_trigger(self, trigger_id: str) -> dict:
         """``GET /v1/code/triggers/{id}``."""
-        return self._trigger_request("GET", f"{_TRIGGERS}/{trigger_id}")
+        return self._trigger_request("GET", f"{_TRIGGERS}/{quote(trigger_id, safe='')}")
 
     def create_trigger(self, name: str, *, environment_id: str, prompt: str | None = None, **fields: Any) -> dict:
         """``POST /v1/code/triggers`` — a new scheduled task; returns it.
@@ -233,22 +277,43 @@ class TriggersMixin:
             raise ValueError(f"unknown trigger fields: {sorted(unknown)}")
         if fields.get("run_once_at") is not None:
             fields["run_once_at"] = rfc3339(fields["run_once_at"])
-        return self._trigger_request("POST", f"{_TRIGGERS}/{trigger_id}", json=fields)
+        return self._trigger_request("POST", f"{_TRIGGERS}/{quote(trigger_id, safe='')}", json=fields)
 
     def enable_trigger(self, trigger_id: str) -> dict:
         """Resume a scheduled task (``{"enabled": true}``)."""
         return self.update_trigger(trigger_id, enabled=True)
 
     def disable_trigger(self, trigger_id: str) -> dict:
-        """Pause a scheduled task (``{"enabled": false}``) — the closest thing
-        to delete the API offers."""
+        """Pause a scheduled task (``{"enabled": false}``)."""
         return self.update_trigger(trigger_id, enabled=False)
+
+    def delete_trigger(self, trigger_id: str) -> Any:
+        """Delete a routine with the web client's explicit empty JSON body."""
+        return self._trigger_request("DELETE", f"{_TRIGGERS}/{quote(trigger_id, safe='')}", json={})
+
+    def fork_trigger(self, trigger_id: str, **body: Any) -> dict:
+        """Fork a routine. The default request body is ``{}``."""
+        return self._trigger_request("POST", f"{_TRIGGERS}/{quote(trigger_id, safe='')}/fork", json=body)
+
+    def cancel_trigger_run(self, trigger_id: str, session_id: str) -> Any:
+        """Cancel only the named run, not all runs of this routine."""
+        path = f"{_TRIGGERS}/{quote(trigger_id, safe='')}/runs/{quote(session_id, safe='')}/cancel"
+        return self._trigger_request("POST", path, json={})
+
+    def create_trigger_api_token(self, trigger_id: str) -> dict:
+        """Issue a routine token. Treat the return value as secret; never log it."""
+        return self._trigger_request("POST", f"{_TRIGGERS}/{quote(trigger_id, safe='')}/api-token", json={})
+
+    def revoke_trigger_api_token(self, trigger_id: str) -> Any:
+        """Revoke this routine's API token."""
+        return self._trigger_request("DELETE", f"{_TRIGGERS}/{quote(trigger_id, safe='')}/api-token", json={})
 
     def run_trigger(self, trigger_id: str, **body: Any) -> Any:
         """``POST /v1/code/triggers/{id}/run`` — fire now, outside the
-        schedule. ``body`` is optional (the CLI forwards its tool input minus
-        ``trigger_id``); the response shape is unverified."""
-        return self._trigger_request("POST", f"{_TRIGGERS}/{trigger_id}/run", json=body)
+        schedule. ``body`` is optional; the web sends ``{}`` or ``{text: ...}``.
+        Live reply: ``{conversation_id, session_id, trigger}``. This acknowledges
+        scheduling, not successful worker execution."""
+        return self._trigger_request("POST", f"{_TRIGGERS}/{quote(trigger_id, safe='')}/run", json=body)
 
     def create_webhook_trigger(self, routine_trigger_id: str, **body: Any) -> Any:
         """``POST /v1/code/webhook-triggers`` — attach an inbound webhook source
@@ -272,7 +337,7 @@ class TriggersMixin:
 
 
 # ---------------------------------------------------------------------------
-# official routine fire API (separate credential)
+# deprecated, unverified legacy routine fire API (separate credential)
 # ---------------------------------------------------------------------------
 def fire_routine(
     routine_id: str,
@@ -295,6 +360,10 @@ def fire_routine(
     shape unverified (not in any capture)."""
     from .client import ANTHROPIC_VERSION, APIError
 
+    warnings.warn(
+        "fire_routine uses an unverified legacy route; use RemoteControlClient.run_trigger",
+        DeprecationWarning, stacklevel=2,
+    )
     headers = {
         "Authorization": f"Bearer {token}",
         "anthropic-version": ANTHROPIC_VERSION,

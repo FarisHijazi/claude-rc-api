@@ -37,6 +37,18 @@ Cookie mode prefers an explicit/env organization, then `lastActiveOrg`; without
 one it queries `/api/organizations` once. Bearer mode uses explicit/config values,
 then `/api/oauth/profile`. Cookie recovery preserves the selected organization
 and verifies the same `/api/account` UUID before replaying an operation.
+1. Explicit arguments: `credentials`, `token`, `session_key`, `cswap_slot`. The CLI flags are
+   `--token`, `--session-key` and `--cswap-slot`.
+2. Cookies from `webauth.load_jar`: explicit cookie environment, live Chrome
+   CDP (default `http://127.0.0.1:9222`), state file, then Chrome DB. The base URL
+   moves to `https://claude.ai`.
+3. Bearer environment: `CLAUDE_AI_ACCESS_TOKEN`, then `CLAUDE_RC_ACCESS_TOKEN`,
+   then `CLAUDE_CODE_OAUTH_TOKEN`. Bare tokens are not refreshed.
+4. `CLAUDE_RC_CSWAP_SLOT`, otherwise cswap's current slot, read through
+   cc-proxy's `slot_token`. cswap owns refresh; the client only re-reads.
+5. Shared CLI credentials (file/Keychain), access-token-only and never refreshed
+   or written by this client. A separate client-owned `credentials_path` may
+   hold its own refreshable grant; it must not contain copied shared tokens.
 
 Sessions routes require `user:sessions:claude_code`. A setup-token with only
 inference scopes is not a substitute for a full subscription login.
@@ -79,7 +91,7 @@ came from a web, iOS, Android or desktop platform (sessions.md §8).
 | account feed | `GET /v1/code/sessions/watch` with a resume token from `GET /v1/code/sessions?limit=1` | §4.11, ducktape |
 | transcript rows | `GET …/teleport-events` | §4.10 |
 | environments | `GET /v1/environment_providers`, the private org route, `POST …/cloud/create`, `GET /v1/code/last_used_environment` | HAR #2/#28, surface §2 |
-| scheduled tasks | `GET`/`POST /v1/code/triggers`, `POST /v1/code/triggers/{id}`, `POST …/{id}/run`. There is no delete; use claude.ai/code/routines | surface §3 |
+| scheduled tasks | `GET`/`POST /v1/code/triggers`, `POST /v1/code/triggers/{id}`, `POST …/{id}/run`. `DELETE …/{id} {}`, fork and per-run cancellation are also supported | surface §3 |
 | branch status | `POST /v1/code/github/get-batch-branch-status` | HAR #1 |
 | title + branch | `POST /api/organizations/{org}/dust/generate_title_and_branch` | HAR #17, CLI |
 | attachments | `POST /api/oauth/file_upload` (multipart `file`) → `file_uuid` | surface §4.4 |
@@ -254,8 +266,7 @@ Collected from every implementer's report. Each is also flagged "unverified" in 
 - The 200 shape of `GET /v1/code/last_used_environment`. Only a 404 has been seen.
 - `allow_mcp_servers` in the cloud/create body.
 - `get_self_hosted_pool` with no org header and no beta, and with a normal user token.
-- The `GET /v1/code/triggers` envelope and paging. The client assumes `{data}` plus
-  `next_cursor`.
+- The `GET /v1/code/triggers` nonempty paging. Empty `{data: [], has_more: false}` is live-verified; cursor/after-id continuation is offline-only.
 - The `…/run` response, and the `POST /v1/code/webhook-triggers` body.
 - `fire_routine`: its route, the `experimental-cc-routine-2026-04-01` beta, the `{text}` body and
   the reply. None of these appear in any spec. It is also the one direct httpx call, because it
@@ -334,3 +345,54 @@ unverified. An unguarded rewind after recap failed the independent assertion;
 only the subsequent guarded rewind is confirmed. Feedback/survey/rating and
 connector writes were not submitted. The raw checks and follow-up plan are indexed
 in `devlog/claude_2026-10-28-group05-independent-summary.json`.
+## Group 08 recovery evidence (2026-10-28, 0.6.0)
+This section supersedes older routine and panel claims above. It is not a
+claim that groups 01–07 have been integrated: this branch starts at `ab77994`.
+Machine-readable evidence: `docs/devlog/claude_2026-10-28-group08-evidence.json`.
+The recovered browser source snippets identify the `/fork`, `/run`,
+`/runs/{session_id}/cancel` and `/api-token` routes. Only operations marked
+live below actually reached the service in this recovery run.
+| Capability | Terminal evidence status |
+| --- | --- |
+| Default CDP cookies; session/environment/routine list | Accepted live; source `cookies:cdp`, no copied credentials; real CLI whoami/list processes exited 0 |
+| Routine create disabled with future run-once schedule and Haiku | Accepted live; `{outcome, trigger}` envelope; get returns `{trigger}` and confirmed disabled |
+| Routine GET; name update; enable/disable | Independently accepted live with exact name and toggle readback assertions |
+| Routine manual run with optional text | Accepted live; `{conversation_id, session_id, trigger}` returned; run appeared in trigger-filtered history |
+| Routine worker `ROUTINE_OK` result | Not passed: terminal success subtype but expected assistant marker absent; limit-related output detected. HTTP enqueue is not proof of inference |
+| Routine fork | Accepted live; `{dropped_mcp_connections, trigger}` envelope |
+| Routine DELETE `{}` | Accepted live; both exact owned IDs subsequently returned 404; final routine list empty |
+| Routine run cleanup | Exact created runs archived; follow-up history on the previous run returned 404 after trigger cleanup. No existing sessions changed |
+| Routine prompt/model/schedule updates; nonempty paging | Independently accepted live: exact prompt/model/name/run-once readbacks; limit=1 enumeration included both owned routines across pages. Same Haiku model was retained, not switched to a different model |
+| Routine cron execution; mode updates; tag/exclude-tag filters | Still unverified live; no arbitrary-field acceptance claim |
+| Cancel exact owned active run | Offline-only; quota prevented a meaningful active-run outcome check |
+| API-token issue/revoke and webhook setup/fire | Blocked permission; no tokens issued, no webhook configured. Integration fire contract still uncaptured; legacy `fire_routine` deprecated rather than presented as verified |
+| CLI routine delete/fork/cancel-run/disabled-create/optional run text | Offline request-shape tests passed; live CLI whoami/list processes exited 0 |
+| CLI routine update prompt/model/environment/repository flags | Fixed silent ignoring of these flags; read-modify-write preserves other job configuration. Five new regressions pass. Real CLI prompt/model update exited 0 with live prompt/model readback, environment/schedule/disabled state preserved, exact test routine deleted and GET 404 |
+| Panel auth; stale prompt protection; allow/always/deny; notes | HTTP integration tests passed against owned fixtures, not live workers |
+| Panel delayed first load and settled empty state | Real Chrome tab with local fixture server: loading state before first response, empty only after settlement; tab/server closed |
+| Panel single/multi question, option previews and notes; unavailable Always allow | Browser fixture rendering assertions passed; screenshot contains fixtures only. Not live question protocol proof |
+| Panel full stream metadata and reconnect cursor forwarding | Serialization/request contracts offline-only; uses `stream_session`, preserves payload/raw metadata; group03 transport recovery still needs integration |
+| Panel text/number constraints, answer preview annotations, partial skip and other new question variants | Not integrated; requires group04's final API and schema before adding controls |
+| Panel authoritative model catalog/mode readback, Files/Changes, lifecycle expansion and all other groups' CLI helper registration | Not integrated; requires final group02/04/05/07 contracts. Existing controls are retained, not newly live-qualified |
+| Group01 auth fault injection/owned refresh; group02 lifecycle; group03 lossless recovery/watch; group04 live dialogs; group05 controls/MCP; group06 environment writes/account; group07 files/media | Not rerun by group08; their branch evidence must be merged, reviewed and acceptance-run individually before a final ledger can mark them passed |
+| Managed Agents, worker hosting, service-originated controls and server-owned memory/SCM/bridge services | Outside this web-controller integration proof |
+Offline result after recovery: **286 passed, 1 skipped**; independent verification
+with the CLI update regression fix: **291 passed, 1 skipped** (baseline **265
+passed, 1 skipped**). Independent live and browser-fixture reruns are recorded in
+`docs/devlog/claude_2026-10-28-group08-independent-evidence.json`. Worker marker
+acceptance failed again despite a terminal `success` subtype; limit-related
+output is not successful execution. The new run session was archived/deleted,
+and all four routines created by independent verification returned GET 404
+after deletion. Browser fixture checks used a new localhost-only Chrome tab;
+no existing-user transcripts were displayed.
+### Remaining integration plan
+1. Merge the seven owned feature branches without discarding their uncommitted
+   work, resolve exports/version once, and consume their documented CLI helper
+   signatures. Do not infer those contracts from placeholder names.
+2. Complete panel question variants and Files/Changes using the merged APIs;
+   remove unsupported controls rather than serialize arbitrary guesses.
+3. Rerun all groups' exact live acceptance tests against a single run-scoped
+   manifest after quota is available; keep denied outbound actions blocked.
+4. Expand this ledger from group-level pending rows to the final per-inventory
+   capability rows, attach evidence, and verify cleanup before claiming full
+   web support. No full-parity or 100%-live-verification claim is made here.

@@ -10,7 +10,7 @@ dependency (its `pyproject.toml`), so there is no second copy to keep in sync.
 - `origin` = `git@github.com:FarisHijazi/claude-rc-api.git` (push here; `main`).
 - `upstream` = `ThatCrispyToast/claude-rc-api`, **read-only**: fetch and merge
   `upstream/main` into `main`; never push there, never open upstream PRs/issues.
-- Version: ours is `0.5.0`+ (upstream already used 0.4.0). Bump the minor for a
+- Version: ours is `0.6.0`+ (upstream already used 0.4.0). Bump the minor for a
   new surface.
 
 ## Layout
@@ -40,6 +40,8 @@ module that owns the area, or a new mixin module plus one line in the
 | `prompts.py` | pending prompts, permission decisions, AskUserQuestion answers/annotations, explicit worker versus browser unanswered encodings, dialog/elicitation/hook responses; re-exported by `interaction.py` for compatibility |
 | `commands.py` | cloud admission/direction gates, typed slash dispatch, browser model/policy discovery, captured MCP REST and staging contracts; CLI registration/dispatch helpers for integration |
 | `interaction.py` | compatibility delegates for slash dispatch, typed session controls, pending prompts, permission + AskUserQuestion answers, `stream_session` (keeps meta frames), account `watch` feed |
+| `triggers.py` | scheduled tasks (routines); CLI job updates must preserve unspecified nested configuration |
+| `interaction.py` | pending prompts, permission + AskUserQuestion answers, slash commands, generic controls, `stream_session` (keeps meta frames), account `watch` feed |
 | `files.py` | attachments / Files API |
 | `interaction.py` | pending prompts, permission + AskUserQuestion answers, slash commands, generic controls, `stream_session` (keeps meta frames), account `watch` feed |
 | `files.py` | chat attachments, inline images, Files API staging, controller file reads and CAS sync writes |

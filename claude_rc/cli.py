@@ -439,12 +439,13 @@ def cmd_envs(args) -> int:
 
 # --- scheduled tasks (triggers) -------------------------------------------------------
 def cmd_triggers(args) -> int:
-    from .triggers import trigger_prompt, trigger_url
+    from .triggers import trigger_item, trigger_prompt, trigger_url
 
     with _rc(args) as rc:
         a = args.action
         if a == "list":
-            items = rc.list_triggers()
+            items = rc.list_triggers(limit=args.limit, cursor=args.cursor,
+                                     tags=args.tag or (), exclude_tags=args.exclude_tag or ())
             if args.json:
                 _dump(items)
             else:
@@ -453,7 +454,7 @@ def cmd_triggers(args) -> int:
                     print(f"{t.get('id')}\t{'on ' if t.get('enabled') else 'off'}\t{when}\t{t.get('name', '')}")
             return 0
         if a == "create":
-            if not args.env or not (args.cron or args.at):
+            if not args.target or not args.env or not (args.cron or args.at):
                 raise SystemExit("triggers create needs --env and --cron or --at")
             job: dict[str, Any] = {}
             if args.model:
@@ -462,14 +463,15 @@ def cmd_triggers(args) -> int:
                 job["repos"] = args.repo
             t = rc.create_trigger(
                 args.target, environment_id=args.env, prompt=args.prompt,
-                cron_expression=args.cron, run_once_at=args.at, **job,
+                cron_expression=args.cron, run_once_at=args.at, enabled=not args.disabled, **job,
             )
-            _dump(t) if args.json else print(f"{t.get('id')}\t{trigger_url(t.get('id', ''))}")
+            item = trigger_item(t)
+            _dump(t) if args.json else print(f"{item.get('id')}\t{trigger_url(item.get('id', ''))}")
             return 0
         if not args.target:
             raise SystemExit(f"triggers {a} needs a trigger id")
         if a == "get":
-            t = rc.get_trigger(args.target)
+            t = trigger_item(rc.get_trigger(args.target))
             if args.json:
                 _dump(t)
             else:
@@ -477,7 +479,31 @@ def cmd_triggers(args) -> int:
                 print(f"prompt: {trigger_prompt(t) or '-'}")
             return 0
         if a == "update":
+            from copy import deepcopy
+            from .triggers import trigger_prompt_event
+
             fields = _fields(args.field)
+            if args.prompt is not None or args.model or args.env or args.repo:
+                # Job updates replace the nested config: preserve unspecified
+                # values from the routine (or an explicit --field override).
+                job = fields.get("job_config")
+                if job is None:
+                    job = trigger_item(rc.get_trigger(args.target)).get("job_config")
+                if not isinstance(job, dict) or not isinstance(job.get("ccr"), dict):
+                    raise SystemExit("routine update needs a ccr job_config")
+                job = deepcopy(job)
+                ccr = job["ccr"]
+                if args.prompt is not None:
+                    ccr["events"] = [trigger_prompt_event(args.prompt)]
+                if args.env:
+                    ccr["environment_id"] = args.env
+                if args.model or args.repo:
+                    context = ccr.setdefault("session_context", {})
+                    if args.model:
+                        context["model"] = args.model
+                    if args.repo:
+                        context["sources"] = [{"git_repository": {"url": url}} for url in args.repo]
+                fields["job_config"] = job
             if args.name:
                 fields["name"] = args.name
             if args.cron:
@@ -491,9 +517,17 @@ def cmd_triggers(args) -> int:
         elif a == "disable":
             _dump(rc.disable_trigger(args.target))
         elif a == "run":
-            _dump(rc.run_trigger(args.target))
+            _dump(rc.run_trigger(args.target, **({"text": args.prompt} if args.prompt is not None else {})))
         elif a == "runs":
-            _dump(rc.trigger_runs(args.target, limit=args.limit or 10))
+            _dump(rc.trigger_runs(args.target, limit=args.limit or 10, cursor=args.cursor))
+        elif a == "delete":
+            _dump(rc.delete_trigger(args.target))
+        elif a == "fork":
+            _dump(rc.fork_trigger(args.target))
+        elif a == "cancel-run":
+            if not args.run_session:
+                raise SystemExit("triggers cancel-run needs --run-session")
+            _dump(rc.cancel_trigger_run(args.target, args.run_session))
     return 0
 
 
@@ -781,7 +815,7 @@ def build_parser() -> argparse.ArgumentParser:
     pv.add_argument("--option", action="append", metavar="K=V", help="create option (JSON value)")
 
     ptr = cmd("triggers", cmd_triggers, "scheduled tasks", json_out=True)
-    ptr.add_argument("action", choices=["list", "get", "create", "update", "run", "enable", "disable", "runs"])
+    ptr.add_argument("action", choices=["list", "get", "create", "update", "run", "enable", "disable", "runs", "delete", "fork", "cancel-run"])
     ptr.add_argument("target", nargs="?", help="trigger id (name for create)")
     ptr.add_argument("--env")
     ptr.add_argument("--prompt")
@@ -792,6 +826,11 @@ def build_parser() -> argparse.ArgumentParser:
     ptr.add_argument("--name")
     ptr.add_argument("--field", action="append", metavar="K=V", help="update field (JSON value)")
     ptr.add_argument("--limit", type=int)
+    ptr.add_argument("--cursor")
+    ptr.add_argument("--tag", action="append")
+    ptr.add_argument("--exclude-tag", action="append")
+    ptr.add_argument("--disabled", action="store_true", help="create without enabling its schedule")
+    ptr.add_argument("--run-session", help="exact owned run session to cancel")
 
     # -- prompts / steering --
     cmd("pending", cmd_pending, "prompts waiting for an answer", json_out=True, session=True)

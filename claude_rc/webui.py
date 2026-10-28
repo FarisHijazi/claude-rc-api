@@ -56,7 +56,7 @@ from typing import Any, Optional
 from urllib.parse import parse_qs, urlparse
 
 from .client import APIError, ControlRejected, ControlTimeout, RemoteControlClient
-from .credentials import CredentialsError, load_credentials, load_org_uuid
+from .credentials import CredentialsError
 from .events import Event
 
 _STATIC = Path(__file__).parent / "static"
@@ -91,6 +91,8 @@ def event_to_dict(ev: Event) -> dict:
     request = ev.payload.get("request") or {} if ev.is_blocking_control else {}
     return {
         "type": ev.type,
+        "payload": ev.payload,
+        "raw": ev.raw,
         "subtype": ev.subtype,
         "role": ev.role,
         "source": ev.source,
@@ -112,6 +114,7 @@ def event_to_dict(ev: Event) -> dict:
         "tool_name": request.get("tool_name"),
         "tool_input": request.get("input"),
         "tool_use_id": request.get("tool_use_id"),
+        "permission_suggestions": request.get("permission_suggestions") or [],
     }
 
 
@@ -241,13 +244,21 @@ class _Handler(BaseHTTPRequestHandler):
             if m:
                 if not body.get("request_id"):
                     return self._json({"error": "missing request_id"}, status=400)
-                self.rc.respond_permission(
-                    m["sid"],
-                    body["request_id"],
-                    allow=bool(body.get("allow")),
-                    tool_input=body.get("tool_input"),
-                    tool_use_id=body.get("tool_use_id"),
-                )
+                req = next((p for p in self.rc.pending_requests(m["sid"])
+                            if p.request_id == body["request_id"] and p.kind == "permission"), None)
+                if req is None:
+                    return self._json({"error": "no pending permission with that request_id"}, status=404)
+                decision = body.get("decision") or ("allow" if body.get("allow") else "deny")
+                if decision == "always":
+                    if not req.permission_suggestions:
+                        return self._json({"error": "no permission rules offered"}, status=400)
+                    self.rc.always_allow(m["sid"], req)
+                elif decision == "allow":
+                    self.rc.allow_once(m["sid"], req)
+                elif decision == "deny":
+                    self.rc.deny_permission(m["sid"], req)
+                else:
+                    return self._json({"error": "unknown permission decision"}, status=400)
                 return self._json({"ok": True})
             m = _R_INTERRUPT.match(path)
             if m:
@@ -318,7 +329,9 @@ class _Handler(BaseHTTPRequestHandler):
         else:
             try:
                 self.rc.answer_questions(
-                    sid, req, _indexed(body.get("selections")), other=_indexed(body.get("other")) or None
+                    sid, req, _indexed(body.get("selections")), other=_indexed(body.get("other")) or None,
+                    notes=_indexed(body.get("notes")) or None,
+                    skipped=body.get("skipped") or (),
                 )
             except (KeyError, ValueError) as exc:
                 return self._json({"error": str(exc)}, status=400)
@@ -336,18 +349,14 @@ class _Handler(BaseHTTPRequestHandler):
         self.wfile.write(html)
 
     def _whoami(self) -> dict:
-        try:
-            creds = load_credentials()
-        except CredentialsError as exc:
-            return {"logged_in": False, "error": str(exc)}
-        org = load_org_uuid()
+        auth = self.rc._auth
+        creds = auth.credentials
         return {
-            "logged_in": True,
-            "expired": creds.is_expired(),
-            "scopes": creds.scopes,
-            "subscription": creds.subscription_type,
-            "org_uuid_present": bool(org),
-            "token_len": len(creds.access_token),
+            "logged_in": bool(auth.is_cookie or (creds and creds.access_token)),
+            "source": auth.origin,
+            "expired": creds.is_expired() if creds else False,
+            "subscription": creds.subscription_type if creds else "browser session",
+            "org_uuid_present": bool(self.rc.org_uuid),
         }
 
     def _stream(self, sid: str) -> None:
@@ -371,7 +380,7 @@ class _Handler(BaseHTTPRequestHandler):
         self.wfile.flush()
 
         try:
-            for ev in self.rc.stream_events(sid, from_sequence_num=from_seq):
+            for ev in self.rc.stream_session(sid, from_sequence_num=from_seq):
                 data = json.dumps(event_to_dict(ev))
                 out = ""
                 if ev.sequence_num is not None:
