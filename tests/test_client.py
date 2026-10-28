@@ -817,3 +817,122 @@ def test_client_does_not_revive_a_signed_out_login(tmp_path: Path):
         client._token()
     assert posts == [] and not p.exists()
     client.close()
+# --- trusted-device lazy enrollment (offline: transport stubbed) -------------
+class _FakeResp:
+    def __init__(self, status, text="", json_body=None):
+        self.status_code = status
+        self.text = text
+        self._json = json_body if json_body is not None else {}
+
+    def json(self):
+        return self._json
+
+
+class _FakeHttp:
+    def __init__(self, responses):
+        self.responses = list(responses)
+        self.calls = []
+
+    def post(self, url, **kw):
+        self.calls.append(("POST", url))
+        return self.responses.pop(0)
+
+    def request(self, method, url, **kw):
+        self.calls.append((method, url, kw.get("headers", {})))
+        return self.responses.pop(0)
+
+
+def _oauth_creds(**kw):
+    from claude_rc.credentials import OAuthCredentials
+
+    base = dict(access_token="tok", refresh_token="ref", expires_at_ms=9999999999999,
+                scopes=["user:inference"], subscription_type="max")
+    base.update(kw)
+    return OAuthCredentials(**base)
+
+
+def test_enroll_trusted_device_success(tmp_path: Path):
+    from claude_rc.credentials import enroll_trusted_device
+
+    p = tmp_path / ".credentials.json"
+    _write_creds(p, "tok", "ref", 9999999999999)
+    creds = _oauth_creds(source_path=p)
+    fake = _FakeHttp([_FakeResp(200, json_body={"device_token": "dev-tok-1"})])
+
+    token = enroll_trusted_device(creds, client=fake)
+
+    assert token == "dev-tok-1"
+    assert creds.trusted_device_token == "dev-tok-1"
+    saved = json.loads(p.read_text())
+    assert saved["trustedDeviceToken"] == "dev-tok-1"  # top-level, like the CLI
+    assert saved["claudeAiOauth"]["accessToken"] == "tok"  # other keys preserved
+    assert fake.calls[0][1].endswith("/api/auth/trusted_devices")
+
+
+def test_enroll_trusted_device_declined(tmp_path: Path):
+    from claude_rc.credentials import enroll_trusted_device
+
+    p = tmp_path / ".credentials.json"
+    _write_creds(p, "tok", "ref", 9999999999999)
+    creds = _oauth_creds(source_path=p)
+    fake = _FakeHttp([_FakeResp(403, "forbidden")])
+
+    assert enroll_trusted_device(creds, client=fake) is None
+    assert creds.trusted_device_token is None
+    assert "trustedDeviceToken" not in json.loads(p.read_text())
+
+
+def _bare_rc_with(creds, http):
+    from claude_rc.client import RemoteControlClient
+
+    rc = RemoteControlClient.__new__(RemoteControlClient)
+    rc._creds = creds
+    rc._persist_refresh = False
+    rc._auto_refresh = False
+    rc.base_url = "https://api.anthropic.com"
+    rc._org_uuid = None
+    rc._trusted_device_enroll_attempted = False
+    rc._http = http
+    rc._refresher = http
+    return rc
+
+
+def test_request_enrolls_and_retries_on_untrusted_device(monkeypatch):
+    from claude_rc.client import RemoteControlClient
+
+    creds = _oauth_creds()
+    http = _FakeHttp([
+        _FakeResp(403, '{"error":{"resource":"untrusted_device"}}'),
+        _FakeResp(200, "{}", {"ok": True}),
+    ])
+    rc = _bare_rc_with(creds, http)
+    calls = []
+
+    def _fake_enroll(c, **kw):
+        calls.append(kw)
+        c.trusted_device_token = "dev-tok-1"  # real fn mutates creds in place
+        return "dev-tok-1"
+
+    monkeypatch.setattr("claude_rc.client.enroll_trusted_device", _fake_enroll)
+
+    resp = rc._request("GET", "https://api.anthropic.com/v1/code/sessions/x/events")
+
+    assert resp.status_code == 200
+    assert calls and len(calls) == 1  # enrolled exactly once
+    retry_headers = http.calls[1][2]
+    assert retry_headers.get("X-Trusted-Device-Token") == "dev-tok-1"
+
+
+def test_request_does_not_loop_when_enrollment_fails(monkeypatch):
+    from claude_rc.client import RemoteControlClient
+
+    creds = _oauth_creds()
+    http = _FakeHttp([
+        _FakeResp(403, '{"error":{"resource":"untrusted_device"}}'),
+    ])
+    rc = _bare_rc_with(creds, http)
+    monkeypatch.setattr("claude_rc.client.enroll_trusted_device", lambda c, **kw: None)
+
+    resp = rc._request("GET", "https://api.anthropic.com/v1/code/sessions/x/events")
+
+    assert resp.status_code == 403  # original error surfaces; no retry storm

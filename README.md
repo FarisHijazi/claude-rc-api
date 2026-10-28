@@ -31,6 +31,12 @@ your script ──► POST /v1/code/sessions/{id}/events    (send a message)
 It also ships a `ManagedAgentsClient` for the sibling public Sessions API
 (`/v1/sessions`, `x-api-key`) that runs agents in Anthropic's cloud.
 
+**Trusted Devices:** if your org requires Trusted Devices for Remote Control,
+the client enrolls this device automatically on the first `untrusted_device`
+(403) rejection — mirroring the official CLI's lazy enrollment — persists the
+token as `trustedDeviceToken` in `~/.claude/.credentials.json`, and retries the
+call. No manual step needed.
+
 ## Install
 
 As a library / CLI, straight from the repo:

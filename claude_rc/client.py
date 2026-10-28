@@ -29,6 +29,7 @@ from ._version import __version__
 from .credentials import (
     CredentialsError,
     OAuthCredentials,
+    enroll_trusted_device,
     load_credentials,
     load_org_uuid,
     refresh_credentials,
@@ -152,6 +153,7 @@ class RemoteControlClient:
         self._persist_refresh = persist_refresh
         # A stable per-instance id for presence, like the web client.
         self.client_id = client_id or str(uuid.uuid4())
+        self._trusted_device_enroll_attempted = False
         self._http = httpx.Client(timeout=httpx.Timeout(timeout, read=timeout))
         self._refresher = httpx.Client(timeout=30.0)
 
@@ -247,6 +249,22 @@ class RemoteControlClient:
                         raise
             if renewed:
                 resp = self._http.request(method, url, headers=self._headers(), **kw)
+        if resp.status_code == 403 and "untrusted_device" in resp.text:
+            # The org requires Trusted Devices and this device isn't enrolled.
+            # Mirror the CLI: enroll once, then retry once with the new token.
+            if not self._trusted_device_enroll_attempted:
+                self._trusted_device_enroll_attempted = True
+                try:
+                    token = enroll_trusted_device(
+                        self._creds,
+                        base_url=self.base_url,
+                        persist=self._persist_refresh,
+                        client=self._refresher,
+                    )
+                except CredentialsError:
+                    token = None
+                if token:
+                    resp = self._http.request(method, url, headers=self._headers(), **kw)
         return resp
 
     @staticmethod
