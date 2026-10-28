@@ -46,7 +46,9 @@ def test_dictation_only_final_text_and_all_status_events(monkeypatch):
 
 
 @pytest.mark.parametrize("events", [[], [{"type": "TranscriptInterim", "data": "unfinished"}],
-                                   [{"type": "TranscriptError", "description": "private detail"}], [{"type": "error"}]])
+                                   [{"type": "TranscriptError", "description": "private detail"}], [{"type": "error"}],
+                                   [{"type": "TranscriptText", "data": ""}],
+                                   [{"type": "TranscriptText", "data": " \t\n"}]])
 def test_dictation_never_calls_incomplete_audio_success(monkeypatch, events):
     monkeypatch.setattr(dictation, "_connect", lambda *a: Socket(events))
     with pytest.raises(dictation.DictationError):
@@ -66,6 +68,37 @@ def test_dictation_bounded_pre_audio_reconnect(monkeypatch):
     assert dictation.transcribe_audio(object(), b"pcm") == "test complete"
     assert len(calls) == 3 and "connect_reason=redial" in calls[-1]
     assert ws.sent.count(b"pcm") == 1
+
+
+def test_dictation_exhausts_pre_audio_retry_budget(monkeypatch):
+    calls = []
+    delays = []
+    def connect(*args):
+        calls.append(args)
+        raise OSError("pre-open")
+    monkeypatch.setattr(dictation, "_connect", connect)
+    monkeypatch.setattr(dictation.time, "sleep", delays.append)
+    with pytest.raises(OSError, match="pre-open"):
+        dictation.transcribe_audio(object(), b"pcm", max_connect_retries=2)
+    assert len(calls) == 3
+    assert delays == [0.25, 0.5]
+
+
+def test_dictation_never_replays_audio_after_read_disconnect(monkeypatch):
+    from websockets.exceptions import ConnectionClosedError
+    ws = Socket([])
+    calls = []
+    def connect(*args):
+        calls.append(args)
+        return ws
+    def disconnected(**kwargs):
+        raise ConnectionClosedError(Close(1011, "test fault"), Close(1011, "test fault"), True)
+    monkeypatch.setattr(dictation, "_connect", connect)
+    monkeypatch.setattr(ws, "recv", disconnected)
+    with pytest.raises(dictation.DictationError, match="audio was not replayed"):
+        dictation.transcribe_audio(object(), b"pcm")
+    assert len(calls) == 1
+    assert ws.sent == [b"pcm", json.dumps({"type": "CloseStream"})]
 
 
 def test_dictation_keepalive_and_deadline(monkeypatch):

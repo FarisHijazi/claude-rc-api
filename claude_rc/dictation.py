@@ -92,7 +92,7 @@ def transcribe_audio(
                 on_event(event)
             if event.get("type") == "TranscriptText" and isinstance(event.get("data"), str):
                 finals.append(event["data"])
-    if not finals:
+    if not any(text.strip() for text in finals):
         raise DictationError("dictation closed without final transcript")
     return " ".join(finals)
 

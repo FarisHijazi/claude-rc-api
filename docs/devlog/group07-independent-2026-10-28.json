@@ -1,0 +1,320 @@
+{
+  "date": "2026-10-28",
+  "group": "07-attachments-workspace-sync-and-media",
+  "baseline_commit": "6828a3c39c07d52d6962d2564a75332d79b6b8ce",
+  "verification": "independent reruns, before and after defect fix",
+  "offline_command": "uv --directory \"$HOME/Projects/claude-rc-api/worktrees/07-attachments-workspace-sync-and-media\" run --extra test --extra web --extra cli pytest -q",
+  "live_command": "uv --directory \"$HOME/Projects/claude-rc-api/worktrees/07-attachments-workspace-sync-and-media\" run --extra test --extra web --extra cli python /tmp/claude-1000/-home-service/4413ea3d-c451-4c0c-9bd3-b32599c70712/scratchpad/group07_independent_verify.py",
+  "offline_before": {
+    "passed": 295,
+    "skipped": 1
+  },
+  "defect_reproduction": {
+    "command": "pytest -q tests/test_media.py",
+    "failed": 2,
+    "passed": 15,
+    "cause": "Empty or whitespace-only TranscriptText followed by clean close returned success without final text."
+  },
+  "fix": "Reject a clean close unless at least one final segment contains non-whitespace text; preserve valid final text verbatim.",
+  "additional_regressions": [
+    "Exhausted pre-audio retry budget uses three dials and 0.25/0.5-second delays.",
+    "Post-audio read disconnect raises and never redials or replays audio."
+  ],
+  "offline_after": {
+    "passed": 299,
+    "skipped": 1
+  },
+  "live_runs": [
+    {
+      "manifest": {
+        "sessions": [
+          "cse_0154EsXRb9CqLBNTzn9mJ2vF"
+        ],
+        "files": [],
+        "attachments": []
+      },
+      "results": [
+        {
+          "step": "auth",
+          "source": "cookies:cdp"
+        },
+        {
+          "step": "read_checks",
+          "status": "passed",
+          "environments": 4
+        },
+        {
+          "step": "attachment_marker.txt",
+          "status": "failed",
+          "exception": "APIError",
+          "http": 401,
+          "error_type": "authentication_error"
+        },
+        {
+          "step": "attachment_red.png",
+          "status": "failed",
+          "exception": "APIError",
+          "http": 401,
+          "error_type": "authentication_error"
+        },
+        {
+          "step": "files_roundtrip",
+          "status": "failed",
+          "exception": "APIError",
+          "http": 404,
+          "error_type": null
+        },
+        {
+          "step": "tts_decode",
+          "status": "passed",
+          "bytes": 6164,
+          "streams": [
+            {
+              "codec_name": "opus",
+              "duration": "1.260000"
+            }
+          ]
+        },
+        {
+          "step": "dictation",
+          "status": "passed",
+          "text": "test complete, ",
+          "events": [
+            "TranscriptInterim",
+            "TranscriptInterim",
+            "TranscriptInterim",
+            "TranscriptText",
+            "TranscriptEndpoint"
+          ]
+        },
+        {
+          "step": "dictation_reconnect",
+          "status": "fault_injected_live_pass",
+          "attempts": 2,
+          "backoff_seconds": 0.25
+        },
+        {
+          "step": "speech_cli",
+          "status": "passed",
+          "exit_code": 0
+        },
+        {
+          "step": "created",
+          "session_id": "cse_0154EsXRb9CqLBNTzn9mJ2vF"
+        },
+        {
+          "step": "inline_inference",
+          "status": "passed",
+          "turn_end": true,
+          "color_red": true
+        },
+        {
+          "step": "workspace_read_cas_readback",
+          "status": "passed"
+        },
+        {
+          "step": "stale_cas",
+          "status": "passed",
+          "http": 409,
+          "no_overwrite": true
+        },
+        {
+          "step": "prefetch_empty",
+          "status": "acknowledged_not_execution"
+        },
+        {
+          "step": "nonempty_prefetch_attachment_inference",
+          "status": "blocked_by_upload_rejection"
+        },
+        {
+          "step": "mount_seed",
+          "status": "blocked_by_upload_rejection"
+        },
+        {
+          "step": "cleanup",
+          "session_id": "cse_0154EsXRb9CqLBNTzn9mJ2vF",
+          "status": "passed",
+          "fetch_http": 404
+        },
+        {
+          "step": "finished",
+          "status": "complete_with_explicit_gaps"
+        }
+      ]
+    },
+    {
+      "manifest": {
+        "sessions": [
+          "cse_0154EsXPSxXCMrVqcPhDsAt6"
+        ],
+        "files": [],
+        "attachments": []
+      },
+      "results": [
+        {
+          "step": "auth",
+          "source": "cookies:cdp"
+        },
+        {
+          "step": "read_checks",
+          "status": "passed",
+          "environments": 4
+        },
+        {
+          "step": "attachment_marker.txt",
+          "status": "failed",
+          "exception": "APIError",
+          "http": 401,
+          "error_type": "authentication_error"
+        },
+        {
+          "step": "attachment_red.png",
+          "status": "failed",
+          "exception": "APIError",
+          "http": 401,
+          "error_type": "authentication_error"
+        },
+        {
+          "step": "files_roundtrip",
+          "status": "failed",
+          "exception": "APIError",
+          "http": 404,
+          "error_type": null
+        },
+        {
+          "step": "tts_decode",
+          "status": "passed",
+          "bytes": 5767,
+          "streams": [
+            {
+              "codec_name": "opus",
+              "duration": "1.160000"
+            }
+          ]
+        },
+        {
+          "step": "dictation",
+          "status": "passed",
+          "text": "test complete, ",
+          "events": [
+            "TranscriptInterim",
+            "TranscriptInterim",
+            "TranscriptInterim",
+            "TranscriptText",
+            "TranscriptEndpoint"
+          ]
+        },
+        {
+          "step": "dictation_reconnect",
+          "status": "fault_injected_live_pass",
+          "attempts": 2,
+          "backoff_seconds": 0.25
+        },
+        {
+          "step": "speech_cli",
+          "status": "passed",
+          "exit_code": 0
+        },
+        {
+          "step": "created",
+          "session_id": "cse_0154EsXPSxXCMrVqcPhDsAt6"
+        },
+        {
+          "step": "inline_inference",
+          "status": "passed",
+          "turn_end": true,
+          "color_red": true
+        },
+        {
+          "step": "workspace_read_cas_readback",
+          "status": "passed"
+        },
+        {
+          "step": "stale_cas",
+          "status": "passed",
+          "http": 409,
+          "no_overwrite": true
+        },
+        {
+          "step": "prefetch_empty",
+          "status": "acknowledged_not_execution"
+        },
+        {
+          "step": "nonempty_prefetch_attachment_inference",
+          "status": "blocked_by_upload_rejection"
+        },
+        {
+          "step": "mount_seed",
+          "status": "blocked_by_upload_rejection"
+        },
+        {
+          "step": "cleanup",
+          "session_id": "cse_0154EsXPSxXCMrVqcPhDsAt6",
+          "status": "passed",
+          "fetch_http": 404
+        },
+        {
+          "step": "finished",
+          "status": "complete_with_explicit_gaps"
+        }
+      ]
+    }
+  ],
+  "remaining": [
+    {
+      "capability": "Cookie chat attachment upload/download/hash/inference",
+      "status": "server_rejected",
+      "evidence": "Text and PNG multipart uploads returned HTTP 401 authentication_error twice independently.",
+      "next": "Capture an accepted browser composer upload contract or use a separately authorized client-owned grant; do not refresh shared credentials."
+    },
+    {
+      "capability": "Files API upload/download/delete, mount, seed bundles",
+      "status": "blocked",
+      "evidence": "POST /v1/files returned HTTP 404 in both cookie-authenticated runs; no file ID was created.",
+      "next": "Qualify with an accepted captured cookie route or separately authorized client-owned grant, then perform byte roundtrip, mount effect and exact-ID deletion."
+    },
+    {
+      "capability": "Nonempty attachment prefetch",
+      "status": "unverified",
+      "evidence": "No accepted uploaded ID; empty replacement ingestion acknowledged, not execution proof.",
+      "next": "After accepted upload, verify worker file effects and marker/image inference."
+    },
+    {
+      "capability": "MCP staging",
+      "status": "unverified",
+      "next": "Group05 integration must generate dedicated staged input/output and verify real file effects."
+    },
+    {
+      "capability": "Device attestation signing",
+      "status": "unverified",
+      "evidence": "CAS succeeded without signatures; passthrough tests do not establish signing.",
+      "next": "Auth owner must provide an owned enrollment/signature contract before signed live qualification."
+    },
+    {
+      "capability": "Desktop dictation tickets",
+      "status": "not_implemented",
+      "next": "Capture authorized ticket minting contract; cookie dictation is separate."
+    },
+    {
+      "capability": "Dictation keepalive acknowledgements",
+      "status": "offline_only",
+      "evidence": "Short live utterances did not require or observe KeepAliveAck."
+    },
+    {
+      "capability": "Natural reconnect and mid-audio resume",
+      "status": "not_live_verified",
+      "evidence": "Preconnection retry was fault-injected before a real successful dial; mid-audio replay deliberately unsupported."
+    },
+    {
+      "capability": "Group08 file/media CLI and UI integration",
+      "status": "pending_external_integration",
+      "evidence": "Real existing speak CLI exited zero; media registration mocks are not full CLI/UI proof."
+    },
+    {
+      "capability": "Bearer media auth",
+      "status": "unverified",
+      "evidence": "Only cookies:cdp was exercised; shared OAuth credentials were neither refreshed nor borrowed."
+    }
+  ],
+  "safety": "Only two sessions created by these reruns were mutated, archived, deleted and verified 404. No upload IDs created. No microphone capture, playback, real-user transcript mutation or shared OAuth refresh. No cookies/tokens or environment values retained."
+}

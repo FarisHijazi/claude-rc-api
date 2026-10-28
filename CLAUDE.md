@@ -92,3 +92,6 @@ These are deliberately plain paths, not `@` includes. Controller GET uses
 use the GET response's `content_sha256`, not the attachment digest. Cookie
 TTS/dictation and inline images worked live; OAuth attachment upload returned
 401 and Files API returned 404, so neither is advertised as cookie-supported.
+Independent reruns and remaining gaps are recorded in
+`docs/devlog/group07-independent-2026-10-28.json`. Dictation rejects empty or
+whitespace-only final transcripts rather than reporting a successful empty result.
