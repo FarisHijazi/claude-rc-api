@@ -336,16 +336,18 @@ live below actually reached the service in this recovery run.
 | --- | --- |
 | Default CDP cookies; session/environment/routine list | Accepted live; source `cookies:cdp`, no copied credentials; real CLI whoami/list processes exited 0 |
 | Routine create disabled with future run-once schedule and Haiku | Accepted live; `{outcome, trigger}` envelope; get returns `{trigger}` and confirmed disabled |
-| Routine GET; name update; enable/disable | GET/toggle state readbacks accepted live; name update HTTP accepted, updated name not independently asserted |
+| Routine GET; name update; enable/disable | Independently accepted live with exact name and toggle readback assertions |
 | Routine manual run with optional text | Accepted live; `{conversation_id, session_id, trigger}` returned; run appeared in trigger-filtered history |
 | Routine worker `ROUTINE_OK` result | Not passed: terminal success subtype but expected assistant marker absent; limit-related output detected. HTTP enqueue is not proof of inference |
 | Routine fork | Accepted live; `{dropped_mcp_connections, trigger}` envelope |
 | Routine DELETE `{}` | Accepted live; both exact owned IDs subsequently returned 404; final routine list empty |
 | Routine run cleanup | Exact created runs archived; follow-up history on the previous run returned 404 after trigger cleanup. No existing sessions changed |
-| Routine cron; prompt/model/mode/schedule updates; nonempty paging and filters | Offline-only or still unverified; live test used run-once and only a name update. No claim that arbitrary fields are accepted |
+| Routine prompt/model/schedule updates; nonempty paging | Independently accepted live: exact prompt/model/name/run-once readbacks; limit=1 enumeration included both owned routines across pages. Same Haiku model was retained, not switched to a different model |
+| Routine cron execution; mode updates; tag/exclude-tag filters | Still unverified live; no arbitrary-field acceptance claim |
 | Cancel exact owned active run | Offline-only; quota prevented a meaningful active-run outcome check |
 | API-token issue/revoke and webhook setup/fire | Blocked permission; no tokens issued, no webhook configured. Integration fire contract still uncaptured; legacy `fire_routine` deprecated rather than presented as verified |
-| CLI routine delete/fork/cancel-run/disabled-create/optional run text | Offline request-shape tests passed; live CLI verification limited to whoami and routine list |
+| CLI routine delete/fork/cancel-run/disabled-create/optional run text | Offline request-shape tests passed; live CLI whoami/list processes exited 0 |
+| CLI routine update prompt/model/environment/repository flags | Fixed silent ignoring of these flags; read-modify-write preserves other job configuration. Five new regressions pass. Real CLI prompt/model update exited 0 with live prompt/model readback, environment/schedule/disabled state preserved, exact test routine deleted and GET 404 |
 | Panel auth; stale prompt protection; allow/always/deny; notes | HTTP integration tests passed against owned fixtures, not live workers |
 | Panel delayed first load and settled empty state | Real Chrome tab with local fixture server: loading state before first response, empty only after settlement; tab/server closed |
 | Panel single/multi question, option previews and notes; unavailable Always allow | Browser fixture rendering assertions passed; screenshot contains fixtures only. Not live question protocol proof |
@@ -355,10 +357,15 @@ live below actually reached the service in this recovery run.
 | Group01 auth fault injection/owned refresh; group02 lifecycle; group03 lossless recovery/watch; group04 live dialogs; group05 controls/MCP; group06 environment writes/account; group07 files/media | Not rerun by group08; their branch evidence must be merged, reviewed and acceptance-run individually before a final ledger can mark them passed |
 | Managed Agents, worker hosting, service-originated controls and server-owned memory/SCM/bridge services | Outside this web-controller integration proof |
 
-Offline result after recovery: **286 passed, 1 skipped** (baseline **265
-passed, 1 skipped**; recovered work initially broke the obsolete assertion
-that trigger deletion did not exist). Browser fixture checks used Chrome CDP
-in a new localhost-only tab; no existing-user transcripts were displayed.
+Offline result after recovery: **286 passed, 1 skipped**; independent verification
+with the CLI update regression fix: **291 passed, 1 skipped** (baseline **265
+passed, 1 skipped**). Independent live and browser-fixture reruns are recorded in
+`docs/devlog/claude_2026-10-28-group08-independent-evidence.json`. Worker marker
+acceptance failed again despite a terminal `success` subtype; limit-related
+output is not successful execution. The new run session was archived/deleted,
+and all four routines created by independent verification returned GET 404
+after deletion. Browser fixture checks used a new localhost-only Chrome tab;
+no existing-user transcripts were displayed.
 
 ### Remaining integration plan
 

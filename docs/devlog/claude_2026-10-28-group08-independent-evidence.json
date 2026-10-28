@@ -1,0 +1,128 @@
+{
+  "date": "2026-10-28",
+  "group": "08-routines-cli-web-panel-and-integration-proof",
+  "verified_builder_commit": "34f89bf",
+  "result": "PARTIAL: routine worker marker acceptance failed; integration incomplete",
+  "fix": "CLI triggers update ignored --prompt/--model/--env/--repo; now merges requested job fields into existing or explicitly supplied job_config",
+  "offline": {
+    "before": {
+      "passed": 286,
+      "skipped": 1
+    },
+    "regressions_before_fix": {
+      "failed": 5
+    },
+    "after": {
+      "passed": 291,
+      "skipped": 1
+    },
+    "command": "uv run --extra test --extra web --extra cli pytest -q tests"
+  },
+  "live": {
+    "manifest": {
+      "triggers": [
+        "trig_013jx5mp4LshJQx2Voz2Zkk4",
+        "trig_01UyBGhPttquqf2HZVeVwQ3C",
+        "trig_01Qxov9A3eqoqr5SJLZJxsW9"
+      ],
+      "sessions": [
+        "cse_0154EsXTcaaRbSsuBtL9ED4j"
+      ]
+    },
+    "checks": {
+      "auth_source": "cookies:cdp",
+      "session_discovery": true,
+      "created_disabled": true,
+      "get_keys": [
+        "api_token_hint",
+        "created_at",
+        "created_kind",
+        "created_surface",
+        "created_via",
+        "creator",
+        "cron_expression",
+        "derived_state",
+        "enabled",
+        "enabled_plugins",
+        "ended_reason",
+        "extra_marketplaces",
+        "id",
+        "job_config",
+        "mcp_connections",
+        "name",
+        "next_run_at",
+        "persist_session",
+        "run_once_at",
+        "session_request",
+        "suspension_reason",
+        "updated_at"
+      ],
+      "job_config_keys": [
+        "ccr"
+      ],
+      "updated_name": true,
+      "updated_schedule": true,
+      "updated_prompt": true,
+      "updated_model": true,
+      "enabled": true,
+      "disabled": true,
+      "nonempty_pagination_all_owned": true,
+      "fork_get": true,
+      "run_acknowledged": true,
+      "worker_marker": false,
+      "worker_limit_output": true,
+      "terminal_subtypes": [
+        "success"
+      ],
+      "history_contains_owned_run": true,
+      "session_cleanup_cse_0154EsXTcaaRbSsuBtL9ED4j": "deleted",
+      "trigger_cleanup_trig_01Qxov9A3eqoqr5SJLZJxsW9": 404,
+      "trigger_cleanup_trig_01UyBGhPttquqf2HZVeVwQ3C": 404,
+      "trigger_cleanup_trig_013jx5mp4LshJQx2Voz2Zkk4": 404,
+      "cli_whoami": {
+        "exit": 0,
+        "cdp": true
+      },
+      "cli_triggers": {
+        "exit": 0,
+        "valid_list": true
+      }
+    }
+  },
+  "real_cli_update": {
+    "trigger_id": "trig_0123dZhCEtnHBRx1jx9e9zDY",
+    "update_exit": 0,
+    "prompt_readback": true,
+    "model_readback": true,
+    "environment_preserved": true,
+    "schedule_preserved": true,
+    "disabled_preserved": true,
+    "cleanup": 404
+  },
+  "browser": {
+    "kind": "new real Chrome tab on local fixture HTTP server, not live-worker proof",
+    "delayed_first_load_no_false_empty": true,
+    "settled_empty": true,
+    "rendered": {
+      "radios": 1,
+      "checkboxes": 2,
+      "notes": 2,
+      "previews": 1,
+      "always_without_rules_disabled": true
+    },
+    "cleanup": "new tab closed and fixture server shutdown",
+    "dependency_attempts": "first two uv dependency requests failed CA validation; process-local proxy/cert unsets allowed successful rerun; no global config changed"
+  },
+  "auth": "CDP cookies only, no copied cookies or OAuth refresh, no credential values logged",
+  "remaining": [
+    "ROUTINE_OK missing with limit-related output despite result success subtype; execution acceptance not passed",
+    "active-run cancellation not live-proven; no useful active worker under quota",
+    "cron execution and permission-mode update not live-proven",
+    "tag/exclude-tag filters not independently live-proven",
+    "model readback used same Haiku value; alternative-model switch not tested",
+    "API-token/webhook writes lack authorization; integration fire contract uncaptured",
+    "groups01-07 unmerged; final integrated suite and full capability ledger remain outstanding",
+    "live panel question/permission continuation, reconnect, model/mode state and lifecycle not proven",
+    "Files/Changes, text/number question constraints, answer preview annotations and broader CLI registration not integrated"
+  ]
+}

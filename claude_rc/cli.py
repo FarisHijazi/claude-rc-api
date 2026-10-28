@@ -479,7 +479,31 @@ def cmd_triggers(args) -> int:
                 print(f"prompt: {trigger_prompt(t) or '-'}")
             return 0
         if a == "update":
+            from copy import deepcopy
+            from .triggers import trigger_prompt_event
+
             fields = _fields(args.field)
+            if args.prompt is not None or args.model or args.env or args.repo:
+                # Job updates replace the nested config: preserve unspecified
+                # values from the routine (or an explicit --field override).
+                job = fields.get("job_config")
+                if job is None:
+                    job = trigger_item(rc.get_trigger(args.target)).get("job_config")
+                if not isinstance(job, dict) or not isinstance(job.get("ccr"), dict):
+                    raise SystemExit("routine update needs a ccr job_config")
+                job = deepcopy(job)
+                ccr = job["ccr"]
+                if args.prompt is not None:
+                    ccr["events"] = [trigger_prompt_event(args.prompt)]
+                if args.env:
+                    ccr["environment_id"] = args.env
+                if args.model or args.repo:
+                    context = ccr.setdefault("session_context", {})
+                    if args.model:
+                        context["model"] = args.model
+                    if args.repo:
+                        context["sources"] = [{"git_repository": {"url": url}} for url in args.repo]
+                fields["job_config"] = job
             if args.name:
                 fields["name"] = args.name
             if args.cron:

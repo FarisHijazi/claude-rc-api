@@ -29,7 +29,7 @@ module that owns the area, or a new mixin module plus one line in the
 | `webauth.py` | claude.ai cookie jar: env, state file, Chrome cookie DB, Chrome CDP; Cloudflare detection |
 | `lifecycle.py` | create/unarchive/delete/share/tag/mark-read, teleport events |
 | `environments.py` | environments (public + private org routes), create/update, self-hosted pools |
-| `triggers.py` | scheduled tasks (routines) |
+| `triggers.py` | scheduled tasks (routines); CLI job updates must preserve unspecified nested configuration |
 | `interaction.py` | pending prompts, permission + AskUserQuestion answers, slash commands, generic controls, `stream_session` (keeps meta frames), account `watch` feed |
 | `files.py` | attachments / Files API |
 | `tts.py` | claude.ai text-to-speech websocket + Ogg muxer |
