@@ -1,0 +1,219 @@
+{
+  "date": "2026-10-28",
+  "group": "03-chat-streaming-history-and-recovery",
+  "branch": "feat/03-chat-streaming-history-and-recovery",
+  "baseline": "ab77994",
+  "changes": [
+    "Preserved and finished the pre-existing uncommitted streaming extraction; interaction.py binds compatibility methods and client.py remains thin adapters.",
+    "Paged history preserves envelopes, sorts ascending, deduplicates durable sequence/event IDs and refuses cursor cycles. Live validation established the 1..500 page limit.",
+    "stream_events now delegates to metadata-preserving stream_session; durable progress alone resets bounded exponential EOF/read-error retries; ephemeral IDs never advance durable cursors.",
+    "catch_up_truncated backfills ordered GET history before buffered SSE replay; unknown metadata and non-JSON frame data remain available in raw.",
+    "stream_control now filters locally by default. Live comparison proved server control_only=1 suppresses mcp_status liveReply, whereas unfiltered SSE delivers the correlated ephemeral response.",
+    "request_control(..., liveReply=True) attaches before writing and correlates live responses without history polling.",
+    "send_and_collect attaches before using the existing send_prompt writer; priority and message IDs pass through; reconnect never resends the prompt; result/terminal/blocking/deadline exits close owned responses.",
+    "Account watch keeps browser query fields, resumes sync IDs, remints stale/410 tokens and emits resync, including a supplied token rejected before the first successful attach.",
+    "Added heartbeat-aware deadline checks, SSE invalid ID/retry handling, isolated live smoke and opt-in CLI registration without editing group08-owned CLI/static/exports."
+  ],
+  "verification": {
+    "offline_command": "uv run --extra test --extra web --extra cli pytest -q",
+    "offline_result": {
+      "passed": 302,
+      "skipped": 1,
+      "failed": 0
+    },
+    "live_command": "uv run --extra web python scripts/claude-rc-stream-smoke --direct --timeout 60",
+    "live_exit": 0,
+    "live_evidence": {
+      "run": "stream-smoke-e2866bbd1ff6",
+      "checks": {
+        "list": {
+          "status": "passed",
+          "evidence": {
+            "count": 1
+          }
+        },
+        "environments": {
+          "status": "passed",
+          "count": 4
+        },
+        "reply_reconnect_and_history": {
+          "status": "passed",
+          "evidence": {
+            "durable_events": 21,
+            "history_equal": true,
+            "closed_after_first_durable": true
+          }
+        },
+        "disconnected_second_turn_truncated_backfill": {
+          "status": "passed",
+          "evidence": {
+            "trigger": "fault-injected",
+            "backfill": "live GET",
+            "durable_events": 6
+          }
+        },
+        "bounded_live_socket_eof": {
+          "status": "passed",
+          "evidence": {
+            "trigger": "fault-injected EOF on live owned sockets",
+            "attempts": 3,
+            "backoff_seconds": [
+              0.1,
+              0.2
+            ]
+          }
+        },
+        "ephemeral_mcp_status": {
+          "status": "passed",
+          "evidence": {
+            "ephemeral_reply": true,
+            "result_keys": [
+              "mcpServers"
+            ]
+          }
+        },
+        "watch_rename_archive_resume": {
+          "status": "passed",
+          "evidence": {
+            "changed": true,
+            "archived": true,
+            "resumed_after_local_close": true
+          }
+        },
+        "archive_cleanup": {
+          "status": "passed",
+          "evidence": true
+        },
+        "delete_cleanup": {
+          "status": "passed",
+          "evidence": {}
+        },
+        "deleted_fetch": {
+          "status": "passed",
+          "http_status": 404
+        }
+      },
+      "created_sessions": [
+        "cse_0154EsXQ7iQmv2c5iYqo13Ea"
+      ],
+      "auth_source": "cookies:cdp",
+      "weekly_utilization": 100.0
+    },
+    "naturally_observed": [
+      "cookie CDP authentication",
+      "STREAM_OK and STREAM_TWO assistant replies with successful turn ends",
+      "paged history equality",
+      "ephemeral mcp_status response on unfiltered SSE",
+      "watch sync, added/changed rename, archived state and resume"
+    ],
+    "fault_injected_live": [
+      "local close after first durable event followed by real reconnect",
+      "catch_up_truncated frame injected only into the stream while backfill GETs hit the real service",
+      "EOF on three real owned HTTP attaches; sleeps 0.1 and 0.2 seconds"
+    ],
+    "offline_only": [
+      "repeated read errors and exponential cap/progress reset",
+      "watch 410/remint/resync and fresh-410 guard",
+      "replacement-worker/reconnection callback",
+      "durable event-ID deduplication",
+      "blocking/terminal collection",
+      "priority pass-through and no-resend reconnect",
+      "CLI registration/dispatch helpers"
+    ]
+  },
+  "live_discovered_fixes": [
+    {
+      "location": "claude_rc/streaming.py iter_history",
+      "cause": "1000-event default is rejected by live validation",
+      "fix": "500-event default; validate 1..500 before HTTP"
+    },
+    {
+      "location": "claude_rc/streaming.py stream_control",
+      "cause": "server control_only=1 does not carry ephemeral liveReply",
+      "fix": "unfiltered attach plus local control/meta filtering; explicit server_filter=True remains available"
+    },
+    {
+      "location": "scripts/claude-rc-stream-smoke watch acceptance",
+      "cause": "a session first encountered after sync can arrive as added rather than changed",
+      "fix": "observe owned added baseline before asserting a subsequent rename changed notification"
+    },
+    {
+      "location": "scripts/claude-rc-stream-smoke deadline",
+      "cause": "TimeoutError is OSError and can be reclassified by HTTP as a retryable read failure",
+      "fix": "dedicated non-OSError LiveDeadline, incremental exact created-ID manifest and step evidence"
+    }
+  ],
+  "cleanup": [
+    {
+      "session_id": "cse_0154EsXPZ5NR3ai8DFt3juot",
+      "archived": true,
+      "deleted": true,
+      "get_status_after_delete": 404
+    },
+    {
+      "session_id": "cse_0154EsXSHoggJWztXjTLgApb",
+      "archived": true,
+      "deleted": true,
+      "get_status_after_delete": 404
+    },
+    {
+      "session_id": "cse_0154EsXR87kN1WbtVeQu56R2",
+      "archived": true,
+      "deleted": true,
+      "get_status_after_delete": 404
+    },
+    {
+      "session_id": "cse_0154EsXSgukJDtxt8yE5N3pE",
+      "archived": true,
+      "deleted": true,
+      "get_status_after_delete": 404
+    },
+    {
+      "session_id": "cse_0154EsXQ7iQmv2c5iYqo13Ea",
+      "archived": true,
+      "deleted": true,
+      "get_status_after_delete": 404
+    }
+  ],
+  "cleanup_note": "The first smoke was stopped after its test deadline was swallowed by the HTTP retry path. Its exact uniquely tagged run ID was recovered read-only, archived, deleted and verified 404 before retrying. No browser, proxy or worker process was stopped. No pre-existing session was mutated.",
+  "integration_contracts": {
+    "iter_history": "client.iter_history(session_id, *, after_sequence_num=0, page_size=500) -> Iterator[Event]",
+    "stream_session": "client.stream_session(session_id, *, from_sequence_num=0, control_only=False, reconnect=True, max_reconnects=20, liveness=45, base_delay=1, max_delay=30, on_ready=None, on_reinitialize=None, deadline=None) -> Iterator[Event]",
+    "stream_control": "client.stream_control(session_id, *, server_filter=False, **stream_options) -> Iterator[Event]; default local filtering preserves ephemeral verdicts",
+    "request_control_live": "client.request_control_live(session_id, subtype, *, timeout=15, **fields) -> dict",
+    "send_and_collect": "client.send_and_collect(session_id, text, *, print_stream=False, timeout=300, **options) -> list[Event]; options accepts reconnect/max_reconnects and existing send_prompt fields",
+    "watch": "client.watch(*, resume_token=None, include_trigger_sessions=True, exclude_tags=\"-\", channels_changed=None, keepalive_tolerance_seconds=135, reconnect=True, max_reconnects=20, base_delay=1, max_delay=30) -> Iterator[WatchEvent]",
+    "register_stream_commands": "claude_rc.streaming.register_stream_commands(subparsers, client_factory, *, parents=()) -> None; group08 supplies existing cli._rc and credential parent; registers history, stream, watch-account and args.func",
+    "dispatch_stream_command": "claude_rc.streaming.dispatch_stream_command(client, args, *, emit=None) -> int; emit receives JSON-ready envelopes",
+    "stream_meta": "Event.raw retains event/data; no durable sequence for metadata or ephemeral frames",
+    "reinitialize": "on_reinitialize(update) runs on observed disconnected-to-connected transitions or explicit worker identity/reinitialize fields; integration may pass a callback using existing client.initialize. Read-only observation never silently writes a handshake.",
+    "auth": "All stream and backfill requests use existing _send/_request. Auth identity pin/recovery remains group01 responsibility; non-I/O policy/auth exceptions propagate rather than reconnect."
+  },
+  "known_gaps_and_next_steps": [
+    {
+      "capability": "natural truncation, watch 410 and actual worker replacement",
+      "status": "not naturally observed live",
+      "plan": "Retain deterministic offline coverage and fault-injected truncation evidence; qualify against a naturally replaced owned worker when available. No process destruction to manufacture evidence."
+    },
+    {
+      "capability": "worker replacement initialize handshake",
+      "status": "callback implemented and offline-tested, actual replacement unverified",
+      "plan": "Group05/group08 can explicitly bind on_reinitialize to existing initialize after establishing renderer capabilities; do not make read-only observers write automatically."
+    },
+    {
+      "capability": "identity pin across auth recovery",
+      "status": "transport-owner integration pending",
+      "plan": "Merge group01 auth pin changes and rerun its recovery acceptance with streaming; no second auth implementation was added."
+    },
+    {
+      "capability": "top-level CLI/panel/export wiring and evidence ledger",
+      "status": "group08 integration pending",
+      "plan": "Register group03 CLI helpers with the existing client factory, preserve public delegates/types, merge this evidence into docs/web-api.md and exercise real CLI/panel processes after integration."
+    },
+    {
+      "capability": "ephemeral replay",
+      "status": "intentionally not durable/replayable",
+      "plan": "Never claim history can reconstruct missed ephemeral deltas; resend a correlated read control explicitly if its live reply was lost."
+    }
+  ]
+}

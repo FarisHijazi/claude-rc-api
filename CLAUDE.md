@@ -27,17 +27,13 @@ module that owns the area, or a new mixin module plus one line in the
 | `client.py` | transport, headers (`build_headers`), auth hooks, session list/get/rename/archive, send/stream events, control requests (model, mode, effort, interrupt), `ManagedAgentsClient` |
 | `credentials.py` | OAuth credentials (file / macOS Keychain), refresh with CAS save, trusted devices, `resolve_auth` (the auth chain), cswap slots |
 | `webauth.py` | claude.ai cookie jar: env, state file, Chrome cookie DB, Chrome CDP; Cloudflare detection |
-<<<<<<< HEAD
 | `login.py` | explicit isolated PKCE helpers; never called by auth discovery; live grant exchange still unverified |
 | `lifecycle.py` | create/unarchive/delete/share/tag/mark-read, teleport events |
-||||||| ab77994
-| `lifecycle.py` | create/unarchive/delete/share/tag/mark-read, teleport events |
-=======
 | `lifecycle.py` | create/unarchive/delete/share/tag, filtered/local-title discovery, cookie repo/branch pickers, guarded support/debug export, secret scan, teleport events |
->>>>>>> feat/02-session-discovery-creation-and-lifecycle
 | `environments.py` | environments (public + private org routes), create/update, self-hosted pools |
 | `triggers.py` | scheduled tasks (routines) |
-| `interaction.py` | pending prompts, permission + AskUserQuestion answers, slash commands, generic controls, `stream_session` (keeps meta frames), account `watch` feed |
+| `interaction.py` | pending prompts, permission + AskUserQuestion answers, slash commands, generic controls; stream methods delegate to `streaming.py` |
+| `streaming.py` | paginated durable history, metadata/ephemeral session streams, bounded reconnect/backfill, live control correlation, account watch; opt-in CLI registration helpers |
 | `files.py` | attachments / Files API |
 | `tts.py` | claude.ai text-to-speech websocket + Ogg muxer |
 | `events.py`, `sse.py` | wire event builders/parsers, SSE parser |
@@ -111,5 +107,15 @@ On dev, uv needs the proxy CA plus the system bundle:
   `scripts/claude-rc-smoke` runs the full create → answer → archive → delete
   loop.
 - Never touch sessions you did not create, except read-only listing.
+- Streaming acceptance: `uv run --extra web python scripts/claude-rc-stream-smoke --direct`.
+  History pages accept 1–500 events. `stream_control` filters locally by default:
+  the live server's `control_only=1` omits ephemeral `mcp_status liveReply` responses.
+  Group03 contracts/evidence: `docs/devlog/claude_2026-10-28-streaming-recovery.json`
+  (deliberately a plain path, not an `@` include). Independent rerun/fix evidence:
+  `docs/devlog/claude_2026-10-28-streaming-independent-verification.json`.
+  Collection requires its own processing receipt before accepting a result;
+  callback HTTP failures propagate (never reconnect/reissue a possibly applied
+  write). Stream/backoff deadlines do not override synchronous callback/history
+  transport timeouts.
 - Record what ran live in `docs/web-api.md` ("LIVE CHECK"). Devlogs go in
   `docs/devlog/claude_<date>-<desc>.md`.

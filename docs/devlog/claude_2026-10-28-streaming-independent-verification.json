@@ -1,0 +1,534 @@
+{
+  "date": "2026-10-28",
+  "group": "03-chat-streaming-history-and-recovery",
+  "independent_review_of": "48806af34e409dca5d2d560249ecd625d94b0742",
+  "offline_command": "uv run --directory /home/service/Projects/claude-rc-api/worktrees/03-chat-streaming-history-and-recovery --extra test --extra web --extra cli pytest -q /home/service/Projects/claude-rc-api/worktrees/03-chat-streaming-history-and-recovery/tests",
+  "offline_before": {
+    "passed": 302,
+    "skipped": 1
+  },
+  "offline_after": {
+    "passed": 309,
+    "skipped": 1
+  },
+  "live_command": "uv run --directory /home/service/Projects/claude-rc-api/worktrees/03-chat-streaming-history-and-recovery --extra web python /home/service/Projects/claude-rc-api/worktrees/03-chat-streaming-history-and-recovery/scripts/claude-rc-stream-smoke --direct --timeout 90",
+  "live_runs_exit_code": [
+    0,
+    0,
+    0
+  ],
+  "live_runs": [
+    {
+      "run": "stream-smoke-9308532b0bd9",
+      "checks": {
+        "list": {
+          "status": "passed",
+          "evidence": {
+            "count": 1
+          }
+        },
+        "environments": {
+          "status": "passed",
+          "count": 4
+        },
+        "reply_reconnect_and_history": {
+          "status": "passed",
+          "evidence": {
+            "durable_events": 21,
+            "history_equal": true,
+            "closed_after_first_durable": true
+          }
+        },
+        "disconnected_second_turn_truncated_backfill": {
+          "status": "passed",
+          "evidence": {
+            "trigger": "fault-injected",
+            "backfill": "live GET",
+            "durable_events": 6
+          }
+        },
+        "bounded_live_socket_eof": {
+          "status": "passed",
+          "evidence": {
+            "trigger": "fault-injected EOF on live owned sockets",
+            "attempts": 3,
+            "backoff_seconds": [
+              0.1,
+              0.2
+            ]
+          }
+        },
+        "ephemeral_mcp_status": {
+          "status": "passed",
+          "evidence": {
+            "ephemeral_reply": true,
+            "result_keys": [
+              "mcpServers"
+            ]
+          }
+        },
+        "watch_rename_archive_resume": {
+          "status": "passed",
+          "evidence": {
+            "changed": true,
+            "archived": true,
+            "resumed_after_local_close": true
+          }
+        },
+        "archive_cleanup": {
+          "status": "passed",
+          "evidence": true
+        },
+        "delete_cleanup": {
+          "status": "passed",
+          "evidence": {}
+        },
+        "deleted_fetch": {
+          "status": "passed",
+          "http_status": 404
+        }
+      },
+      "created_sessions": [
+        "cse_0154EsXRcyLWzFLaeMgi9ge7"
+      ],
+      "auth_source": "cookies:cdp",
+      "weekly_utilization": 100.0
+    },
+    {
+      "run": "stream-smoke-72c726c30fa3",
+      "checks": {
+        "list": {
+          "status": "passed",
+          "evidence": {
+            "count": 1
+          }
+        },
+        "environments": {
+          "status": "passed",
+          "count": 4
+        },
+        "reply_reconnect_and_history": {
+          "status": "passed",
+          "evidence": {
+            "durable_events": 21,
+            "history_equal": true,
+            "closed_after_first_durable": true
+          }
+        },
+        "send_and_collect_reply": {
+          "status": "passed",
+          "evidence": {
+            "turn_end": true,
+            "reply_exact": true,
+            "frames": [
+              {
+                "type": "session_update",
+                "sequence": null,
+                "raw_keys": [
+                  "data",
+                  "event"
+                ],
+                "data": null,
+                "processing_at": null,
+                "processed_at": null
+              },
+              {
+                "type": "user",
+                "sequence": 22,
+                "raw_keys": [
+                  "created_at",
+                  "event_id",
+                  "event_type",
+                  "payload",
+                  "sequence_num",
+                  "source"
+                ],
+                "data": null,
+                "processing_at": null,
+                "processed_at": null
+              },
+              {
+                "type": "delivery_update",
+                "sequence": null,
+                "raw_keys": [
+                  "data",
+                  "event"
+                ],
+                "data": {
+                  "event_id": "2a82f9e6-d13d-4b28-bd7d-79d2c12f9109",
+                  "status": "DELIVERY_STATUS_RECEIVED",
+                  "timestamp": "2026-10-28T22:29:07.212823227Z"
+                },
+                "processing_at": null,
+                "processed_at": null
+              },
+              {
+                "type": "delivery_update",
+                "sequence": null,
+                "raw_keys": [
+                  "data",
+                  "event"
+                ],
+                "data": {
+                  "event_id": "2a82f9e6-d13d-4b28-bd7d-79d2c12f9109",
+                  "status": "DELIVERY_STATUS_PROCESSING",
+                  "timestamp": "2026-10-28T22:29:07.239200593Z"
+                },
+                "processing_at": null,
+                "processed_at": null
+              },
+              {
+                "type": "system",
+                "sequence": 23,
+                "raw_keys": [
+                  "created_at",
+                  "event_id",
+                  "event_type",
+                  "payload",
+                  "sequence_num",
+                  "source"
+                ],
+                "data": null,
+                "processing_at": null,
+                "processed_at": null
+              },
+              {
+                "type": "assistant",
+                "sequence": 24,
+                "raw_keys": [
+                  "created_at",
+                  "event_id",
+                  "event_type",
+                  "payload",
+                  "sequence_num",
+                  "source"
+                ],
+                "data": null,
+                "processing_at": null,
+                "processed_at": null
+              },
+              {
+                "type": "system",
+                "sequence": null,
+                "raw_keys": [
+                  "event_type",
+                  "payload",
+                  "source",
+                  "timestamp"
+                ],
+                "data": null,
+                "processing_at": null,
+                "processed_at": null
+              },
+              {
+                "type": "delivery_update",
+                "sequence": null,
+                "raw_keys": [
+                  "data",
+                  "event"
+                ],
+                "data": {
+                  "event_id": "2a82f9e6-d13d-4b28-bd7d-79d2c12f9109",
+                  "status": "DELIVERY_STATUS_PROCESSED",
+                  "timestamp": "2026-10-28T22:29:10.840135129Z"
+                },
+                "processing_at": null,
+                "processed_at": null
+              },
+              {
+                "type": "system",
+                "sequence": 25,
+                "raw_keys": [
+                  "created_at",
+                  "event_id",
+                  "event_type",
+                  "payload",
+                  "sequence_num",
+                  "source"
+                ],
+                "data": null,
+                "processing_at": null,
+                "processed_at": null
+              },
+              {
+                "type": "system",
+                "sequence": 26,
+                "raw_keys": [
+                  "created_at",
+                  "event_id",
+                  "event_type",
+                  "payload",
+                  "sequence_num",
+                  "source"
+                ],
+                "data": null,
+                "processing_at": null,
+                "processed_at": null
+              },
+              {
+                "type": "result",
+                "sequence": 27,
+                "raw_keys": [
+                  "created_at",
+                  "event_id",
+                  "event_type",
+                  "payload",
+                  "sequence_num",
+                  "source"
+                ],
+                "data": null,
+                "processing_at": null,
+                "processed_at": null
+              }
+            ]
+          }
+        },
+        "disconnected_second_turn_truncated_backfill": {
+          "status": "passed",
+          "evidence": {
+            "trigger": "fault-injected",
+            "backfill": "live GET",
+            "durable_events": 6
+          }
+        },
+        "bounded_live_socket_eof": {
+          "status": "passed",
+          "evidence": {
+            "trigger": "fault-injected EOF on live owned sockets",
+            "attempts": 3,
+            "backoff_seconds": [
+              0.1,
+              0.2
+            ]
+          }
+        },
+        "ephemeral_mcp_status": {
+          "status": "passed",
+          "evidence": {
+            "ephemeral_reply": true,
+            "result_keys": [
+              "mcpServers"
+            ]
+          }
+        },
+        "watch_rename_archive_resume": {
+          "status": "passed",
+          "evidence": {
+            "changed": true,
+            "archived": true,
+            "resumed_after_local_close": true
+          }
+        },
+        "archive_cleanup": {
+          "status": "passed",
+          "evidence": true
+        },
+        "delete_cleanup": {
+          "status": "passed",
+          "evidence": {}
+        },
+        "deleted_fetch": {
+          "status": "passed",
+          "http_status": 404
+        }
+      },
+      "created_sessions": [
+        "cse_0154EsXQbR3tdPVXdkayNn7V"
+      ],
+      "auth_source": "cookies:cdp",
+      "weekly_utilization": 100.0
+    },
+    {
+      "run": "stream-smoke-0f38fc06e4f6",
+      "checks": {
+        "list": {
+          "status": "passed",
+          "evidence": {
+            "count": 1
+          }
+        },
+        "environments": {
+          "status": "passed",
+          "count": 4
+        },
+        "reply_reconnect_and_history": {
+          "status": "passed",
+          "evidence": {
+            "durable_events": 20,
+            "history_equal": true,
+            "closed_after_first_durable": true
+          }
+        },
+        "send_and_collect_reply": {
+          "status": "passed",
+          "evidence": {
+            "turn_end": true,
+            "reply_exact": true,
+            "own_processing_receipt": true,
+            "receipt_statuses": [
+              "DELIVERY_STATUS_RECEIVED",
+              "DELIVERY_STATUS_PROCESSING",
+              "DELIVERY_STATUS_PROCESSED"
+            ],
+            "frames": 11
+          }
+        },
+        "disconnected_second_turn_truncated_backfill": {
+          "status": "passed",
+          "evidence": {
+            "trigger": "fault-injected",
+            "backfill": "live GET",
+            "durable_events": 6
+          }
+        },
+        "bounded_live_socket_eof": {
+          "status": "passed",
+          "evidence": {
+            "trigger": "fault-injected eof on live owned sockets",
+            "attempts": 3,
+            "backoff_seconds": [
+              0.1,
+              0.2
+            ]
+          }
+        },
+        "bounded_live_socket_read_failure": {
+          "status": "passed",
+          "evidence": {
+            "trigger": "fault-injected read on live owned sockets",
+            "attempts": 3,
+            "backoff_seconds": [
+              0.1,
+              0.2
+            ]
+          }
+        },
+        "ephemeral_mcp_status": {
+          "status": "passed",
+          "evidence": {
+            "ephemeral_reply": true,
+            "result_keys": [
+              "mcpServers"
+            ]
+          }
+        },
+        "watch_rename_archive_resume": {
+          "status": "passed",
+          "evidence": {
+            "changed": true,
+            "archived": true,
+            "resumed_after_local_close": true
+          }
+        },
+        "archive_cleanup": {
+          "status": "passed",
+          "evidence": true
+        },
+        "delete_cleanup": {
+          "status": "passed",
+          "evidence": {}
+        },
+        "deleted_fetch": {
+          "status": "passed",
+          "http_status": 404
+        }
+      },
+      "created_sessions": [
+        "cse_0154EsXS8my2WZgttrAx82RA"
+      ],
+      "auth_source": "cookies:cdp",
+      "weekly_utilization": 100.0
+    }
+  ],
+  "verified_fixes": [
+    {
+      "location": "claude_rc/streaming.py stream_session",
+      "defect": "HTTPError from on_ready was swallowed; reconnect could hide an unknown POST outcome. on_reinitialize HTTPError repeated the handshake.",
+      "red_test": "Both callback cases failed before fix; on_ready became StreamExhausted and replacement callback ran three times.",
+      "fix": "Propagate callback failures immediately and close the owned response. Never retry application callbacks as read failures.",
+      "evidence": "offline regression plus successful post-fix live acceptance; live callback failure itself was not induced"
+    },
+    {
+      "location": "claude_rc/streaming.py RetryBudget.retry",
+      "defect": "A 250ms deadline with 10s base backoff slept 10s.",
+      "red_test": "Failed with delays=[10] rather than [.25].",
+      "fix": "Clamp reconnect backoff and attach timeouts to remaining deadline.",
+      "evidence": "deterministic clock regression; live EOF/read budgets passed"
+    },
+    {
+      "location": "claude_rc/streaming.py send_and_collect",
+      "defect": "An unrelated earlier turn result could return success while the submitted prompt was still queued.",
+      "red_test": "Returned sequence 2 instead of owned post-processing sequence 5; RECEIVED or another event processing must not qualify.",
+      "fix": "Correlate own event ID/message UUID and processing receipts before accepting result. Recover missed receipts from history only when processing timestamp predates result creation.",
+      "evidence": "offline old-turn, wrong-receipt and late-history races; live exact COLLECT_OK plus own RECEIVED/PROCESSING/PROCESSED receipts"
+    }
+  ],
+  "fault_injected_live": [
+    "Local close after first durable event; real reconnect/history equality",
+    "Injected catch_up_truncated; actual service history backfill",
+    "Three real owned HTTP attaches replaced with EOF; 0.1s/0.2s backoff",
+    "Three real owned HTTP attaches followed by injected read failure; 0.1s/0.2s backoff"
+  ],
+  "cleanup": [
+    {
+      "session_id": "cse_0154EsXRcyLWzFLaeMgi9ge7",
+      "archive": "passed",
+      "delete": "passed",
+      "get_after_delete": 404
+    },
+    {
+      "session_id": "cse_0154EsXQbR3tdPVXdkayNn7V",
+      "archive": "passed",
+      "delete": "passed",
+      "get_after_delete": 404
+    },
+    {
+      "session_id": "cse_0154EsXS8my2WZgttrAx82RA",
+      "archive": "passed",
+      "delete": "passed",
+      "get_after_delete": 404
+    }
+  ],
+  "remaining_gaps": [
+    {
+      "capability": "natural worker replacement/reinitialize",
+      "status": "offline-only callback branch",
+      "plan": "Group05/08 bind initialize callback explicitly and qualify against naturally replaced owned worker; read-only observers must not silently initialize."
+    },
+    {
+      "capability": "watch 410 remint/resync",
+      "status": "offline-only",
+      "plan": "Qualify only if service naturally expires a run-owned watch token."
+    },
+    {
+      "capability": "natural catch_up_truncated",
+      "status": "fault-injected live trigger, real live backfill",
+      "plan": "Observe natural truncation on owned history when available."
+    },
+    {
+      "capability": "auth identity pin during stream recovery",
+      "status": "group01 integration pending",
+      "plan": "Merge auth owner and rerun recovery acceptance; never create another refresh path."
+    },
+    {
+      "capability": "CLI/panel/export registration and ledger",
+      "status": "group08 integration pending",
+      "plan": "Register existing helpers and exercise actual CLI/panel after merges."
+    },
+    {
+      "capability": "concurrent-turn collection and missed processing history fallback",
+      "status": "offline adversarial tests; normal own processing correlation live",
+      "plan": "Qualify concurrent queued-turn scenario on a dedicated owned session; no claim that mock races were naturally observed."
+    },
+    {
+      "capability": "strict end-to-end wall-clock collection timeout",
+      "status": "stream reads/backoff bounded; synchronous history/POST callbacks retain transport-owner timeouts",
+      "plan": "Coordinate deadline propagation through group01 shared request interface if strict total-time bound is needed."
+    },
+    {
+      "capability": "ephemeral replay",
+      "status": "not durable by design",
+      "plan": "Explicitly reissue read controls after lost ephemeral reply; never claim history reconstructs ephemeral deltas."
+    }
+  ]
+}
