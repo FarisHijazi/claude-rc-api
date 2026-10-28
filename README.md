@@ -56,8 +56,10 @@ uv sync --extra cli --extra test    # + pytest
    `claude --remote-control`) in some project. That registers a session you can
    then control from here.
 
-Credentials load automatically from `~/.claude/.credentials.json` (OAuth token)
-and `~/.claude.json` (`organizationUuid`). Override them with
+Credentials load automatically from `~/.claude/.credentials.json` (OAuth token;
+on macOS the CLI keeps it in the login Keychain instead, item
+`Claude Code-credentials`, which is read first) and `~/.claude.json`
+(`organizationUuid`). Override them with
 `CLAUDE_RC_ACCESS_TOKEN` / `CLAUDE_CODE_OAUTH_TOKEN` and `CLAUDE_RC_ORG_UUID`.
 
 ## CLI
@@ -214,8 +216,8 @@ ev.attestation   # "UNSPECIFIED" | "VERIFIED" | "ABSENT" … (Trusted Devices)
 - Orgs that enforce Trusted Devices can make workers drop unsigned controller
   events; this library doesn't sign. `ev.attestation` shows what the server
   recorded, and API_REFERENCE.md §3.4 has the details.
-- Token refresh writes the refreshed token back to
-  `~/.claude/.credentials.json` (same as the CLI). Pass `persist_refresh=False`
+- Token refresh writes the refreshed token back to where it was read from —
+  `~/.claude/.credentials.json` or the macOS Keychain item (same as the CLI). Pass `persist_refresh=False`
   to keep refreshes in memory.
 - This project never prints or transmits your tokens.
 

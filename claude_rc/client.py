@@ -166,7 +166,7 @@ class RemoteControlClient:
 
     # -- auth --------------------------------------------------------------
     def _reload_credentials(self) -> bool:
-        """Re-read the credentials file; ``True`` if it held different tokens.
+        """Re-read the credential store; ``True`` if it held different tokens.
 
         Tokens are rotated *in place* by whichever process refreshes first (the
         Claude Code CLI itself, another client of this library, …), and a
@@ -174,7 +174,7 @@ class RemoteControlClient:
         disk copy is the only valid one. A long-lived client must therefore
         treat the file, not its memory, as the source of truth. No-op when the
         credentials didn't come from a file (env var / explicit object)."""
-        if not self._creds.source_path:
+        if not (self._creds.source_path or self._creds.source_keychain):
             return False
         try:
             fresh = load_credentials(self._creds_path)

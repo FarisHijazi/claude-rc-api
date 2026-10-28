@@ -1,11 +1,12 @@
 """OAuth credential handling for the Claude Remote Control / Sessions API.
 
 The Claude Code CLI logs in through claude.ai (OAuth) and stores the resulting
-tokens in ``~/.claude/.credentials.json`` and account metadata (including the
+tokens in ``~/.claude/.credentials.json`` — on macOS, in the login Keychain
+(generic password ``Claude Code-credentials``) instead — and account metadata (including the
 organization UUID that the API requires as the ``x-organization-uuid`` header)
 in ``~/.claude.json``.
 
-This module reads those files so a third-party program can authenticate exactly
+This module reads those stores so a third-party program can authenticate exactly
 the way the claude.ai/code web app does, and refreshes the access token against
 ``POST https://platform.claude.com/v1/oauth/token`` when it has expired.
 
@@ -21,6 +22,8 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
+import sys
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -38,6 +41,10 @@ OAUTH_USER_AGENT = "anthropic-sdk-typescript/0.94.0 userOAuthProvider"
 
 DEFAULT_CREDENTIALS_PATH = Path.home() / ".claude" / ".credentials.json"
 DEFAULT_CONFIG_PATH = Path.home() / ".claude.json"
+# On macOS the CLI keeps the same JSON document (``claudeAiOauth`` block and
+# all) as a login-Keychain generic password under this service name, and
+# writes no credentials file.
+KEYCHAIN_SERVICE = "Claude Code-credentials"
 
 # Environment overrides (handy in CI / other machines).
 ENV_ACCESS_TOKEN = "CLAUDE_RC_ACCESS_TOKEN"
@@ -66,6 +73,9 @@ class OAuthCredentials:
     client_id: Optional[str] = None
     trusted_device_token: Optional[str] = None
     source_path: Optional[Path] = None
+    # Keychain service the tokens came from (macOS); mutually exclusive with
+    # ``source_path``. Either one marks the credentials as re-readable.
+    source_keychain: Optional[str] = None
 
     def is_expired(self, skew_seconds: int = 60) -> bool:
         """True if the token is expired (or within ``skew_seconds`` of it)."""
@@ -80,6 +90,7 @@ class OAuthCredentials:
         block: dict,
         source_path: Optional[Path] = None,
         trusted_device_token: Optional[str] = None,
+        source_keychain: Optional[str] = None,
     ) -> "OAuthCredentials":
         token = block.get("accessToken")
         if not token:
@@ -93,6 +104,7 @@ class OAuthCredentials:
             client_id=block.get("clientId"),
             trusted_device_token=trusted_device_token,
             source_path=source_path,
+            source_keychain=source_keychain,
         )
 
     def to_block(self) -> dict:
@@ -113,34 +125,105 @@ def load_credentials(path: os.PathLike | str | None = None) -> OAuthCredentials:
 
     Priority:
       1. ``CLAUDE_RC_ACCESS_TOKEN`` env var (no refresh possible).
-      2. ``~/.claude/.credentials.json`` (``claudeAiOauth`` block).
+      2. macOS only, when no explicit ``path`` is given: the login-Keychain
+         item :data:`KEYCHAIN_SERVICE` — where the CLI stores them there.
+      3. ``~/.claude/.credentials.json`` (``claudeAiOauth`` block).
     """
     env_token = os.environ.get(ENV_ACCESS_TOKEN) or os.environ.get(ENV_CLI_OAUTH_TOKEN)
     if env_token:
         return OAuthCredentials(access_token=env_token)
 
+    if path is None and sys.platform == "darwin":
+        raw = _keychain_read(KEYCHAIN_SERVICE)
+        if raw is not None:
+            where = f"macOS Keychain item {KEYCHAIN_SERVICE!r}"
+            try:
+                data = json.loads(raw)
+            except json.JSONDecodeError as exc:
+                raise CredentialsError(f"could not parse {where}: {exc}") from exc
+            return _from_document(data, where, source_keychain=KEYCHAIN_SERVICE)
+
     p = Path(path) if path else DEFAULT_CREDENTIALS_PATH
     if not p.exists():
+        where = (
+            f"no {KEYCHAIN_SERVICE!r} Keychain item and no credentials file at {p}"
+            if path is None and sys.platform == "darwin"
+            else f"credentials file not found at {p}"
+        )
         raise CredentialsError(
-            f"credentials file not found at {p}. Run `claude` and `/login` first, "
-            f"or set {ENV_ACCESS_TOKEN}."
+            f"{where}. Run `claude` and `/login` first, or set {ENV_ACCESS_TOKEN}."
         )
     try:
         data = json.loads(p.read_text())
     except (OSError, json.JSONDecodeError) as exc:  # pragma: no cover - io
         raise CredentialsError(f"could not read {p}: {exc}") from exc
+    return _from_document(data, str(p), source_path=p)
 
+
+def _from_document(
+    data: dict,
+    where: str,
+    *,
+    source_path: Optional[Path] = None,
+    source_keychain: Optional[str] = None,
+) -> OAuthCredentials:
+    """Build credentials from the CLI's credentials JSON document."""
     block = data.get("claudeAiOauth")
     if not block:
         raise CredentialsError(
-            f"{p} has no `claudeAiOauth` block — are you logged in via an API key "
+            f"{where} has no `claudeAiOauth` block — are you logged in via an API key "
             f"instead of claude.ai? Remote Control requires a claude.ai OAuth login."
         )
     # A top-level `trustedDeviceToken` sibling is used when the org requires
     # Trusted Devices; harmless to carry when absent.
     return OAuthCredentials.from_block(
-        block, source_path=p, trusted_device_token=data.get("trustedDeviceToken")
+        block,
+        source_path=source_path,
+        trusted_device_token=data.get("trustedDeviceToken"),
+        source_keychain=source_keychain,
     )
+
+
+def _keychain_account() -> str:
+    # The CLI files its item under the login user's name.
+    import getpass
+
+    return os.environ.get("USER") or getpass.getuser()
+
+
+def _keychain_read(service: str) -> Optional[str]:
+    """The item's secret, or ``None`` if it doesn't exist / can't be read."""
+    try:
+        out = subprocess.run(
+            ["security", "find-generic-password", "-a", _keychain_account(), "-s", service, "-w"],
+            capture_output=True,
+            text=True,
+            timeout=15,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if out.returncode != 0:
+        return None
+    return out.stdout.strip() or None
+
+
+def _keychain_write(service: str, secret: str) -> None:
+    """Create or update (``-U``) the item. The secret goes hex-encoded (``-X``)
+    over ``security -i``'s stdin, never argv, so it can't leak via ``ps``."""
+    cmd = (
+        f'add-generic-password -U -a "{_keychain_account()}" -s "{service}" '
+        f"-X {secret.encode().hex()}\n"
+    )
+    try:
+        out = subprocess.run(
+            ["security", "-i"], input=cmd, capture_output=True, text=True, timeout=15
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        raise CredentialsError(f"could not update Keychain item {service!r}: {exc}") from exc
+    if out.returncode != 0:
+        raise CredentialsError(
+            f"could not update Keychain item {service!r}: {out.stderr.strip()[:200]}"
+        )
 
 
 def load_org_uuid(config_path: os.PathLike | str | None = None) -> Optional[str]:
@@ -184,7 +267,7 @@ def refresh_credentials(
     Mirrors the CLI: ``POST`` to :data:`OAUTH_TOKEN_URL` with a JSON body of
     ``{grant_type, refresh_token, client_id}`` and the ``oauth-2025-04-20`` beta
     header. On success the new tokens are (optionally) written back to the same
-    credentials file so subsequent runs stay authenticated.
+    credentials file (or Keychain item) so subsequent runs stay authenticated.
     """
     if not creds.refresh_token:
         raise CredentialsError(
@@ -230,15 +313,31 @@ def refresh_credentials(
         client_id=creds.client_id,
         trusted_device_token=creds.trusted_device_token,
         source_path=creds.source_path,
+        source_keychain=creds.source_keychain,
     )
 
-    if persist and new.source_path:
+    if persist and (new.source_path or new.source_keychain):
         _persist(new)
     return new
 
 
 def _persist(creds: OAuthCredentials) -> None:
-    """Atomically write refreshed tokens back, preserving other keys."""
+    """Write refreshed tokens back to where they came from, preserving the
+    document's other keys (``mcpOAuth`` etc. share the same store)."""
+    if creds.source_keychain:
+        raw = _keychain_read(creds.source_keychain)
+        try:
+            data = json.loads(raw) if raw else {}
+        except json.JSONDecodeError:
+            data = {}
+        block = data.get("claudeAiOauth") or {}
+        if block.get("refreshToken") != creds.refresh_token:
+            # It described the refresh token we just spent — drop it rather
+            # than leave a stale expiry next to the new token.
+            block.pop("refreshTokenExpiresAt", None)
+        data["claudeAiOauth"] = {**block, **creds.to_block()}
+        _keychain_write(creds.source_keychain, json.dumps(data))
+        return
     path = creds.source_path
     if not path:
         return
