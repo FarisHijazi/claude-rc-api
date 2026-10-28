@@ -49,7 +49,11 @@ not an `@` include). `pending_requests(initialize=True)` reconciles complete
 paged history with the worker snapshot; its default remains read-only.
 Empty worker unanswered annotations are not browser dismissal sentinels; pass
 `unanswered_encoding="browser"` or the convenience helpers' `encoding="browser"`
-when that distinct browser behavior is intended.
+when that distinct browser behavior is intended. Answer validation rejects
+multiple Other entries for the same question, even through different key aliases,
+before posting (multi-select permits selected labels plus one Other only).
+Independent refutation, fix reproduction and live worker-result assertions are in
+`docs/devlog/claude_2026-10-28-group04-independent-verification.json` (plain path).
 
 ## Test
 

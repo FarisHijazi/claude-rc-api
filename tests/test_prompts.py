@@ -216,6 +216,14 @@ def test_snapshot_response_and_cancellation_ids_reconciled(client, monkeypatch):
     assert rc.pending_requests("session", initialized=snapshot) == []
 
 
+def test_duplicate_other_aliases_rejected_without_post(client):
+    rc, sent = client
+    with pytest.raises(ValueError, match="Other.*more than once"):
+        rc.answer_questions("session", question_request(), {1: ["Ham", "Egg"]},
+                            other={1: "Basil", "Toppings": "Mint"})
+    assert sent == []
+
+
 @pytest.mark.parametrize("source", ["agent", "service", "client"])
 def test_prohibited_request_sources_not_blocking(source):
     payload = {"type": "control_request", "request_id": "r", "request": {"subtype": "can_use_tool"}}

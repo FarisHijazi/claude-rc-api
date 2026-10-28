@@ -193,8 +193,12 @@ def build_answers(
             raise ValueError(f"{q.question!r} is single-select; pick exactly one label")
         else:
             answers[q.question] = picked[0]
+    other_questions: set[str] = set()
     for key, text in (other or {}).items():
         q = resolve(key)
+        if q.question in other_questions:
+            raise ValueError("Other specified more than once for a question")
+        other_questions.add(q.question)
         if not isinstance(text, str) or not text.strip():
             raise ValueError("Other must be nonempty text")
         if q.kind == "number":
