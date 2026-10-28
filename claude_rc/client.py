@@ -51,6 +51,7 @@ from .credentials import (
 from .environments import EnvironmentsMixin
 from .files import FilesMixin
 from .interaction import InteractionMixin
+from .commands import validate_control_request
 from .lifecycle import LifecycleMixin
 from .triggers import TriggersMixin
 from .tts import TTSMixin
@@ -321,6 +322,8 @@ class RemoteControlClient(
     groups live in the mixins this class inherits.
     """
 
+    control_profile = "bridge"
+
     def __init__(
         self,
         credentials: OAuthCredentials | None = None,
@@ -338,6 +341,7 @@ class RemoteControlClient(
         persist_refresh: bool = True,
         client_id: str | None = None,
         client_platform: str = CLIENT_PLATFORM,
+        control_profile: str | None = None,
         timeout: float = 30.0,
     ):
         """Credentials come from :func:`~claude_rc.credentials.resolve_auth`
@@ -359,6 +363,9 @@ class RemoteControlClient(
             credentials_path=credentials_path,
         )
         self._creds = self._auth.credentials
+        self.control_profile = control_profile or ("cloud" if self._auth.is_cookie else "bridge")
+        if self.control_profile not in {"cloud", "bridge"}:
+            raise ValueError("control_profile must be cloud or bridge")
         default_base = CLAUDE_AI_BASE_URL if self._auth.is_cookie else DEFAULT_BASE_URL
         self.base_url = (base_url or default_base).rstrip("/")
         self._creds_path = credentials_path
@@ -802,6 +809,7 @@ class RemoteControlClient(
 
     # -- the control protocol -----------------------------------------------
     def _send_control(self, session_id: str, subtype: str, **fields: Any) -> tuple[str, dict]:
+        validate_control_request(subtype, fields, cloud=self.control_profile == "cloud")
         request_id = f"{subtype}-{uuid.uuid4()}"
         ack = self.send_events(session_id, [cli_control_request(subtype, request_id=request_id, **fields)])
         return request_id, ack
@@ -880,17 +888,17 @@ class RemoteControlClient(
         req = cli_control_request("interrupt", request_id=f"interrupt-{uuid.uuid4()}")
         return self.send_events(session_id, [req])
 
-    def set_model(self, session_id: str, model: str) -> dict:
-        """Change the session's model (e.g. ``claude-opus-5-5``)."""
-        req = cli_control_request("set_model", request_id=f"set-model-{uuid.uuid4()}", model=model)
-        return self.send_events(session_id, [req])
+    def set_model(self, session_id: str, model: str, *, wait: float | None = None) -> dict:
+        """Change the model; only ``wait`` returns the worker's verdict, not enqueue ack."""
+        if wait is not None:
+            return self.request_control(session_id, "set_model", timeout=wait, model=model)
+        return self._send_control(session_id, "set_model", model=model)[1]
 
-    def set_permission_mode(self, session_id: str, mode: str) -> dict:
-        """Set permission mode: ``default`` | ``plan`` | ``acceptEdits`` | ``bypassPermissions``."""
-        req = cli_control_request(
-            "set_permission_mode", request_id=f"set-mode-{uuid.uuid4()}", mode=mode
-        )
-        return self.send_events(session_id, [req])
+    def set_permission_mode(self, session_id: str, mode: str, *, wait: float | None = None) -> dict:
+        """Change mode; ``wait`` confirms worker application or raises on rejection."""
+        if wait is not None:
+            return self.request_control(session_id, "set_permission_mode", timeout=wait, mode=mode)
+        return self._send_control(session_id, "set_permission_mode", mode=mode)[1]
 
     def set_effort(
         self,

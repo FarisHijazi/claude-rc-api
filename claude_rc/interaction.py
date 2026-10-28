@@ -12,6 +12,7 @@ marked *unverified* in their docstrings.
 from __future__ import annotations
 
 import json
+import re
 import time
 from contextlib import closing
 from dataclasses import dataclass, field
@@ -35,24 +36,12 @@ from .events import (
     stream_meta_event,
 )
 from .sse import parse_sse
-
-# --- control policy (sessions.md §5.3, cloud routing `all/a_0258802926.js`) --
-# apply_flag_settings keys a cloud-hosted (CCR) worker accepts; anything else
-# is rejected "keys not available in a cloud-hosted session".
-CLOUD_FLAG_SETTINGS = frozenset(
-    {"model", "advisorModel", "effortLevel", "ultracode", "fastMode", "viewMode", "alwaysThinkingEnabled"}
+from .commands import (
+    CLOUD_FLAG_SETTINGS, CLOUD_REJECTED_SUBTYPES, WEB_CLIENT_COMMANDS,
+    CommandsMixin, dispatch_command, is_client_only, staged_mcp_fields,
 )
-# The only keys a Remote Control (bridge) worker applies.
-RC_FLAG_SETTINGS = frozenset({"effortLevel", "ultracode"})
 
-# Subtypes a cloud worker refuses outright (so a typed method is pointless).
-CLOUD_REJECTED_SUBTYPES = frozenset({
-    "set_color", "fork_conversation", "rewind_files", "mcp_set_servers", "update_settings",
-    "get_memory_dialog", "get_skills_dialog", "get_status", "export_conversation",
-    "list_cloud_sessions", "get_cloud_session", "get_cloud_session_transcript",
-    "get_chrome_dialog", "get_chrome_browsers", "select_chrome_browser", "get_sandbox_dialog",
-    "set_cwd", "claim_session", "add_directory", "register_repo_root", "set_proactivity_level",
-})
+RC_FLAG_SETTINGS = frozenset({"effortLevel", "ultracode"})
 
 # Worker capabilities (system/init `capabilities`) for the interrupt variants.
 INTERRUPT_CAPABILITIES = {
@@ -69,42 +58,6 @@ WATCH_SYNC_STALL = 240.0           # sync recurs every 100-120 s; this long with
 WATCH_KEEPALIVE_TOLERANCE = 135    # what the web app asks for (web-capture 2026-10-23)
 WATCH_GONE_GRACE = 30.0            # a 410 this soon after minting ends the watch (CLI)
 STREAM_LIVENESS = 45.0             # CLI: 45 s with no frame -> reconnect (sessions.md §7)
-
-# Slash commands the web composer lists ahead of the VM's own skills
-# (web-capture 2026-10-23, step 8; the popup opened with no request). For each,
-# the typed method that does the same, or None for a UI-only one. Which of these
-# the web handles itself rather than sending "/name" is inferred, unverified.
-WEB_CLIENT_COMMANDS: dict[str, Optional[str]] = {
-    "btw": "side_question",
-    "rewind": "rewind_conversation",
-    "fork": "fork (lifecycle); fork_conversation is rejected in cloud sessions",
-    "feedback": "submit_feedback",
-    "model": "set_model",
-    "effort": "set_effort",
-    "fast": "set_fast_mode",
-    "plan": "set_permission_mode('plan')",
-    "permissions": "list_permission_rules",
-    "skills": "list_commands",
-    "rename": "rename_session",
-    "diff": "get_workspace_diff",
-    "tasks": "background_tasks / get_task_output",
-    "config": "get_settings",
-    "advisor": "set_advisor_model",
-    "sandbox": None,
-    "theme": None,
-    "login": None,
-    "help": None,
-    "copy": None,
-    "channels": None,
-}
-
-
-def is_client_only(name: str) -> bool:
-    """True for a slash command the web app handles in the browser with no
-    worker equivalent (``theme``, ``login``, ``help`` …; unverified mapping)."""
-    name = name.lstrip("/")
-    return name in WEB_CLIENT_COMMANDS and WEB_CLIENT_COMMANDS[name] is None
-
 
 # --- typed views -----------------------------------------------------------
 @dataclass
@@ -328,7 +281,7 @@ def _as_request(request: PendingRequest | str) -> tuple[str, Optional[PendingReq
     return str(request), None
 
 
-class InteractionMixin:
+class InteractionMixin(CommandsMixin):
     """Chat, control, prompt and stream methods for :class:`~claude_rc.client.RemoteControlClient`.
 
     The host (:class:`~claude_rc.client.RemoteControlClient`) provides, and these
@@ -567,11 +520,14 @@ class InteractionMixin:
 
     # -- MCP / plugins / skills ----------------------------------------------
     def mcp_status(self, session_id: str, *, live_reply: bool | None = None, timeout: float = 15.0) -> list[dict]:
-        """``mcpServers`` (``[]`` on a Remote Control bridge). ``live_reply``
-        answers on the ephemeral channel only — leave it unset here, since
-        :meth:`request_control` polls history."""
+        """Return MCP servers; liveReply requires the streaming owner's correlator."""
         fields = {"liveReply": live_reply} if live_reply is not None else {}
-        return list(self.request_control(session_id, "mcp_status", timeout=timeout, **fields).get("mcpServers") or [])
+        request = self.request_control
+        if live_reply:
+            request = getattr(self, "request_control_live", None)
+            if request is None:
+                raise ValueError("liveReply requires request_control_live from the streaming module")
+        return list(request(session_id, "mcp_status", timeout=timeout, **fields).get("mcpServers") or [])
 
     def mcp_toggle(self, session_id: str, server_name: str, enabled: bool, *, timeout: float = 30.0) -> dict:
         """Enable/disable an MCP server (CCR only)."""
@@ -590,9 +546,15 @@ class InteractionMixin:
         timeout: float = 15.0,
     ) -> dict:
         """Pin (``default`` | ``auto``) or clear (None) a server's permission mode."""
+        if mode not in (None, "default", "auto"):
+            raise ValueError("MCP override mode must be default, auto or None")
         fields: dict[str, Any] = {"serverName": server_name, "mode": mode}
         if ask_for_tools is not None:
-            fields["askForTools"] = list(ask_for_tools)
+            if len(ask_for_tools) > 32 or any(
+                not isinstance(name, str) or not re.fullmatch(r"[A-Za-z0-9_-]{1,64}", name) for name in ask_for_tools
+            ):
+                raise ValueError("ask_for_tools requires at most 32 alphanumeric/underscore/hyphen tool names")
+            fields["askForTools"] = [{"name": name} for name in ask_for_tools]
         return self.request_control(session_id, "set_mcp_permission_mode_override", timeout=timeout, **fields)
 
     def mcp_call(
@@ -602,12 +564,29 @@ class InteractionMixin:
         arguments: Mapping[str, Any] | None = None,
         *,
         timeout_ms: int | None = None,
+        input_files: Sequence[Mapping[str, Any]] | None = None,
+        output_files: Sequence[Mapping[str, Any]] | None = None,
+        expires_at: str | None = None,
+        result_not_for_model: bool | None = None,
+        capabilities: Sequence[str] = (),
         timeout: float = 60.0,
     ) -> dict:
-        """Invoke an MCP tool without a model turn (no permission check; CCR
-        only). ``tool`` is the full tool name; result shape unverified."""
+        """Invoke an MCP tool, optionally staging synced-lane rows.
+
+        Output rows require an RFC3339 deadline. Result exclusion is refused
+        on this remote transport: CLI honors it only on worker-owned pipes.
+        The returned staging status and CAS conflicts are preserved verbatim.
+        """
+        if result_not_for_model:
+            raise ValueError("result_not_for_model is honored only on worker-owned local pipes, not this remote transport")
         fields: dict[str, Any] = {"tool": tool, "arguments": dict(arguments or {})}
+        fields.update(staged_mcp_fields(
+            input_files=input_files, output_files=output_files, expires_at=expires_at,
+            result_not_for_model=result_not_for_model, capabilities=capabilities,
+        ))
         if timeout_ms is not None:
+            if isinstance(timeout_ms, bool) or not isinstance(timeout_ms, int) or not 1000 <= timeout_ms <= 600000:
+                raise ValueError("timeout_ms must be 1000-600000")
             fields["timeout_ms"] = timeout_ms
         return self.request_control(session_id, "mcp_call", timeout=timeout, **fields)
 
@@ -894,14 +873,13 @@ class InteractionMixin:
         return [SlashCommand.from_wire(c) for c in init.get("commands") or [] if isinstance(c, Mapping)]
 
     def run_command(self, session_id: str, name: str, args: str = "", *, strict: bool = False, **kw: Any) -> dict:
-        """Run a slash command: a user message ``"/name args"``, which the worker
-        dispatches (unless sent ``client_composed``). ``strict`` raises
-        ValueError for a web UI-only command (:func:`is_client_only`)."""
-        name = name.lstrip("/")
-        if strict and is_client_only(name):
-            raise ValueError(f"/{name} is handled by the web UI, not the worker")
-        text = f"/{name} {args}".rstrip() if args else f"/{name}"
-        return self.send_prompt(session_id, text, **kw)
+        """Dispatch typed controls, host-local menus or advertised worker commands.
+
+        ``strict`` is retained for compatibility; browser-only commands never
+        fall through to chat, regardless of its value. ``local_handlers`` maps
+        menu names to callables taking the argument string.
+        """
+        return dispatch_command(self, session_id, name, args, **kw)
 
     # -- streams -----------------------------------------------------------------------
     def stream_session(

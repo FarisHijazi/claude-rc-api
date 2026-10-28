@@ -414,14 +414,16 @@ def test_list_and_run_commands():
         assert [c.name for c in cmds] == ["startup-hook-skill", "design"]
         assert cmds[0].aliases == ["session-start-hook"] and cmds[1].builtin
         assert cmds[1].argument_hint == "[what to design]"
-        rc.run_command(SID, "/design", "a landing page")
-        assert fake.posted[-1]["message"]["content"] == "/design a landing page"
-        rc.run_command(SID, "compact")
-        assert fake.posted[-1]["message"]["content"] == "/compact"
+        with pytest.raises(ValueError):
+            rc.run_command(SID, "/design", "a landing page")
+        rc.run_command(SID, "session-start-hook", "hello")
+        assert fake.posted[-1]["message"]["content"] == "/startup-hook-skill hello"
+        with pytest.raises(ValueError):
+            rc.run_command(SID, "compact")  # unadvertised commands cannot fall into inference
         with pytest.raises(ValueError):
             rc.run_command(SID, "theme", strict=True)
     assert is_client_only("/theme") and is_client_only("login")
-    assert not is_client_only("model") and not is_client_only("design")
+    assert not is_client_only("model") and is_client_only("design")
 
 
 # --- session stream ---------------------------------------------------------------------

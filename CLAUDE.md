@@ -30,7 +30,8 @@ module that owns the area, or a new mixin module plus one line in the
 | `lifecycle.py` | create/unarchive/delete/share/tag/mark-read, teleport events |
 | `environments.py` | environments (public + private org routes), create/update, self-hosted pools |
 | `triggers.py` | scheduled tasks (routines) |
-| `interaction.py` | pending prompts, permission + AskUserQuestion answers, slash commands, generic controls, `stream_session` (keeps meta frames), account `watch` feed |
+| `commands.py` | cloud admission/direction gates, typed slash dispatch, browser model/policy discovery, captured MCP REST and staging contracts; CLI registration/dispatch helpers for integration |
+| `interaction.py` | compatibility delegates for slash dispatch, typed session controls, pending prompts, permission + AskUserQuestion answers, `stream_session` (keeps meta frames), account `watch` feed |
 | `files.py` | attachments / Files API |
 | `tts.py` | claude.ai text-to-speech websocket + Ogg muxer |
 | `events.py`, `sse.py` | wire event builders/parsers, SSE parser |
@@ -52,6 +53,27 @@ uv run --extra test --extra web --extra cli pytest -q
 On dev, uv needs the proxy CA plus the system bundle:
 `cat /etc/ssl/certs/ca-certificates.crt "$SSL_CERT_FILE" > /tmp/ca.pem` and
 `SSL_CERT_FILE=/tmp/ca.pem uv …`.
+
+## Control contracts
+
+- `control_profile` defaults to `cloud` for cookies and `bridge` for bearer auth;
+  set it explicitly when the session worker differs. `_send_control` checks the
+  captured CLI 2.1.312 admission policy before enqueueing. Raw `send_events` is
+  still the protocol escape hatch, not a promise that a worker accepts a control.
+- `set_model(..., wait=seconds)` and `set_permission_mode(..., wait=seconds)`
+  return worker verdicts; without `wait` they retain the legacy enqueue ack.
+- `run_command` now dispatches typed controls and advertised worker commands.
+  UI-only names always require `local_handlers`, even with `strict=False`;
+  handlers take the argument string. Never fall through to ordinary user text.
+- Integration helpers are `commands.register_command_cli(subparsers)` and
+  `commands.dispatch_command_cli(client, args) -> dict`. The latter returns
+  `via=local|control|worker`; the CLI/panel owner must render its result rather
+  than print a misleading "sent" receipt. `command_table(commands)` supplies
+  routing/availability, not a claim that a host renderer already exists.
+- Group05 live evidence, per-capability limitations and integration contracts
+  are in `docs/devlog/claude_2026-10-28-group05-live.json` (deliberately a plain
+  path, not an include). Ephemeral MCP replies remain unverified live; the
+  correlator/parser are owned by the streaming module, not a new poller here.
 
 ## Auth rules
 
