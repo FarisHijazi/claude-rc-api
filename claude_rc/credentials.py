@@ -22,6 +22,8 @@ from __future__ import annotations
 
 import ast
 import contextlib
+import tempfile
+import threading
 import importlib.util
 import json
 import logging
@@ -101,6 +103,11 @@ def default_credentials_path() -> Path:
     return Path.home() / ".claude" / ".credentials.json"
 
 
+def client_credentials_path() -> Path:
+    """An isolated store; never an alias for the CLI or cswap's rotating grant."""
+    return Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config") / "claude-rc/credentials.json"
+
+
 def default_config_path() -> Path:
     """``~/.claude.json`` under the current ``$HOME``, unless
     :data:`DEFAULT_CONFIG_PATH` was reassigned."""
@@ -121,22 +128,23 @@ class CredentialsError(RuntimeError):
 class OAuthCredentials:
     """The ``claudeAiOauth`` block of ``~/.claude/.credentials.json``."""
 
-    access_token: str
-    refresh_token: Optional[str] = None
+    access_token: str = field(repr=False)
+    refresh_token: Optional[str] = field(default=None, repr=False)
     expires_at_ms: Optional[int] = None
     scopes: list[str] = field(default_factory=list)
     subscription_type: Optional[str] = None
     client_id: Optional[str] = None
-    trusted_device_token: Optional[str] = None
+    trusted_device_token: Optional[str] = field(default=None, repr=False)
     source_path: Optional[Path] = None
     # Keychain service the tokens came from (macOS); mutually exclusive with
     # ``source_path``. Either one marks the credentials as re-readable.
     source_keychain: Optional[str] = None
+    account_uuid: Optional[str] = None
     # Set while a refresh of these tokens isn't saved (it failed, or persist
     # was off): the spent refresh token the store still holds. The store is
     # this login, just behind, so it isn't reloaded over these tokens, and
     # the next refresh may still save over it.
-    stale_refresh_token: Optional[str] = None
+    stale_refresh_token: Optional[str] = field(default=None, repr=False)
 
     def is_expired(self, skew_seconds: int = 60) -> bool:
         """True if the token is expired (or within ``skew_seconds`` of it)."""
@@ -184,14 +192,15 @@ class OAuthCredentials:
 def load_credentials(path: os.PathLike | str | None = None) -> OAuthCredentials:
     """Load OAuth credentials.
 
-    Priority:
+    An explicit ``path`` bypasses environment overrides and Keychain lookup.
+    Otherwise priority is:
       1. ``CLAUDE_RC_ACCESS_TOKEN`` env var (no refresh possible).
       2. macOS only, when no explicit ``path`` is given: the login-Keychain
          item :data:`KEYCHAIN_SERVICE`, which the CLI also reads first.
       3. ``~/.claude/.credentials.json`` (``claudeAiOauth`` block).
     """
     env_token = os.environ.get(ENV_ACCESS_TOKEN) or os.environ.get(ENV_CLI_OAUTH_TOKEN)
-    if env_token:
+    if env_token and path is None:
         return OAuthCredentials(
             access_token=env_token, trusted_device_token=os.environ.get(ENV_TRUSTED_DEVICE_TOKEN)
         )
@@ -243,12 +252,14 @@ def _from_document(
         )
     # A top-level `trustedDeviceToken` sibling is used when the org requires
     # Trusted Devices; harmless to carry when absent.
-    return OAuthCredentials.from_block(
+    creds = OAuthCredentials.from_block(
         block,
         source_path=source_path,
         trusted_device_token=os.environ.get(ENV_TRUSTED_DEVICE_TOKEN) or data.get("trustedDeviceToken"),
         source_keychain=source_keychain,
     )
+    creds.account_uuid = data.get("claudeRcAccountUuid")
+    return creds
 
 
 def _keychain_account() -> str:
@@ -342,7 +353,90 @@ def load_org_uuid(config_path: os.PathLike | str | None = None) -> Optional[str]
     return None
 
 
-def refresh_credentials(
+def shared_credentials(creds: OAuthCredentials) -> bool:
+    """Known external credential stores are always read-only, even via symlinks."""
+    if creds.source_keychain:
+        return True
+    if creds.source_path is None:
+        return False
+    path = creds.source_path.expanduser().resolve()
+    home = Path.home()
+    roots = [home / ".claude", home / ".claude-swap", home / ".config/claude-swap",
+             home / ".config/cc-proxy", home / ".config/claude-code-proxy",
+             home / ".local/state/claude-codex",
+             home / ".local/share/claude-swap", home / ".claude-swap-backup"]
+    for variable, suffix in (("XDG_DATA_HOME", "claude-swap"),
+                             ("XDG_STATE_HOME", "claude-codex")):
+        if os.environ.get(variable):
+            roots.append(Path(os.environ[variable]) / suffix)
+    config = os.environ.get("CLAUDE_CONFIG_DIR")
+    if config:
+        roots.append(Path(config))
+    return path == default_credentials_path().resolve() or any(
+        path == r.expanduser().resolve() or r.expanduser().resolve() in path.parents for r in roots
+    )
+
+
+_refresh_lock = threading.RLock()
+
+
+@contextlib.contextmanager
+def credential_lock(path: Path | None):
+    """Serialize the complete read/exchange/CAS write across threads and processes.
+
+    OS advisory locks are released on process exit. Windows uses msvcrt; POSIX
+    uses flock. The sidecar is deliberately retained, never unlinked while held.
+    """
+    with _refresh_lock:
+        if path is None:
+            yield
+            return
+        path = path.expanduser().resolve()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        fd = os.open(str(path) + ".lock", os.O_RDWR | os.O_CREAT, 0o600)
+        with os.fdopen(fd, "r+b") as lock:
+            if os.name == "nt":
+                import msvcrt
+                if not lock.read(1):
+                    lock.write(b"0")
+                    lock.flush()
+                lock.seek(0)
+                msvcrt.locking(lock.fileno(), msvcrt.LK_LOCK, 1)
+            else:
+                import fcntl
+                fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+            try:
+                yield
+            finally:
+                if os.name == "nt":
+                    lock.seek(0)
+                    msvcrt.locking(lock.fileno(), msvcrt.LK_UNLCK, 1)
+                else:
+                    fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
+
+
+def refresh_credentials(creds: OAuthCredentials, *, persist: bool = True,
+                        client: httpx.Client | None = None) -> OAuthCredentials:
+    """Refresh only an isolated client-owned grant, under its serialization lock.
+
+    An identified concurrent rotation is adopted from disk, never exchanged twice.
+    Known shared stores are rejected before a lock file or HTTP request is made.
+    """
+    if shared_credentials(creds):
+        raise CredentialsError("shared CLI/Keychain/cswap/proxy credentials are read-only")
+    with credential_lock(creds.source_path):
+        if creds.source_path and persist:
+            data = _read_document(creds) or {}
+            block = data.get("claudeAiOauth") or {}
+            stored_refresh = block.get("refreshToken") if isinstance(block, dict) else None
+            if stored_refresh and stored_refresh not in (creds.refresh_token, creds.stale_refresh_token):
+                # Only an identified client-owned lineage may adopt a concurrent rotation.
+                if data.get("claudeRcAccountUuid") and data.get("claudeRcAccountUuid") == creds.account_uuid:
+                    return _from_document(data, "client-owned credentials", source_path=creds.source_path)
+        return _refresh_credentials_unlocked(creds, persist=persist, client=client)
+
+
+def _refresh_credentials_unlocked(
     creds: OAuthCredentials,
     *,
     persist: bool = True,
@@ -352,12 +446,10 @@ def refresh_credentials(
 
     Mirrors the CLI: ``POST`` to :data:`OAUTH_TOKEN_URL` with a JSON body of
     ``{grant_type, refresh_token, client_id}`` and the ``oauth-2025-04-20`` beta
-    header. With ``persist``, the new tokens are written back to the store the
-    credentials came from (file or Keychain item) so subsequent runs, and the
-    CLI, stay authenticated. The refresh token is single-use and shared with
-    the CLI, so, as the CLI's refresh does, it is spent only while the store
-    still holds this login and can be read: a locked Keychain, a sign-in or
-    sign-out since, another process's refresh, or a corrupt file raises
+    header. The public wrapper rejects all shared CLI/Keychain stores first.
+    With ``persist``, tokens are atomically saved only while the isolated file
+    still holds the grant being refreshed. The refresh token is single-use: a
+    sign-in or sign-out since, another process's refresh, or a corrupt file raises
     :class:`CredentialsError` first. If saving fails after the refresh, the
     new tokens are still returned, with a logged warning and
     :attr:`~OAuthCredentials.stale_refresh_token` set: they are the only
@@ -396,7 +488,7 @@ def refresh_credentials(
 
     if resp.status_code != 200:
         raise CredentialsError(
-            f"token refresh failed: HTTP {resp.status_code} {resp.text[:200]}"
+            f"token refresh failed: HTTP {resp.status_code}"
         )
     body = resp.json()
     new = OAuthCredentials(
@@ -413,6 +505,7 @@ def refresh_credentials(
         trusted_device_token=creds.trusted_device_token,
         source_path=creds.source_path,
         source_keychain=creds.source_keychain,
+        account_uuid=creds.account_uuid,
         stale_refresh_token=creds.stale_refresh_token or creds.refresh_token,
     )
 
@@ -434,7 +527,8 @@ def _stored_login(creds: OAuthCredentials, held: tuple) -> Optional[dict]:
     if data is None:
         return None
     block = data.get("claudeAiOauth")
-    if not isinstance(block, dict) or block.get("refreshToken") not in held:
+    if (not isinstance(block, dict) or block.get("refreshToken") not in held
+            or (creds.account_uuid and data.get("claudeRcAccountUuid") != creds.account_uuid)):
         where = f"Keychain item {creds.source_keychain!r}" if creds.source_keychain else creds.source_path
         raise CredentialsError(
             f"{where} no longer holds the login being refreshed (refreshed, signed in"
@@ -495,14 +589,19 @@ def _write_document(creds: OAuthCredentials, data: dict) -> None:
         _keychain_write(creds.source_keychain, json.dumps(data))
         return
     path = creds.source_path
-    tmp = path.with_suffix(path.suffix + ".tmp")
+    tmp = None
     try:
-        tmp.write_text(json.dumps(data, indent=2))
-        os.chmod(tmp, 0o600)
+        fd, name = tempfile.mkstemp(prefix=path.name + ".", dir=path.parent)
+        tmp = Path(name)
+        with os.fdopen(fd, "w") as out:
+            json.dump(data, out, indent=2)
+            out.flush()
+            os.fsync(out.fileno())
         os.replace(tmp, path)
     except OSError as exc:
-        with contextlib.suppress(OSError):
-            tmp.unlink()  # it holds tokens
+        if tmp is not None:
+            with contextlib.suppress(OSError):
+                tmp.unlink()  # it holds tokens
         raise CredentialsError(f"could not write {path}: {exc}") from exc
 
 
@@ -715,6 +814,8 @@ class AuthSource:
     def __post_init__(self) -> None:
         from .webauth import EXPLICIT, CookieJar
 
+        if self.credentials is not None and (self.jar is not None or self.session_key is not None):
+            raise CredentialsError("choose cookie or bearer authentication, not both")
         if self.jar is None and self.session_key is not None:
             self.jar = CookieJar({"sessionKey": self.session_key}, EXPLICIT)
         if self.jar is not None:
@@ -768,11 +869,20 @@ def resolve_auth(
         return AuthSource(credentials=OAuthCredentials(access_token=token), origin="explicit token")
     if session_key:
         return AuthSource(session_key=session_key, origin="explicit session key")
+    if credentials_path is not None:
+        def reload_owned() -> OAuthCredentials:
+            return load_credentials(credentials_path)
+        return AuthSource(credentials=reload_owned(), origin="credentials file", reload=reload_owned)
     slot = cswap_slot if cswap_slot not in (None, "") else None
     if slot is None:
         jar = load_jar()
         if jar is not None:
             return AuthSource(jar=jar, origin=f"cookies:{jar.origin}")
+        owned = client_credentials_path()
+        if owned.is_file():
+            def reload_owned_default() -> OAuthCredentials:
+                return load_credentials(owned)
+            return AuthSource(credentials=reload_owned_default(), origin="client-owned credentials file", reload=reload_owned_default)
         for env in (ENV_CLAUDE_AI_ACCESS_TOKEN, ENV_ACCESS_TOKEN, ENV_CLI_OAUTH_TOKEN):
             if os.environ.get(env):
                 return AuthSource(credentials=OAuthCredentials(access_token=os.environ[env]), origin=f"env:{env}")

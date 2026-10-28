@@ -29,29 +29,17 @@ Evidence, kept in the session scratchpad and not in the repo:
 
 ## Auth
 
-`credentials.resolve_auth` picks the first credential it finds, in this order:
+See [README authentication](../README.md#authentication) for the resolver order,
+source ownership, isolated PKCE helpers and direct-networking option. Shared
+CLI/Keychain/cswap/proxy refresh grants are read-only, not refreshed by this client.
 
-1. Explicit arguments: `credentials`, `token`, `session_key`, `cswap_slot`. The CLI flags are
-   `--token`, `--session-key` and `--cswap-slot`.
-2. The environment: `CLAUDE_AI_ACCESS_TOKEN`, then `CLAUDE_RC_ACCESS_TOKEN`, then
-   `CLAUDE_CODE_OAUTH_TOKEN`. These are bare bearer tokens and are not refreshed.
-3. `CLAUDE_AI_SESSION_KEY`, the claude.ai `sessionKey` cookie. The base URL moves to
-   `https://claude.ai`.
-4. `CLAUDE_RC_CSWAP_SLOT`, a claude-swap slot read through cc-proxy's `scripts/account_inject.py`
-   `slot_token`. The client never writes it back. When the token expires, it asks cswap again
-   and does not refresh it itself.
-5. `~/.claude/.credentials.json`. It is refreshed and written back when it expires.
+Cookie mode prefers an explicit/env organization, then `lastActiveOrg`; without
+one it queries `/api/organizations` once. Bearer mode uses explicit/config values,
+then `/api/oauth/profile`. Cookie recovery preserves the selected organization
+and verifies the same `/api/account` UUID before replaying an operation.
 
-`CLAUDE_AI_ACCESS_TOKEN` is the access token of a full Claude Code login, taken from the macOS
-Keychain entry or `~/.claude/.credentials.json`. Sessions routes need the
-`user:sessions:claude_code` scope, which the full login has. **A `claude setup-token` cannot reach
-sessions.** It is granted `user:inference` only (surface.md §1.2). Expect 401 or 403; nobody has
-tried.
-
-The org UUID is resolved in this order: `--org`, then `CLAUDE_AI_ORG_UUID` or
-`CLAUDE_RC_ORG_UUID`, then `~/.claude.json`, then the credentials file. If none is set, the client
-calls `GET /api/oauth/profile` once (this needs `user:profile`). Tokens are never logged or printed.
-`whoami` and the smoke script print only where the credential came from.
+Sessions routes require `user:sessions:claude_code`. A setup-token with only
+inference scopes is not a substitute for a full subscription login.
 
 ## API map
 
@@ -320,4 +308,11 @@ OAuth and no proxy. Dev's home IP passes Cloudflare with plain httpx.
     "Authentication method not allowed" to a cookie.
   - Added the `archive` CLI command.
   - stdout is now line-buffered, so `watch` piped to a file is live.
+- Auth-foundation acceptance also passed live: automatic `cookies:cdp`, session
+  and environment listing, invalid in-memory cookie producing a real 401, one
+  CDP reread plus same-account validation, and one successful replay. A failed
+  shared bearer made zero refresh exchanges; 180 shared credential-file hashes
+  remained unchanged. Owned PKCE refresh and trusted-device enrollment remain
+  unverified live. Details and integration contracts:
+  `devlog/claude_2026-10-28-group01-auth-foundation.md`.
 - The page's endpoint map was captured in a private research handoff; the routes this client uses are above.
