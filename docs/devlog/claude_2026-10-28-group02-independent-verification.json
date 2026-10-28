@@ -1,0 +1,367 @@
+{
+  "run": "d4b8f7764e9d",
+  "checks": [
+    {
+      "check": "automatic_auth",
+      "passed": true,
+      "source": "cookies:cdp"
+    },
+    {
+      "check": "repository_pages",
+      "passed": true,
+      "count1": 99,
+      "count2": 99
+    },
+    {
+      "check": "repository_page_overlap",
+      "overlap": 0,
+      "exhaustive_enumeration_proven": false
+    },
+    {
+      "check": "source_revision_available",
+      "passed": true,
+      "schema": [
+        "data",
+        "has_more",
+        "first_id",
+        "last_id",
+        "default_branch"
+      ]
+    },
+    {
+      "check": "github_status",
+      "installations_schema": [
+        "any_active",
+        "installations",
+        "private_sessions_use_owner_token",
+        "setup_step",
+        "sso_hidden",
+        "viewer_github_account",
+        "viewer_has_any_install",
+        "viewer_unlinked_installations"
+      ],
+      "auth_schema": [
+        "is_authenticated",
+        "check_status",
+        "user_login",
+        "auth_source",
+        "auth_sources",
+        "ghe_connections"
+      ]
+    },
+    {
+      "check": "catalog_model",
+      "passed": true
+    },
+    {
+      "check": "session_cursor",
+      "passed": true
+    },
+    {
+      "check": "title_generation",
+      "passed": true
+    },
+    {
+      "check": "branch_status",
+      "passed": true
+    },
+    {
+      "check": "unique_tag_empty",
+      "passed": true
+    },
+    {
+      "check": "created",
+      "session_id": "cse_0154EsXRuEPXHz7gjJ1HXRKC",
+      "deferred": false
+    },
+    {
+      "check": "persisted_configuration",
+      "passed": true
+    },
+    {
+      "check": "worker_applied_plan",
+      "passed": true,
+      "actual": "plan",
+      "deferred": false
+    },
+    {
+      "check": "worker_executed",
+      "passed": true,
+      "deferred": false
+    },
+    {
+      "check": "rename_readback",
+      "passed": true
+    },
+    {
+      "check": "add_tag_readback",
+      "passed": true
+    },
+    {
+      "check": "remove_tag_readback",
+      "passed": true
+    },
+    {
+      "check": "local_search_comparison",
+      "passed": true
+    },
+    {
+      "check": "mark_read",
+      "passed": true
+    },
+    {
+      "check": "presence_heartbeat_schema",
+      "passed": true
+    },
+    {
+      "check": "share_read_only",
+      "schema": [
+        "current_last_sequence_num",
+        "effective_visibility",
+        "prospective_visibility_type",
+        "sharing_settings"
+      ],
+      "writes": "blocked: no explicit approval"
+    },
+    {
+      "check": "secret_scan_unavailable",
+      "http_status": 403,
+      "passed": false
+    },
+    {
+      "check": "archive_readback",
+      "passed": true
+    },
+    {
+      "check": "archive_watch",
+      "synced": true,
+      "received": [
+        {
+          "event": "added",
+          "status": "archived"
+        }
+      ],
+      "passed": true
+    },
+    {
+      "check": "unarchive_readback",
+      "passed": true
+    },
+    {
+      "check": "unarchive_worker_usable",
+      "passed": true
+    },
+    {
+      "check": "deleted_fetch",
+      "passed": true,
+      "session_id": "cse_0154EsXRuEPXHz7gjJ1HXRKC",
+      "status": 404
+    },
+    {
+      "check": "deleted_list_exclusion",
+      "passed": true
+    },
+    {
+      "check": "cleanup_verified",
+      "session_id": "cse_0154EsXRuEPXHz7gjJ1HXRKC"
+    },
+    {
+      "check": "unique_tag_empty",
+      "passed": true
+    },
+    {
+      "check": "created",
+      "session_id": "cse_0154EsXTSJShJkuLGkJYvQsk",
+      "deferred": true
+    },
+    {
+      "check": "persisted_configuration",
+      "passed": true
+    },
+    {
+      "check": "worker_applied_plan",
+      "passed": true,
+      "actual": "plan",
+      "deferred": true
+    },
+    {
+      "check": "worker_executed",
+      "passed": true,
+      "deferred": true
+    },
+    {
+      "check": "rename_readback",
+      "passed": true
+    },
+    {
+      "check": "add_tag_readback",
+      "passed": true
+    },
+    {
+      "check": "remove_tag_readback",
+      "passed": true
+    },
+    {
+      "check": "local_search_comparison",
+      "passed": true
+    },
+    {
+      "check": "mark_read",
+      "passed": true
+    },
+    {
+      "check": "presence_heartbeat_schema",
+      "passed": true
+    },
+    {
+      "check": "share_read_only",
+      "schema": [
+        "current_last_sequence_num",
+        "effective_visibility",
+        "prospective_visibility_type",
+        "sharing_settings"
+      ],
+      "writes": "blocked: no explicit approval"
+    },
+    {
+      "check": "secret_scan_unavailable",
+      "http_status": 403,
+      "passed": false
+    },
+    {
+      "check": "archive_readback",
+      "passed": true
+    },
+    {
+      "check": "archive_watch",
+      "synced": true,
+      "received": [
+        {
+          "event": "added",
+          "status": "archived"
+        }
+      ],
+      "passed": true
+    },
+    {
+      "check": "unarchive_readback",
+      "passed": true
+    },
+    {
+      "check": "unarchive_worker_usable",
+      "passed": true
+    },
+    {
+      "check": "deleted_fetch",
+      "passed": true,
+      "session_id": "cse_0154EsXTSJShJkuLGkJYvQsk",
+      "status": 404
+    },
+    {
+      "check": "deleted_list_exclusion",
+      "passed": true
+    },
+    {
+      "check": "cleanup_verified",
+      "session_id": "cse_0154EsXTSJShJkuLGkJYvQsk"
+    },
+    {
+      "check": "complete",
+      "failures": 0
+    }
+  ],
+  "manifest": [
+    {
+      "id": "cse_0154EsXRuEPXHz7gjJ1HXRKC",
+      "deferred": false,
+      "deleted": true
+    },
+    {
+      "id": "cse_0154EsXTSJShJkuLGkJYvQsk",
+      "deferred": true,
+      "deleted": true
+    }
+  ],
+  "failures": [],
+  "group": "02-session-discovery-creation-and-lifecycle",
+  "verified_commit": "f4a8b9215292184bf2d4b230a2fcf871e280f7a0",
+  "offline": {
+    "command": "uv run --extra test --extra web --extra cli pytest -q",
+    "result": "289 passed, 1 skipped in 2.77s"
+  },
+  "live_environment": "Direct networking: unset process-local proxy variables and SSL_CERT_FILE; certificate verification remained enabled. No persistent environment or shared credential changes.",
+  "independent_assertions": "Checked actual worker result events and initialize current_permission_mode for inline and deferred creation. After unarchive sent a fresh marker and required a newer result plus assistant marker, rather than accepting HTTP acknowledgement.",
+  "watch_qualification": "Owned archived state arrived on the watch connection after sync as an added frame, not changed. This proves archived state delivery on watch but NOT a specific changed event contract.",
+  "first_attempt": {
+    "manifest": [
+      {
+        "id": "cse_0154EsXT99a21du5kNwrGeTc",
+        "deferred": false,
+        "deleted": true
+      },
+      {
+        "id": "cse_0154EsXPWrRb6GkNvJgkC6RW",
+        "deferred": true,
+        "deleted": true
+      }
+    ],
+    "failures": [
+      {
+        "deferred": false,
+        "error": "ControlTimeout",
+        "status": null,
+        "reason": null
+      },
+      {
+        "deferred": true,
+        "error": "ControlTimeout",
+        "status": null,
+        "reason": null
+      }
+    ],
+    "explanation": "Watch verifier initially used httpx.Response as a context manager (TypeError); fixed harness to use contextlib.closing. initialize alone after unarchive timed out for both variants; unarchive sets active state but does not itself prove a running worker. Second run explicitly sent a new prompt and verified execution. All first-attempt session IDs were also deleted and excluded from lists."
+  },
+  "remaining_gaps": [
+    {
+      "capability": "sharing create/revoke/shared transcript",
+      "status": "blocked: no explicit approval; GET share only verified"
+    },
+    {
+      "capability": "support-share/debug-export",
+      "status": "blocked: no explicit approval; not invoked live"
+    },
+    {
+      "capability": "secret scan",
+      "status": "unavailable: GET returned 404 then explicit harmless text fallback returned 403; no clean result claimed"
+    },
+    {
+      "capability": "session fork",
+      "status": "unsupported: capture actual session fork contract, distinct from routine fork, before implementation"
+    },
+    {
+      "capability": "grouping/spaces/templates",
+      "status": "unsupported: capture server CRUD contracts before implementation; grouping_id passthrough is not management"
+    },
+    {
+      "capability": "compare/file/commit/PR operations",
+      "status": "unsupported in this group: establish SCM owner and capture contracts; external writes require approval"
+    },
+    {
+      "capability": "bridge teleport/move-to-cloud",
+      "status": "offline-only: no dedicated owned bridge; never use ordinary cloud session as migration target"
+    },
+    {
+      "capability": "pool/effort/legacy/multi-source creation",
+      "status": "offline-only: no live worker/pool assertions"
+    },
+    {
+      "capability": "complete repository enumeration",
+      "status": "unproven: pages 1 and 2 each contained 99 distinct repos with zero overlap, but exhaustive traversal not attempted"
+    },
+    {
+      "capability": "specific changed/archived watch vocabulary",
+      "status": "unverified: actual delivered frame was added with archived state"
+    }
+  ],
+  "implementation_changes": "None: independent checks found no confirmed lifecycle implementation defect. Added evidence only."
+}

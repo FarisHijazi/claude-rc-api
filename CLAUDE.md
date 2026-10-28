@@ -47,6 +47,10 @@ Lifecycle integration contracts and per-capability live evidence are in
 `docs/devlog/claude_2026-10-28-group02-lifecycle.json` (deliberately a plain
 path, not an `@` include). Delete uses the code-session route with `{}` only;
 share creation, support sharing and debug export require `confirm=True`.
+Independent lifecycle verification is recorded in
+`docs/devlog/claude_2026-10-28-group02-independent-verification.json` (also a
+plain path). Unarchive state alone is not worker readiness: send a fresh
+message and require a newer worker result when testing usability.
 
 ## Test
 
