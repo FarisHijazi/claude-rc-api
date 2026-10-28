@@ -31,8 +31,10 @@ module that owns the area, or a new mixin module plus one line in the
 | `environments.py` | environments (public + private org routes), create/update, self-hosted pools |
 | `triggers.py` | scheduled tasks (routines) |
 | `interaction.py` | pending prompts, permission + AskUserQuestion answers, slash commands, generic controls, `stream_session` (keeps meta frames), account `watch` feed |
-| `files.py` | attachments / Files API |
+| `files.py` | chat attachments, inline images, Files API staging, controller file reads and CAS sync writes |
 | `tts.py` | claude.ai text-to-speech websocket + Ogg muxer |
+| `dictation.py` | generated-audio transcription over the captured cookie websocket; no microphone; pre-audio redial only |
+| `media_cli.py` | optional file/media registrations consumed by the CLI owner; uses its client factory |
 | `events.py`, `sse.py` | wire event builders/parsers, SSE parser |
 | `cli.py` | `claude-rc` subcommands (one `cmd_*` per command, registered in `main`) |
 | `webui.py`, `static/` | `claude-rc web` control panel |
@@ -82,3 +84,11 @@ On dev, uv needs the proxy CA plus the system bundle:
 - Never touch sessions you did not create, except read-only listing.
 - Record what ran live in `docs/web-api.md` ("LIVE CHECK"). Devlogs go in
   `docs/devlog/claude_<date>-<desc>.md`.
+
+Files/media integration contracts and redacted live evidence are in
+`docs/devlog/claude_2026-10-28-group07-files-media.md` and its linked JSON.
+These are deliberately plain paths, not `@` includes. Controller GET uses
+`/mnt/user-data/working/<file>`; synced PUT uses `/working/<file>`. CAS must
+use the GET response's `content_sha256`, not the attachment digest. Cookie
+TTS/dictation and inline images worked live; OAuth attachment upload returned
+401 and Files API returned 404, so neither is advertised as cookie-supported.
