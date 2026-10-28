@@ -84,6 +84,12 @@ def main():
                 if str(path).endswith('/events/stream'):
                     count.append(1)
                     response.close()
+                    if mode == 'read':
+                        class Broken(httpx.SyncByteStream):
+                            def __iter__(self):
+                                raise httpx.ReadError('fault-injected owned stream read failure')
+                                yield b''
+                        return httpx.Response(200, stream=Broken(), request=response.request)
                     content = b'event: catch_up_truncated\ndata: {}\n\n' if mode == 'truncation' else b''
                     return httpx.Response(200, content=content, request=response.request)
                 return response
@@ -125,10 +131,24 @@ def main():
                     assert [e.sequence_num for e in durable] == [e.sequence_num for e in history]
                     assert [e.payload for e in durable] == [e.payload for e in history]
                     assert len(set(e.sequence_num for e in durable)) == len(durable)
-                    assert any('STREAM_OK' in e.text() for e in durable if e.role == 'assistant')
+                    assert any(e.text().strip() == 'STREAM_OK' for e in durable if e.role == 'assistant')
                     assert events[-1].is_turn_end
                     return {'durable_events': len(durable), 'history_equal': True, 'closed_after_first_durable': True}
             first = check('reply_reconnect_and_history', first_turn)
+            def collect_turn():
+                message_id = str(uuid.uuid4())
+                events = rc.send_and_collect(sid, 'Reply exactly COLLECT_OK', timeout=args.timeout,
+                                             message_uuid=message_id)
+                assert events[-1].is_turn_end
+                assert any(e.text().strip() == 'COLLECT_OK' for e in events if e.role == 'assistant')
+                own = next(e for e in events if e.type == 'user' and e.payload.get('uuid') == message_id)
+                receipts = [e.raw['data']['status'] for e in events if e.type == 'delivery_update'
+                            and e.raw['data'].get('event_id') == own.event_id]
+                assert 'DELIVERY_STATUS_PROCESSING' in receipts
+                return {'turn_end': True, 'reply_exact': True, 'own_processing_receipt': True,
+                        'receipt_statuses': receipts, 'frames': len(events)}
+            if first:
+                check('send_and_collect_reply', collect_turn)
             def second_turn():
                 before = list(rc.iter_history(sid))
                 cursor = max((e.sequence_num or 0 for e in before), default=0)
@@ -146,24 +166,25 @@ def main():
                     recovered = list(rc.stream_session(sid, from_sequence_num=cursor, reconnect=False))
                 durable = [e for e in recovered if e.sequence_num is not None]
                 assert [e.payload for e in durable] == [e.payload for e in rows]
-                assert any('STREAM_TWO' in e.text() for e in durable if e.role == 'assistant')
+                assert any(e.text().strip() == 'STREAM_TWO' for e in durable if e.role == 'assistant')
                 assert any(e.type == 'catch_up_truncated' for e in recovered)
                 return {'trigger': 'fault-injected', 'backfill': 'live GET', 'durable_events': len(durable)}
             if first:
                 check('disconnected_second_turn_truncated_backfill', second_turn)
             else:
                 checks['disconnected_second_turn_truncated_backfill'] = {'status': 'blocked', 'reason': 'first turn failed'}
-            def bounded():
-                with fault('eof') as (calls, sleeps):
+            def bounded(mode='eof'):
+                with fault(mode) as (calls, sleeps):
                     try:
                         list(rc.stream_session(sid, max_reconnects=2, base_delay=.1))
-                    except streaming.StreamExhausted:
-                        pass
+                    except (streaming.StreamExhausted, httpx.ReadError) as exc:
+                        assert isinstance(exc, httpx.ReadError if mode == 'read' else streaming.StreamExhausted)
                     else:
                         raise AssertionError('missing budget exhaustion')
                 assert len(calls) == 3 and sleeps == [.1, .2]
-                return {'trigger': 'fault-injected EOF on live owned sockets', 'attempts': len(calls), 'backoff_seconds': sleeps}
+                return {'trigger': f'fault-injected {mode} on live owned sockets', 'attempts': len(calls), 'backoff_seconds': sleeps}
             check('bounded_live_socket_eof', bounded)
+            check('bounded_live_socket_read_failure', lambda: bounded('read'))
             def live_reply(control_only=True):
                 init = rc.initialize(sid, timeout=15)
                 print(json.dumps({'initialize': {'version': init.get('claude_code_version'), 'keys': sorted(init)}}), flush=True)

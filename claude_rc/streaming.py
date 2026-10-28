@@ -6,6 +6,7 @@ import time
 import uuid
 from contextlib import closing
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any, Callable, Iterator
 
 import httpx
@@ -32,12 +33,17 @@ class RetryBudget:
     def progress(self) -> None:
         self.attempts = 0
 
-    def retry(self, error: httpx.HTTPError | None = None) -> None:
+    def retry(self, error: httpx.HTTPError | None = None, *, deadline: float | None = None) -> None:
+        if deadline is not None and time.monotonic() >= deadline:
+            raise httpx.ReadTimeout("stream deadline exceeded")
         if self.attempts >= self.maximum:
             if error is not None:
                 raise error
             raise StreamExhausted("stream closed without progress; reconnect budget exhausted")
-        time.sleep(min(self.base_delay * 2 ** min(self.attempts, 30), self.max_delay))
+        delay = min(self.base_delay * 2 ** min(self.attempts, 30), self.max_delay)
+        if deadline is not None:
+            delay = min(delay, max(0.0, deadline - time.monotonic()))
+        time.sleep(delay)
         self.attempts += 1
 
 
@@ -138,15 +144,18 @@ def stream_session(
         if last_seq:
             headers["Last-Event-ID"] = str(last_seq)
         error = None
+        in_callback = False
         try:
             with closing(self._send(
                 "GET", self._path(session_id, "events", "stream"), params=params,
                 headers=headers, accept=(200,), retry=False, stream=True,
-                timeout=httpx.Timeout(30.0, read=read_timeout),
+                timeout=httpx.Timeout(min(30.0, read_timeout), read=read_timeout),
             )) as response:
                 if ready is not None:
                     callback, ready = ready, None
+                    in_callback = True
                     callback()
+                    in_callback = False
                 for frame in parse_sse(response.iter_lines(), include_heartbeats=True):
                     if deadline is not None and time.monotonic() >= deadline:
                         raise httpx.ReadTimeout("stream deadline exceeded")
@@ -166,7 +175,9 @@ def stream_session(
                         changed = worker_id is not None and replacement is not None and replacement != worker_id
                         reconnected = worker_connection == "disconnected" and connection == "connected"
                         if on_reinitialize and (changed or reconnected or data.get("reinitialize")):
+                            in_callback = True
                             on_reinitialize(data)
+                            in_callback = False
                         if connection:
                             worker_connection = connection
                         if replacement is not None:
@@ -185,12 +196,16 @@ def stream_session(
                     else:
                         yield stream_meta_event(frame.event or "message", data)
         except httpx.HTTPError as exc:
+            # Callback writes may have reached the server. Never hide an unknown
+            # send/handshake outcome behind a successful read-only reconnect.
+            if in_callback:
+                raise
             error = exc
         if not reconnect:
             if error is not None:
                 raise error
             return
-        budget.retry(error)
+        budget.retry(error, deadline=deadline)
 
 
 def register_stream_commands(subparsers, client_factory: Callable, *, parents=()) -> None:
@@ -301,20 +316,71 @@ def send_and_collect(self, session_id: str, text: str, *, print_stream: bool = F
     Uses the existing send_prompt writer, including its priority/attachment
     validation. Explicitly closes the HTTP response when a stop condition fires.
     A failed history read aborts before writing, not a replay of an old result.
+    A result qualifies only after this message's processing receipt (or an
+    earlier processing timestamp recovered from history), never its queue ack.
+    Returned frames can include other turns while this message was queued.
+    Stream deadlines bound reads/backoff, not synchronous history/POST callbacks.
     """
     if timeout <= 0:
         raise ValueError("timeout must be positive")
     history = self.list_events(session_id, limit=1, sort_order="desc")
     start = max((event.sequence_num or 0 for event in history), default=0)
     collected: list[Event] = []
+    message_id = prompt_options.setdefault("message_uuid", str(uuid.uuid4()))
+    event_id = None
+    started = False
+    started_at = None
+
+    def send() -> None:
+        nonlocal event_id
+        ack = self.send_prompt(session_id, text, **prompt_options)
+        results = ack.get("results") if isinstance(ack, dict) else None
+        if results and isinstance(results[0], dict):
+            event_id = results[0].get("event_id")
+
+    def own(event: Event) -> bool:
+        return bool((event_id and event.event_id == event_id) or
+                    (event.type == "user" and event.payload.get("uuid") == message_id))
+
+    def processing_time(event: Event):
+        return (event.raw.get("processing_at") or event.raw.get("processed_at")) if own(event) else None
+
+    def no_later_than(first, second) -> bool:
+        try:
+            return datetime.fromisoformat(first.replace("Z", "+00:00")) <= datetime.fromisoformat(second.replace("Z", "+00:00"))
+        except (AttributeError, TypeError, ValueError):
+            return False
+
     with closing(stream_session(
         self, session_id, from_sequence_num=start, reconnect=reconnect,
         max_reconnects=max_reconnects, deadline=time.monotonic() + timeout,
-        on_ready=lambda: self.send_prompt(session_id, text, **prompt_options),
+        on_ready=send,
     )) as stream:
         for event in stream:
             collected.append(event)
-            if print_stream and event.role == "assistant" and event.text():
+            if own(event):
+                event_id = event.event_id or event_id
+            if processing_time(event) and not started:
+                started, started_at = True, processing_time(event)
+            if event.type == "delivery_update":
+                receipt = event.raw.get("data") or {}
+                if isinstance(receipt, dict) and event_id and receipt.get("event_id") == event_id:
+                    if not started and receipt.get("status") in ("DELIVERY_STATUS_PROCESSING", "DELIVERY_STATUS_PROCESSED"):
+                        started, started_at = True, receipt.get("timestamp")
+            if event.type == "result":
+                if not started:
+                    # A previous turn can finish while our message is still queued.
+                    # History may now show a *later* processing time, so compare
+                    # against this result's creation, not just a non-null receipt.
+                    for row in iter_history(self, session_id, after_sequence_num=start):
+                        stamp = processing_time(row)
+                        if stamp and no_later_than(stamp, event.raw.get("created_at")):
+                            started, started_at = True, stamp
+                            break
+                if not started or (started_at and event.raw.get("created_at") and
+                                   not no_later_than(started_at, event.raw["created_at"])):
+                    continue
+            if print_stream and started and event.role == "assistant" and event.text():
                 print(event.text())
             if event.is_turn_end or event.is_terminal or event.is_blocking_control:
                 return collected

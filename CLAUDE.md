@@ -85,6 +85,11 @@ On dev, uv needs the proxy CA plus the system bundle:
   History pages accept 1–500 events. `stream_control` filters locally by default:
   the live server's `control_only=1` omits ephemeral `mcp_status liveReply` responses.
   Group03 contracts/evidence: `docs/devlog/claude_2026-10-28-streaming-recovery.json`
-  (deliberately a plain path, not an `@` include).
+  (deliberately a plain path, not an `@` include). Independent rerun/fix evidence:
+  `docs/devlog/claude_2026-10-28-streaming-independent-verification.json`.
+  Collection requires its own processing receipt before accepting a result;
+  callback HTTP failures propagate (never reconnect/reissue a possibly applied
+  write). Stream/backoff deadlines do not override synchronous callback/history
+  transport timeouts.
 - Record what ran live in `docs/web-api.md` ("LIVE CHECK"). Devlogs go in
   `docs/devlog/claude_<date>-<desc>.md`.

@@ -226,6 +226,7 @@ def test_send_collect_stops_and_closes_only_owned_stream(stop):
     class Turn(httpx.SyncByteStream):
         def __iter__(self):
             assert order == ['history', 'attach', 'post']
+            yield frame({'event_id': 'own', 'status': 'DELIVERY_STATUS_PROCESSING'}, 'delivery_update')
             yield frame({'sequence_num': '2', 'source': 'worker', 'payload': payload})
             raise AssertionError('read beyond stop')
         def close(self):
@@ -233,7 +234,7 @@ def test_send_collect_stops_and_closes_only_owned_stream(stop):
     def handler(req):
         if req.method == 'POST':
             order.append('post')
-            return httpx.Response(200, json={})
+            return httpx.Response(200, json={'results': [{'event_id': 'own'}]})
         if req.url.path.endswith('/stream'):
             order.append('attach')
             return httpx.Response(200, stream=Turn())
@@ -351,17 +352,18 @@ def test_collect_reconnects_without_resending_prompt():
     def handler(req):
         if req.method == 'POST':
             posts.append(req)
-            return httpx.Response(200, json={})
+            return httpx.Response(200, json={'results': [{'event_id': 'own'}]})
         if req.url.path.endswith('/stream'):
             attaches.append(req)
             content = frame(wire(1))
             if len(attaches) > 1:
+                content += frame({'event_id': 'own', 'status': 'DELIVERY_STATUS_PROCESSING'}, 'delivery_update')
                 content += frame(wire(2, kind='result'))
             return httpx.Response(200, content=content)
         return httpx.Response(200, json={'data': []})
     with client(handler) as rc:
         events = rc.send_and_collect(SID, 'hello', max_reconnects=1)
-    assert [e.sequence_num for e in events] == [1, 2]
+    assert [e.sequence_num for e in events if e.sequence_num is not None] == [1, 2]
     assert len(posts) == 1
     assert attaches[1].url.params['from_sequence_num'] == '1'
 
@@ -371,9 +373,11 @@ def test_collect_uses_existing_priority_writer():
     def handler(req):
         if req.method == 'POST':
             posted.append(json.loads(req.content)['events'][0]['payload'])
-            return httpx.Response(200, json={})
+            return httpx.Response(200, json={'results': [{'event_id': 'own'}]})
         if req.url.path.endswith('/stream'):
-            return httpx.Response(200, content=frame(wire(1, kind='result')))
+            return httpx.Response(200, content=(
+                frame({'event_id': 'own', 'status': 'DELIVERY_STATUS_PROCESSING'}, 'delivery_update') +
+                frame(wire(1, kind='result'))))
         return httpx.Response(200, json={'data': []})
     with client(handler) as rc:
         rc.send_and_collect(SID, 'hello', priority='next', message_uuid='owned-id')
@@ -405,6 +409,113 @@ def test_cli_registration_dispatches_through_injected_existing_client(command, e
     actual = output.get('kind') or output.get('event') or output.get('payload', {}).get('type')
     assert actual == expected
     assert len(requests) == 1
+
+
+def test_collect_does_not_accept_another_turn_result_before_own_processing():
+    posted = []
+    def handler(req):
+        if req.method == 'POST':
+            posted.append(json.loads(req.content)['events'][0]['payload'])
+            return httpx.Response(200, json={'results': [{'event_id': 'own', 'sequence_num': '1'}]})
+        if req.url.path.endswith('/stream'):
+            return httpx.Response(200, content=(
+                frame(wire(2, kind='result')) +
+                frame({'event_id': 'own', 'status': 'DELIVERY_STATUS_RECEIVED'}, 'delivery_update') +
+                frame(wire(3, kind='result')) +
+                frame({'event_id': 'other', 'status': 'DELIVERY_STATUS_PROCESSING'}, 'delivery_update') +
+                frame(wire(4, kind='result')) +
+                frame({'event_id': 'own', 'status': 'DELIVERY_STATUS_PROCESSING'}, 'delivery_update') +
+                frame(wire(5, kind='result'))))
+        return httpx.Response(200, json={'data': []})
+    with client(handler) as rc:
+        events = rc.send_and_collect(SID, 'hello', reconnect=False)
+    assert events[-1].sequence_num == 5
+    assert len(posted) == 1
+
+
+def test_collect_recovers_missed_processing_receipt_from_live_history():
+    calls = []
+    def handler(req):
+        calls.append(req)
+        if req.method == 'POST':
+            return httpx.Response(200, json={'results': [{'event_id': 'own', 'sequence_num': '1'}]})
+        if req.url.path.endswith('/stream'):
+            result = {**wire(2, kind='result'), 'created_at': '2026-10-28T00:00:01Z'}
+            return httpx.Response(200, content=frame(result))
+        row = wire(1, event_id='own', kind='user')
+        row['processing_at'] = '2026-10-28T00:00:00Z'
+        return httpx.Response(200, json={'data': [] if len(calls) == 1 else [row]})
+    with client(handler) as rc:
+        assert rc.send_and_collect(SID, 'hello', reconnect=False)[-1].is_turn_end
+    assert len([r for r in calls if r.url.path.endswith('/events') and r.method == 'GET']) == 2
+
+
+def test_collect_rejects_historical_processing_newer_than_buffered_result():
+    def handler(req):
+        if req.method == 'POST':
+            return httpx.Response(200, json={'results': [{'event_id': 'own'}]})
+        if req.url.path.endswith('/stream'):
+            old = {**wire(2, kind='result'), 'created_at': '2026-10-28T00:00:01Z'}
+            current = {**wire(3, kind='result'), 'created_at': '2026-10-28T00:00:03Z'}
+            return httpx.Response(200, content=frame(old) + frame(current))
+        if req.url.params.get('sort_order') == 'desc':
+            return httpx.Response(200, json={'data': []})
+        row = {**wire(1, event_id='own', kind='user'), 'processing_at': '2026-10-28T00:00:02Z'}
+        return httpx.Response(200, json={'data': [row]})
+    with client(handler) as rc:
+        assert rc.send_and_collect(SID, 'hello', reconnect=False)[-1].sequence_num == 3
+
+
+def test_collect_keeps_earliest_processing_receipt_when_processed_arrives():
+    def handler(req):
+        if req.method == 'POST':
+            return httpx.Response(200, json={'results': [{'event_id': 'own'}]})
+        if req.url.path.endswith('/stream'):
+            processing = {'event_id': 'own', 'status': 'DELIVERY_STATUS_PROCESSING', 'timestamp': '2026-10-28T00:00:01Z'}
+            processed = {'event_id': 'own', 'status': 'DELIVERY_STATUS_PROCESSED', 'timestamp': '2026-10-28T00:00:03Z'}
+            result = {**wire(2, kind='result'), 'created_at': '2026-10-28T00:00:02Z'}
+            return httpx.Response(200, content=frame(processing, 'delivery_update') +
+                                  frame(processed, 'delivery_update') + frame(result))
+        return httpx.Response(200, json={'data': []})
+    with client(handler) as rc:
+        assert rc.send_and_collect(SID, 'hello', reconnect=False)[-1].is_turn_end
+
+
+@pytest.mark.parametrize('callback_kind', ['ready', 'reinitialize'])
+def test_callback_http_failure_propagates_without_stream_reconnect(callback_kind, no_sleep):
+    calls, responses = [], []
+    failure = httpx.ReadError('callback outcome unknown')
+    def callback(*args):
+        raise failure
+    def handler(req):
+        calls.append(req)
+        response = httpx.Response(200, content=frame({'reinitialize': True}, 'session_update'))
+        responses.append(response)
+        return response
+    option = 'on_ready' if callback_kind == 'ready' else 'on_reinitialize'
+    with client(handler) as rc:
+        with pytest.raises(httpx.ReadError) as caught:
+            list(rc.stream_session(SID, max_reconnects=2, **{option: callback}))
+    assert caught.value is failure
+    assert len(calls) == 1 and no_sleep == []
+    assert responses[0].is_closed
+
+
+def test_reconnect_backoff_respects_absolute_deadline(monkeypatch):
+    clock, delays, calls = [0.0], [], []
+    monkeypatch.setattr(streaming.time, 'monotonic', lambda: clock[0])
+    def sleep(delay):
+        delays.append(delay)
+        clock[0] += delay
+    monkeypatch.setattr(streaming.time, 'sleep', sleep)
+    def handler(req):
+        calls.append(req)
+        return httpx.Response(200, content=b'')
+    with client(handler) as rc:
+        with pytest.raises(httpx.ReadTimeout, match='deadline'):
+            list(rc.stream_session(SID, deadline=.25, base_delay=10))
+    assert delays == [.25]
+    assert len(calls) == 1
 
 
 def test_sse_multiline_comments_and_invalid_id_retry():
