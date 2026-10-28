@@ -309,6 +309,10 @@ class APIError(RuntimeError):
             return "authentication"
         if self.status == 403:
             message = str(self.error.get("message", "")).lower()
+            # The account endpoint uses permission_error for an expired/invalid
+            # session cookie too; this observed auth denial is not org policy.
+            if message.strip().rstrip(".") == "invalid authorization":
+                return "authentication"
             if (self.error_type in ("permission_error", "permission_denied", "authorization_error")
                     or "authentication method not allowed" in message):
                 return "policy"
@@ -593,7 +597,16 @@ class RemoteControlClient(
             return
         self._checking_identity = True
         try:
-            body = self._request("GET", "/api/account", org=False, web=False, retry=False)
+            try:
+                body = self._request("GET", "/api/account", org=False, web=False, retry=False)
+            except APIError as exc:
+                # A new client may start with stale cookies. Establish its first
+                # identity from the original source before sending any operation.
+                if (self._account_uuid is not None or not self._auto_refresh
+                        or exc.failure_kind not in ("authentication", "authentication_or_policy")
+                        or not self.cookie_jar.reread()):
+                    raise
+                body = self._request("GET", "/api/account", org=False, web=False, retry=False)
             account = body.get("uuid") if isinstance(body, dict) else None
             if not account:
                 raise CredentialsError("could not establish cookie account identity")

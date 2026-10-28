@@ -321,6 +321,64 @@ def test_unidentified_bearer_change_fails_closed(refresh):
         assert rc._creds is old
 
 
+@pytest.mark.parametrize("status", [401, 403])
+@pytest.mark.parametrize("fresh_valid", [True, False])
+def test_initial_stale_cookie_recovers_once_before_any_operation(monkeypatch, status, fresh_valid):
+    browser(monkeypatch)
+    reads, requests = [], []
+    def reread():
+        reads.append(True)
+        return webauth.CookieJar({"sessionKey": "fresh"}, webauth.CDP)
+    monkeypatch.setattr(webauth, "from_cdp", reread)
+    def handler(req):
+        requests.append(req.url.path)
+        if req.url.path == "/api/account":
+            if fresh_valid and "fresh" in req.headers["cookie"]:
+                return httpx.Response(200, json={"uuid": "account-a"})
+            return httpx.Response(status, json={"error": {"type": "permission_error", "message": "Invalid authorization"}})
+        return httpx.Response(200, json={"data": []})
+    with RemoteControlClient(transport=httpx.MockTransport(handler)) as rc:
+        if fresh_valid:
+            rc.list_sessions(limit=1)
+            assert rc._account_uuid == "account-a" and rc.org_uuid == "org-a"
+        else:
+            with pytest.raises(APIError):
+                rc.list_sessions(limit=1)
+    assert len(reads) == 1
+    assert requests == ["/api/account", "/api/account"] + (["/v1/code/sessions"] if fresh_valid else [])
+
+
+@pytest.mark.parametrize("live", [True, False])
+@pytest.mark.parametrize("expiry", [1, 9999999999999, None])
+def test_cswap_reader_never_spends_grants(monkeypatch, live, expiry):
+    import sys
+    from types import ModuleType, SimpleNamespace
+
+    raw = {"accessToken": "synthetic-access", "refreshToken": "never-spend"}
+    if expiry is not None:
+        raw["expiresAt"] = expiry
+    reads = []
+    switcher = SimpleNamespace(
+        current_account_number=lambda: "2" if live else "1",
+        _read_credentials=lambda: reads.append("live") or raw,
+        _get_sequence_data=lambda: {"accounts": {"2": {"email": "user@example.com"}}},
+        _read_account_credentials_ex=lambda slot, email: (reads.append("backup") or raw, None),
+        consume_backup_grant=lambda *args: pytest.fail("spent shared refresh grant"),
+    )
+    package, module = ModuleType("claude_swap"), ModuleType("claude_swap.switcher")
+    package.oauth = SimpleNamespace(extract_oauth_data=lambda data: data)
+    module.ClaudeAccountSwitcher = lambda: switcher
+    monkeypatch.setitem(sys.modules, "claude_swap", package)
+    monkeypatch.setitem(sys.modules, "claude_swap.switcher", module)
+    if expiry == 1:
+        with pytest.raises(cr.CredentialsError, match="owner must renew"):
+            cr.cswap_credentials("2")
+    else:
+        result = cr.cswap_credentials("2")
+        assert result.access_token == "synthetic-access" and result.refresh_token is None
+    assert reads == ["live" if live else "backup"]
+
+
 def test_same_legacy_refresh_grant_proves_account_lineage():
     old = cr.OAuthCredentials("old", refresh_token="same-grant")
     fresh = cr.OAuthCredentials("new", refresh_token="same-grant")

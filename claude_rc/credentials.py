@@ -20,11 +20,9 @@ All of the constants below were reverse-engineered from the CLI binary:
 
 from __future__ import annotations
 
-import ast
 import contextlib
 import tempfile
 import threading
-import importlib.util
 import json
 import logging
 import os
@@ -722,52 +720,32 @@ def org_uuid_from_profile(body: Any) -> Optional[str]:
 
 
 # --- cswap (claude-swap) slots ---------------------------------------------
-# cc-proxy's mitmproxy addon owns the slot logic (`slot_token` in
-# scripts/account_inject.py). That module wires mitmproxy addons at import, so
-# instead of importing it whole we compile just `slot_token` (and the constants
-# it reads) out of its source: one implementation, no side effects.
-_SLOT_TOKEN_NAMES = {"slot_token", "MARGIN_MS", "SETUP_TOKEN_REREAD_MS"}
-
-
-def _account_inject_path() -> Optional[Path]:
-    """cc-proxy's scripts/account_inject.py: inside the installed ``cc_proxy``
-    wheel (``cc_proxy/scripts``), else next to an editable cc-proxy checkout
-    (``python/cc_proxy`` -> ``scripts/``)."""
-    try:
-        spec = importlib.util.find_spec("cc_proxy")
-    except (ImportError, ValueError):
-        spec = None
-    for root in (spec.submodule_search_locations or []) if spec else []:
-        for candidate in (Path(root) / "scripts", Path(root).resolve().parents[1] / "scripts"):
-            if (candidate / "account_inject.py").exists():
-                return candidate / "account_inject.py"
-    return None
 
 
 def load_slot_token() -> Callable[[str], tuple[str, float]]:
-    """cc-proxy's ``slot_token(slot) -> (access_token, expires_at_ms)``.
+    """Return a strictly read-only cswap slot accessor.
 
-    Reads the live default login as-is and refreshes any other slot only
-    through cswap's ``consume_backup_grant`` (cswap owns every refresh grant;
-    nothing here writes credentials). Needs ``claude_swap`` importable when
-    called."""
-    path = _account_inject_path()
-    if path is None:
-        raise CredentialsError("cswap slots need cc-proxy's scripts/account_inject.py (repo checkout or cc-proxy wheel)")
-    tree = ast.parse(path.read_text(), str(path))
-    keep = []
-    for node in tree.body:
-        if isinstance(node, ast.FunctionDef) and node.name in _SLOT_TOKEN_NAMES:
-            keep.append(node)
-        elif isinstance(node, ast.Assign) and any(
-            isinstance(t, ast.Name) and t.id in _SLOT_TOKEN_NAMES for t in node.targets
-        ):
-            keep.append(node)
-    namespace: dict[str, Any] = {"time": time}
-    exec(compile(ast.Module(body=keep, type_ignores=[]), str(path), "exec"), namespace)
-    if "slot_token" not in namespace:
-        raise CredentialsError(f"{path} defines no slot_token")
-    return namespace["slot_token"]
+    Reuse cswap's storage API, not the proxy's ``slot_token``: the latter can
+    spend backup grants. Expired slots must be renewed by their owner.
+    """
+    def slot_token(slot: str) -> tuple[str, float]:
+        from claude_swap import oauth
+        from claude_swap.switcher import ClaudeAccountSwitcher
+
+        switcher = ClaudeAccountSwitcher()
+        token = {}
+        if str(switcher.current_account_number()) == str(slot):
+            token = oauth.extract_oauth_data(switcher._read_credentials()) or {}
+        if not token.get("accessToken"):
+            email = switcher._get_sequence_data()["accounts"][str(slot)]["email"]
+            raw, _ = switcher._read_account_credentials_ex(str(slot), email)
+            token = oauth.extract_oauth_data(raw) or {}
+        expiry = token.get("expiresAt")
+        if not token.get("accessToken") or (expiry is not None and expiry <= _now_ms()):
+            raise CredentialsError("cswap slot has no usable access token; its owner must renew it")
+        return token["accessToken"], expiry or 0
+
+    return slot_token
 
 
 def cswap_current_slot() -> Optional[str]:

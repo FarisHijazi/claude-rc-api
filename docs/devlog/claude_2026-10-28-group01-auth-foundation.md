@@ -136,3 +136,52 @@ source-pinning changes.
    will retain a login forever. Browser logout/expired interactive login still
    requires re-authentication; no hidden refresh endpoint or background daemon
    was invented.
+
+## Independent verification and fixes (same day)
+
+Verified the feature worktree package explicitly, not the main checkout. Found
+and fixed two defects in the builder's result:
+
+- `load_slot_token()` still executed the proxy's slot accessor, which calls
+  `consume_backup_grant` for an expired non-live slot. Replaced that dependency
+  with cswap's existing read-only storage API (`_read_credentials`,
+  `_read_account_credentials_ex`, `oauth.extract_oauth_data`), inspecting the
+  installed claude-swap implementation. Never call its grant consumer. Expired
+  slots fail closed. Covered live/backup selection and expired/fresh/no-expiry
+  access tokens offline. Updated the old core test that asserted AST internals;
+  the optional cc-proxy-dependent skip is no longer necessary.
+- Initial `/api/account` pinning prevented stale-cookie recovery before the first
+  operation. Permit one original-source reread and account GET retry before
+  sending the requested operation. Live invalid cookies at this endpoint return
+  **403 `permission_error` with message `Invalid authorization`**, not 401.
+  Recognize this exact observed authentication error separately from policy.
+  Other policy/Cloudflare denials still do not reread. Offline tests cover both
+  401/403 and a still-invalid reread without loops.
+
+Commands executed (absolute worktree path supplied via `uv --directory`):
+
+- `uv --directory <feature-worktree> run --extra test --extra web --extra cli pytest -q`
+  before fixes: **293 passed, 1 skipped**; after fixes: **304 passed**.
+- `<feature-worktree>/.venv/bin/python <session-scratchpad>/group01_independent_live.py`
+  (exit 0): automatic `cookies:cdp` discovery listed a session and environments.
+  Already-pinned sessions GET: **401 → account GET 200 → original GET 200**,
+  one CDP reread, same account and org. Initial stale-cookie pin:
+  **account GET 403 → account GET 200 → sessions GET 200**, one CDP reread.
+  These are client-memory fault injections with actual service responses, not
+  mocked server responses. No real-user session mutations or browser input.
+- Invalid in-memory shared bearer: real **401**, **zero** refresh exchanges.
+  Its reload hook was disabled just for this check so no real shared access
+  token could replace the synthetic invalid token. The refresh endpoint was
+  instrumented with a recording MockTransport; it received no requests.
+  Hashes of **192** existing CLI/router snapshot/cswap credential files remained
+  unchanged. Only aggregate counts and booleans were printed, not file contents
+  or individual hashes.
+- `git diff --check`: passed.
+
+The initial bootstrap live check first failed at the real 403, exposing the
+misclassification; acceptance was rerun successfully after the correction.
+No isolated default OAuth grant exists: PKCE enrollment, owned refresh/restart,
+trusted-device enrollment, signed attestation and other-platform locking remain
+unverified live, as listed above. Cookie continuity is not a promise of endless
+browser login. Group08 integration must update `docs/web-api.md`'s old AST-slot
+reader/offline-suite notes; that ledger is outside this group's editing scope.

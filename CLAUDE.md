@@ -72,7 +72,11 @@ On dev, uv needs the proxy CA plus the system bundle:
 - Cookie recovery pins `/api/account` and preserves the selected org. Re-read
   only the original cookie source; policy/Cloudflare denials are not expiry.
   Client-owned refresh exchanges use an OS sidecar lock around read/exchange/CAS.
-  Shared stores, including resolved symlinks, remain read-only.
+  Shared stores, including resolved symlinks, remain read-only. The cswap accessor
+  uses only cswap's storage reads, never the proxy reader (which can refresh a
+  backup grant). Expired slots fail closed until their owner renews them.
+  Initial account pinning can reread stale cookies once; the observed account
+  403 `permission_error` / `Invalid authorization` is an auth denial, not policy.
 - `direct=True` ignores proxy/CA env only for this client's HTTP transports;
   never rewrite global network settings. Multipart retries require bytes/str.
   New device enrollment requires `allow_device_enrollment=True` and an owned

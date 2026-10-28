@@ -177,14 +177,9 @@ def test_cswap_slot_change_without_identity_fails_closed(monkeypatch):
     assert seen == []
 
 
-def test_load_slot_token_reuses_account_inject_without_side_effects():
-    from claude_rc.credentials import _account_inject_path
-
-    if _account_inject_path() is None:
-        pytest.skip("cc-proxy (scripts/account_inject.py) is not installed here")
+def test_load_slot_token_is_lazy_and_read_only():
     slot_token = load_slot_token()
-    assert slot_token.__name__ == "slot_token"
-    assert slot_token.__globals__["MARGIN_MS"] == 5 * 60 * 1000
+    assert callable(slot_token)
     # claude_swap is not installed here: the reader fails as a credentials error.
     from claude_rc.credentials import cswap_credentials
     try:
