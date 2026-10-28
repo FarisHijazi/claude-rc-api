@@ -74,6 +74,11 @@ On dev, uv needs the proxy CA plus the system bundle:
   are in `docs/devlog/claude_2026-10-28-group05-live.json` (deliberately a plain
   path, not an include). Ephemeral MCP replies remain unverified live; the
   correlator/parser are owned by the streaming module, not a new poller here.
+- Independent controls verification and its remaining acceptance gaps are indexed
+  in `docs/devlog/claude_2026-10-28-group05-independent-summary.json` (plain path;
+  context/usage/MCP evidence stores shapes and counts, not configuration payloads).
+  `ask_for_tools` must be a sequence of names, never a scalar string: otherwise
+  it silently expands into one-character tool declarations.
 
 ## Auth rules
 

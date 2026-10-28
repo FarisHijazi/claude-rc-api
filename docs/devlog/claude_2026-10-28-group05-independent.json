@@ -1,0 +1,578 @@
+{
+  "checks": [
+    {
+      "name": "list_readonly",
+      "status": "verified",
+      "result": 3
+    },
+    {
+      "name": "environments_readonly",
+      "status": "verified",
+      "result": 4
+    },
+    {
+      "name": "browser_models",
+      "status": "verified",
+      "result": [
+        "claude-opus-5-5",
+        "claude-fable-5-1",
+        "claude-sonnet-5-5",
+        "claude-haiku-5-5",
+        "claude-haiku-4-5-20251001",
+        "claude-sonnet-5",
+        "claude-opus-5",
+        "claude-fable-5",
+        "claude-opus-4-8",
+        "claude-opus-4-7",
+        "claude-opus-4-6",
+        "claude-sonnet-4-6"
+      ]
+    },
+    {
+      "name": "permission_policy",
+      "status": "verified",
+      "result": {
+        "auto_permissions": {
+          "allowed": true,
+          "managed": false
+        },
+        "bypass_permissions": {
+          "allowed": true,
+          "managed": false
+        }
+      }
+    },
+    {
+      "name": "initialize",
+      "status": "verified",
+      "result": {
+        "commands": [
+          {
+            "name": "startup-hook-skill",
+            "aliases": [
+              "session-start-hook"
+            ]
+          },
+          {
+            "name": "deep-research",
+            "aliases": []
+          },
+          {
+            "name": "design",
+            "aliases": []
+          },
+          {
+            "name": "slides",
+            "aliases": []
+          },
+          {
+            "name": "design-sync",
+            "aliases": []
+          },
+          {
+            "name": "dataviz",
+            "aliases": []
+          },
+          {
+            "name": "artifact-diagramming",
+            "aliases": []
+          },
+          {
+            "name": "artifact-capabilities",
+            "aliases": []
+          },
+          {
+            "name": "update-config",
+            "aliases": []
+          },
+          {
+            "name": "verify",
+            "aliases": []
+          },
+          {
+            "name": "debug",
+            "aliases": []
+          },
+          {
+            "name": "code-review",
+            "aliases": [
+              "review"
+            ]
+          },
+          {
+            "name": "simplify",
+            "aliases": []
+          },
+          {
+            "name": "batch",
+            "aliases": []
+          },
+          {
+            "name": "fewer-permission-prompts",
+            "aliases": []
+          },
+          {
+            "name": "doctor",
+            "aliases": [
+              "checkup"
+            ]
+          },
+          {
+            "name": "loop",
+            "aliases": [
+              "proactive"
+            ]
+          },
+          {
+            "name": "claude-api",
+            "aliases": []
+          },
+          {
+            "name": "workflow-authoring",
+            "aliases": []
+          },
+          {
+            "name": "run",
+            "aliases": []
+          },
+          {
+            "name": "run-skill-generator",
+            "aliases": []
+          },
+          {
+            "name": "plugin-authoring",
+            "aliases": []
+          },
+          {
+            "name": "add-dir",
+            "aliases": []
+          },
+          {
+            "name": "advisor",
+            "aliases": []
+          },
+          {
+            "name": "agents",
+            "aliases": []
+          },
+          {
+            "name": "autocompact",
+            "aliases": []
+          },
+          {
+            "name": "clear",
+            "aliases": [
+              "reset",
+              "new"
+            ]
+          },
+          {
+            "name": "color",
+            "aliases": []
+          },
+          {
+            "name": "compact",
+            "aliases": []
+          },
+          {
+            "name": "config",
+            "aliases": [
+              "settings"
+            ]
+          },
+          {
+            "name": "output-style",
+            "aliases": []
+          },
+          {
+            "name": "context",
+            "aliases": []
+          },
+          {
+            "name": "effort",
+            "aliases": []
+          },
+          {
+            "name": "fast",
+            "aliases": []
+          },
+          {
+            "name": "focus",
+            "aliases": []
+          },
+          {
+            "name": "heapdump",
+            "aliases": []
+          },
+          {
+            "name": "init",
+            "aliases": []
+          },
+          {
+            "name": "mcp",
+            "aliases": []
+          },
+          {
+            "name": "import",
+            "aliases": []
+          },
+          {
+            "name": "model",
+            "aliases": []
+          },
+          {
+            "name": "__remote-workflow",
+            "aliases": []
+          },
+          {
+            "name": "workflow-launch-exec",
+            "aliases": []
+          },
+          {
+            "name": "reload-plugins",
+            "aliases": []
+          },
+          {
+            "name": "reload-skills",
+            "aliases": []
+          },
+          {
+            "name": "rename",
+            "aliases": [
+              "name"
+            ]
+          },
+          {
+            "name": "security-review",
+            "aliases": []
+          },
+          {
+            "name": "usage",
+            "aliases": [
+              "cost",
+              "stats"
+            ]
+          },
+          {
+            "name": "insights",
+            "aliases": []
+          },
+          {
+            "name": "recap",
+            "aliases": []
+          },
+          {
+            "name": "skill-doctor",
+            "aliases": []
+          },
+          {
+            "name": "goal",
+            "aliases": []
+          },
+          {
+            "name": "design-consent",
+            "aliases": []
+          },
+          {
+            "name": "design-revoke",
+            "aliases": []
+          },
+          {
+            "name": "list-agents",
+            "aliases": [
+              "peers"
+            ]
+          },
+          {
+            "name": "team-onboarding",
+            "aliases": []
+          }
+        ],
+        "capabilities": [
+          "start_shell_task_v1"
+        ],
+        "current_model": null,
+        "current_permission_mode": "plan"
+      }
+    },
+    {
+      "name": "dispatch_model_claude-opus-5-5",
+      "status": "verified",
+      "result": {
+        "via": "control",
+        "command": "model",
+        "result": {
+          "model": "claude-opus-5-5"
+        }
+      }
+    },
+    {
+      "name": "applied_model_claude-opus-5-5",
+      "status": "verified",
+      "result": "claude-opus-5-5"
+    },
+    {
+      "name": "dispatch_model_claude-haiku-5-5",
+      "status": "verified",
+      "result": {
+        "via": "control",
+        "command": "model",
+        "result": {
+          "model": "claude-haiku-5-5"
+        }
+      }
+    },
+    {
+      "name": "applied_model_claude-haiku-5-5",
+      "status": "verified",
+      "result": "claude-haiku-5-5"
+    },
+    {
+      "name": "dispatch_plan_plan",
+      "status": "verified",
+      "result": {
+        "via": "control",
+        "command": "plan",
+        "result": {
+          "mode": "plan"
+        }
+      }
+    },
+    {
+      "name": "applied_permission_plan",
+      "status": "verified",
+      "result": "plan"
+    },
+    {
+      "name": "dispatch_plan_acceptEdits",
+      "status": "verified",
+      "result": {
+        "via": "control",
+        "command": "plan",
+        "result": {
+          "mode": "acceptEdits"
+        }
+      }
+    },
+    {
+      "name": "applied_permission_acceptEdits",
+      "status": "verified",
+      "result": "acceptEdits"
+    },
+    {
+      "name": "dispatch_plan_plan",
+      "status": "verified",
+      "result": {
+        "via": "control",
+        "command": "plan",
+        "result": {
+          "mode": "plan"
+        }
+      }
+    },
+    {
+      "name": "applied_permission_plan",
+      "status": "verified",
+      "result": "plan"
+    },
+    {
+      "name": "dispatch_effort",
+      "status": "verified",
+      "result": {
+        "via": "control",
+        "command": "effort",
+        "result": {}
+      }
+    },
+    {
+      "name": "dispatch_fast",
+      "status": "verified",
+      "result": {
+        "via": "control",
+        "command": "fast",
+        "result": {}
+      }
+    },
+    {
+      "name": "dispatch_advisor",
+      "status": "verified",
+      "result": {
+        "via": "control",
+        "command": "advisor",
+        "result": {}
+      }
+    },
+    {
+      "name": "dispatch_context",
+      "status": "verified",
+      "result": {
+        "via": "control",
+        "result_keys": [
+          "agents",
+          "apiUsage",
+          "autoCompactThreshold",
+          "autocompactSource",
+          "categories",
+          "gridRows",
+          "isAutoCompactEnabled",
+          "maxTokens",
+          "mcpTools",
+          "memoryFiles",
+          "messageBreakdown",
+          "model",
+          "percentage",
+          "rawMaxTokens",
+          "skills",
+          "slashCommands",
+          "totalTokens"
+        ],
+        "payload_omitted": true
+      }
+    },
+    {
+      "name": "dispatch_usage",
+      "status": "verified",
+      "result": {
+        "via": "control",
+        "result_keys": [
+          "behaviors",
+          "rate_limits",
+          "rate_limits_available",
+          "session",
+          "subscription_type"
+        ],
+        "payload_omitted": true
+      }
+    },
+    {
+      "name": "applied_effort",
+      "status": "failed",
+      "error_class": "KeyError"
+    },
+    {
+      "name": "btw_exact_reply",
+      "status": "verified",
+      "result": "INDEPENDENT_OK"
+    },
+    {
+      "name": "local_theme",
+      "status": "verified",
+      "result": "guarded; renderer absent"
+    },
+    {
+      "name": "local_login",
+      "status": "verified",
+      "result": "guarded; renderer absent"
+    },
+    {
+      "name": "local_sandbox",
+      "status": "verified",
+      "result": "guarded; renderer absent"
+    },
+    {
+      "name": "local_skills",
+      "status": "verified",
+      "result": "guarded; renderer absent"
+    },
+    {
+      "name": "local_workflows",
+      "status": "verified",
+      "result": "guarded; renderer absent"
+    },
+    {
+      "name": "local_design",
+      "status": "verified",
+      "result": "guarded; renderer absent"
+    },
+    {
+      "name": "local_slides",
+      "status": "verified",
+      "result": "guarded; renderer absent"
+    },
+    {
+      "name": "admission_start_shell_task",
+      "status": "verified",
+      "result": "rejected locally"
+    },
+    {
+      "name": "admission_mcp_read_resource",
+      "status": "verified",
+      "result": "rejected locally"
+    },
+    {
+      "name": "admission_mcp_authenticate",
+      "status": "verified",
+      "result": "rejected locally"
+    },
+    {
+      "name": "admission_stage_file",
+      "status": "verified",
+      "result": "rejected locally"
+    },
+    {
+      "name": "mcp_status_history",
+      "status": "verified",
+      "result": {
+        "server_count": 9,
+        "server_configuration_omitted": true
+      }
+    },
+    {
+      "name": "mcp_status_ephemeral",
+      "status": "failed",
+      "error_class": "ValueError"
+    },
+    {
+      "name": "workspace_directory",
+      "status": "verified",
+      "result": {
+        "keys": [
+          "absPath",
+          "entries",
+          "truncated"
+        ]
+      }
+    },
+    {
+      "name": "background_tasks",
+      "status": "verified",
+      "result": {}
+    },
+    {
+      "name": "interrupt_worker_verdict",
+      "status": "verified",
+      "result": {
+        "still_queued": []
+      }
+    },
+    {
+      "name": "archive",
+      "status": "verified",
+      "result": true
+    },
+    {
+      "name": "delete",
+      "status": "verified",
+      "result": {}
+    },
+    {
+      "name": "deleted_get_404",
+      "status": "verified",
+      "result": 404
+    }
+  ],
+  "created_sessions": [
+    "cse_0154EsXSDeuEjv6dd5GwHkQY"
+  ],
+  "auth": "cookie-only CDP",
+  "acceptance": "partial; omissions listed explicitly",
+  "remaining": [
+    "Queue cancel/send-now receipts and transcript outcomes not proven; capability absent must not be counted as success",
+    "Dedicated authorized MCP fixture required: liveReply, toggle/reconnect, staging file effects, expiry/result exclusion",
+    "Local UI renderers and CLI registration integration are absent in this group; only guards/host callback dispatch proven",
+    "Feedback/rating/survey and connector writes deliberately not submitted",
+    "Worker-advertised command, workspace marker/rewind and task output/stop/message need independent live rerun",
+    "end_session and cancel_control not independently exercised"
+  ],
+  "redaction": "Only counts/shapes retained for context, usage and MCP; command descriptions omitted. No credentials retained."
+}

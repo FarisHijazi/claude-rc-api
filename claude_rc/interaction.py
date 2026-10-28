@@ -550,7 +550,7 @@ class InteractionMixin(CommandsMixin):
             raise ValueError("MCP override mode must be default, auto or None")
         fields: dict[str, Any] = {"serverName": server_name, "mode": mode}
         if ask_for_tools is not None:
-            if len(ask_for_tools) > 32 or any(
+            if isinstance(ask_for_tools, (str, bytes)) or len(ask_for_tools) > 32 or any(
                 not isinstance(name, str) or not re.fullmatch(r"[A-Za-z0-9_-]{1,64}", name) for name in ask_for_tools
             ):
                 raise ValueError("ask_for_tools requires at most 32 alphanumeric/underscore/hyphen tool names")

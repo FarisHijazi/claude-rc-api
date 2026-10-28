@@ -1,0 +1,56 @@
+{
+  "date": "2026-10-28",
+  "group": "05-controls-models-slash-commands-and-mcp",
+  "verdict": "PARTIAL: core controls independently verified; full assigned acceptance is not complete",
+  "baseline": "dec24c92390c202b2fd4774a06d5f6979a2b4c79",
+  "evidence": [
+    "claude_2026-10-28-group05-independent.json",
+    "claude_2026-10-28-group05-independent-rerun.json",
+    "claude_2026-10-28-group05-independent-tasks.json"
+  ],
+  "fix": {
+    "location": "claude_rc/interaction.py:set_mcp_permission_mode_override",
+    "cause": "ask_for_tools='read' was accepted as a Sequence and serialized as four one-letter tool names",
+    "resolution": "Reject scalar str/bytes locally before any request; list-of-name objects remain unchanged",
+    "regression_before_fix": "1 failed, 4 passed, 141 deselected in tests/test_controls.py -k ask_tools_validates",
+    "suite_before": "409 passed, 1 skipped",
+    "suite_after": "411 passed, 1 skipped"
+  },
+  "verified_live": [
+    "Cookie-only CDP auth; no shared OAuth refresh",
+    "Read-only sessions/environment listing and authoritative browser model/policy discovery",
+    "Initialize advertised commands and capabilities",
+    "Typed model dispatch Opus 5.5 then Haiku 5.5 with get_settings.applied.model equality",
+    "Typed plan -> acceptEdits -> plan with initialize permission-state equality",
+    "Typed effort low with get_settings.applied.effort equality",
+    "Fast off and advisor off received worker verdicts; independent application state not asserted",
+    "Typed context/usage returned worker results; btw returned exactly INDEPENDENT_OK",
+    "Browser-only commands guarded without falling through to model text; no actual host renderer in this branch",
+    "Cloud-rejected start_shell_task/MCP auth/resource and agent-origin stage_file rejected locally",
+    "MCP history status returned; ephemeral path failed clearly rather than silently polling history",
+    "Owned workspace marker created and read back exactly; directory/diff queries returned",
+    "Advertised recap dispatch returned worker route, assistant output and worker turn completion after pre-send cursor",
+    "Owned background task output contained INDEPENDENT_TASK_OK; stop followed by status=stopped task notification",
+    "Guarded rewind returned rewound=true and matching targetMessageUuid",
+    "Interrupt and end-session received worker verdicts, not merely event-ingest acknowledgements",
+    "All three created sessions archived and deleted; subsequent GET 404 verified"
+  ],
+  "test_harness_corrections": [
+    "Initial effort assertion looked for effortLevel; actual applied readback uses effort. Initial failed evidence retained; corrected live rerun passed.",
+    "Unguarded rewind after recap failed its assertion; response was not retained so cause is unknown. Subsequent isolated guarded rewind with last_seen_user_message_uuid passed. Do not generalize to every rewind sequence.",
+    "The early remaining arrays in raw check files are conservative snapshots; this summary supersedes those lists where later task/recap/rewind evidence exists."
+  ],
+  "remaining_plan": [
+    {"capability": "queue cancel/send-now", "action": "Exercise two UUIDs during owned active work, verify cancel/send-now transcript effects. Advertised capability was only start_shell_task_v1; do not call a plain interrupt reply an interrupt_receipt_v1 proof."},
+    {"capability": "ephemeral MCP", "action": "Integrate streaming owner's correlator and retry with authorized harmless MCP fixture. Standalone group05 fails with ValueError because request_control_live is absent; builder integration attempts timed out."},
+    {"capability": "MCP changes and staging", "action": "With explicit authorized fixture verify toggle/reconnect/call, askForTools names, input/output effects, etag conflict and expiry. Remote result exclusion is explicitly refused; local-pipe semantics must not be claimed."},
+    {"capability": "local slash presentation", "action": "Group08 must integrate registration/dispatch and implement actual host menus/navigation; injected callback/guard tests alone do not satisfy UI acceptance."},
+    {"capability": "remaining controls", "action": "Independently verify control cancellation, task messaging, guarded/unguarded rewind sequence differences, and readback or explicit verdict semantics for remaining flags/settings/browser hints/read-state."},
+    {"capability": "approval-gated submissions", "action": "Do not submit feedback/survey/rating, connector config or external uploads without explicit approval; current evidence is offline contracts only."}
+  ],
+  "commands": [
+    "uv --directory <worktree> run --extra test --extra web --extra cli pytest -q",
+    "uv --directory <worktree> run --extra web python <scratchpad>/group05_independent_verify.py",
+    "uv --directory <worktree> run --extra web python <scratchpad>/group05_independent_tasks.py"
+  ]
+}

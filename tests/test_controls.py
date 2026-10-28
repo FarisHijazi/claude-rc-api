@@ -237,7 +237,7 @@ def test_alias_cannot_bypass_local_command_guard():
     assert all(p["type"] != "user" for p in fake.posted)
 
 
-@pytest.mark.parametrize("names", [["bad name"], ["tool"] * 33, [""]])
+@pytest.mark.parametrize("names", [["bad name"], ["tool"] * 33, [""], "read", b"read"])
 def test_mcp_ask_tools_validates_captured_limits(names):
     fake = FakeSession()
     with _client(fake.handler) as client:
