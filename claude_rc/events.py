@@ -241,7 +241,7 @@ class Event:
         """A worker prompt (tool permission or dialog) that blocks its turn until a
         controller answers. Requests a controller sent — your own echoing back, or
         claude.ai's — never block anything."""
-        return self.control_subtype in BLOCKING_CONTROL_SUBTYPES and self.source != "client"
+        return self.control_subtype in BLOCKING_CONTROL_SUBTYPES and self.source in (None, "worker")
 
     @classmethod
     def from_wire(cls, obj: dict[str, Any]) -> "Event":
@@ -316,13 +316,10 @@ def cli_permission_response(
     or not): ``updatedInput`` is optional to 2.1.301 workers, but older ones
     expect it. A deny's ``message`` is what the model is told.
     """
-    if allow:
-        decision: dict[str, Any] = {"behavior": "allow"}
-        if tool_input is not None:
-            decision["updatedInput"] = tool_input
-    else:
-        decision = {"behavior": "deny", "message": message or "Denied by controller"}
-    return cli_control_response(request_id, decision, tool_use_id=tool_use_id)
+    return cli_permission_decision(
+        request_id, allow=allow, updated_input=tool_input,
+        tool_use_id=tool_use_id, message=message,
+    )
 
 
 def cli_question_response(
@@ -337,20 +334,20 @@ def cli_question_response(
     is the tool's own input plus ``answers``.
 
     ``answers`` maps each question's TEXT to the chosen label (a list for a
-    multi-select question). An empty map is the graceful dismiss ("The user did
-    not answer the questions"). ``tool_input`` must keep the original
+    multi-select question). An empty map yields the generic "The user did
+    not answer the questions" result, NOT the browser's dismissal sentinel.
+    ``tool_input`` must keep the original
     ``questions`` — the tool crashes without them.
     """
-    updated = {**tool_input, "answers": dict(answers)}
-    return cli_permission_response(request_id, allow=True, tool_input=updated, tool_use_id=tool_use_id)
+    return cli_question_answer(request_id, tool_input, answers, tool_use_id=tool_use_id)
 
 
 def cli_dialog_response(request_id: str, *, completed: bool, result: dict | None = None) -> dict:
-    """Answer a true ``request_user_dialog`` prompt (elicitation, MCP approval…)
-    with ``{status: completed | cancelled, result}``. UNCONFIRMED against a live
-    sample — the ``result`` shape is opaque per ``dialog_kind``."""
-    inner = {"status": "completed" if completed else "cancelled", "result": (result or {}) if completed else {}}
-    return cli_control_response(request_id, inner)
+    """Compatibility alias for :func:`cli_user_dialog_response`.
+
+    Uses the current ``behavior`` key; result is opaque per ``dialog_kind``.
+    """
+    return cli_user_dialog_response(request_id, completed=completed, result=result)
 
 
 # --- Outbound builders: Managed Agents -------------------------------------
@@ -486,7 +483,7 @@ def cli_permission_decision(
         decision: dict[str, Any] = {"behavior": "allow"}
         if updated_input is not None:
             decision["updatedInput"] = updated_input
-        if updated_permissions:
+        if updated_permissions is not None:
             decision["updatedPermissions"] = list(updated_permissions)
         if tool_name:
             decision["tool_name"] = tool_name
@@ -539,8 +536,8 @@ def cli_question_answer(
 
 def cli_user_dialog_response(request_id: str, *, completed: bool, result: Any = None) -> dict:
     """Answer a ``request_user_dialog`` with ``{behavior: completed | cancelled,
-    result?}`` — the key the 2.1.312 schema (``rkn``) names; the older
-    :func:`cli_dialog_response` sends ``status`` instead. ``result`` is opaque,
+    result?}`` — the key the 2.1.312 schema (``rkn``) names.
+    :func:`cli_dialog_response` delegates here. ``result`` is opaque,
     per ``dialog_kind``."""
     inner: dict[str, Any] = {"behavior": "completed" if completed else "cancelled"}
     if completed and result is not None:

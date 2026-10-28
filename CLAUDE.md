@@ -30,7 +30,8 @@ module that owns the area, or a new mixin module plus one line in the
 | `lifecycle.py` | create/unarchive/delete/share/tag/mark-read, teleport events |
 | `environments.py` | environments (public + private org routes), create/update, self-hosted pools |
 | `triggers.py` | scheduled tasks (routines) |
-| `interaction.py` | pending prompts, permission + AskUserQuestion answers, slash commands, generic controls, `stream_session` (keeps meta frames), account `watch` feed |
+| `interaction.py` | slash commands, generic controls, `stream_session` (keeps meta frames), account `watch` feed |
+| `prompts.py` | pending prompts, permission decisions, AskUserQuestion answers/annotations, explicit worker versus browser unanswered encodings, dialog/elicitation/hook responses; re-exported by `interaction.py` for compatibility |
 | `files.py` | attachments / Files API |
 | `tts.py` | claude.ai text-to-speech websocket + Ogg muxer |
 | `events.py`, `sse.py` | wire event builders/parsers, SSE parser |
@@ -42,6 +43,13 @@ its new tests passing when merging upstream). Offline only, via
 `httpx.MockTransport`. `tests/conftest.py` strips auth env and gives each test
 an empty `$HOME`. Docs: `API_REFERENCE.md` (upstream's protocol write-up),
 `docs/web-api.md` (claude.ai/code shapes and what is live-verified).
+Prompt integration signatures and sanitized live evidence are in
+`docs/devlog/claude_2026-10-28-group04-prompts.json` (deliberately a plain path,
+not an `@` include). `pending_requests(initialize=True)` reconciles complete
+paged history with the worker snapshot; its default remains read-only.
+Empty worker unanswered annotations are not browser dismissal sentinels; pass
+`unanswered_encoding="browser"` or the convenience helpers' `encoding="browser"`
+when that distinct browser behavior is intended.
 
 ## Test
 
