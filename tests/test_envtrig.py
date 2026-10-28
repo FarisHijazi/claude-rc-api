@@ -71,6 +71,19 @@ ENVS = [
 ]
 
 
+def test_update_environment_sends_the_stored_body_with_changes_merged():
+    stored = {"environment_id": "env_cloud", "name": "Default", "description": "d",
+              "config": {"init_script": "old", "environment": {"A": "1"}, "cwd": "/w"}}
+    seen, handler = _recorder([(200, stored), (200, {"ok": True})])
+    _client(handler).update_environment("env_cloud", config={"init_script": "new"})
+    assert seen[0].url.path == "/v1/environment_providers/private/organizations/org-1/environments/env_cloud"
+    assert (seen[1].method, seen[1].url.path) == ("POST", "/v1/environment_providers/env_cloud")
+    assert json.loads(seen[1].content) == {
+        "name": "Default", "description": "d",
+        "config": {"init_script": "new", "environment": {"A": "1"}, "cwd": "/w"},
+    }
+
+
 def test_list_environments_follows_after_id_until_has_more_false():
     seen, handler = _recorder([
         (200, {"environments": ENVS[:2], "has_more": True, "last_id": "env_byoc"}),

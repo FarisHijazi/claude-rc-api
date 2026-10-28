@@ -48,7 +48,7 @@ from typing import Any, Optional
 
 from . import __version__
 from .client import APIError, ControlRejected, ControlTimeout, RemoteControlClient
-from .credentials import CredentialsError, load_org_uuid, resolve_auth
+from .credentials import CredentialsError, resolve_auth
 from . import webauth
 
 try:  # optional pretty output
@@ -99,7 +99,8 @@ def cmd_whoami(args) -> int:
     except CredentialsError as e:
         _print(f"not logged in: {e}")
         return 1
-    org = getattr(args, "org", None) or load_org_uuid()
+    with RemoteControlClient(auth=auth, org_uuid=getattr(args, "org", None)) as rc:
+        org = rc.org_uuid  # explicit, env, cookie or ~/.claude.json, else one lookup
     _print(f"auth source  : {auth.origin}")
     if auth.is_cookie:
         _print("mode         : claude.ai sessionKey cookie")
@@ -109,7 +110,7 @@ def cmd_whoami(args) -> int:
         _print(f"expired      : {creds.is_expired()}")
         _print(f"scopes       : {', '.join(creds.scopes) or '(unknown)'}")
         _print(f"subscription : {creds.subscription_type or '-'}")
-    _print(f"org uuid     : {'present' if org else 'not configured (looked up from /api/oauth/profile on use)'}")
+    _print(f"org uuid     : {'present' if org else 'unknown (lookup failed)'}")
     return 0
 
 

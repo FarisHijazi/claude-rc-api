@@ -16,7 +16,7 @@ to show.
 from __future__ import annotations
 
 import copy
-from typing import Any, Iterable, Iterator, Optional, Sequence
+from typing import Any, Iterable, Iterator, Mapping, Optional, Sequence
 
 #: Known ``kind`` values (CLI 2.1.312 enum).
 ENVIRONMENT_KINDS = ("anthropic_cloud", "bridge", "byoc", "snap", "ccs")
@@ -192,6 +192,29 @@ class EnvironmentsMixin:
         ``allow_default_hosts``, ``allow_mcp_servers``); with none it is the
         CLI's default environment. Not idempotent: never retried on 5xx."""
         return self._request("POST", f"{_PROVIDERS}/cloud/create", json=cloud_environment_body(name, **options))
+
+    def update_environment(
+        self,
+        environment_id: str,
+        *,
+        name: str | None = None,
+        description: str | None = None,
+        config: Mapping[str, Any] | None = None,
+    ) -> Any:
+        """``POST /v1/environment_providers/{id}`` ``{name, description, config}``
+        — the claude.ai edit dialog's route (live with a Bearer token in
+        claude-web-api, 2026-10-28; unverified under cookie auth). It replaces
+        the whole body, so unset fields are read back first and sent as stored;
+        ``config`` keys are merged over the stored config (e.g.
+        ``{"init_script": …}``). The newer ``/v1/environments/{id}`` route caps
+        each env var at 512 chars, which is why this one is used."""
+        current = self.get_environment(environment_id)
+        body = {
+            "name": current.get("name", "") if name is None else name,
+            "description": current.get("description") or "" if description is None else description,
+            "config": {**(current.get("config") or {}), **(config or {})},
+        }
+        return self._request("POST", f"{_PROVIDERS}/{environment_id}", json=body)
 
     # -- private org route (web app) ----------------------------------------
     def _private_environments_path(self, *parts: str) -> str:
