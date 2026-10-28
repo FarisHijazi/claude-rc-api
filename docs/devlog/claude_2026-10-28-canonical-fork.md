@@ -34,14 +34,21 @@
 
 ## Verified
 
-- `uv run --extra test --extra web --extra cli pytest -q`: 264 passed, 1
+- `uv run --extra test --extra web --extra cli pytest -q`: 265 passed, 1
   skipped (the cswap slot test, which needs cc-proxy installed).
 - Live, read-only, cookie auth from dev Chrome over CDP:
   `claude-rc whoami` (auth `cookies:cdp`, org present) and
   `claude-rc list --limit 3` (3 sessions), `claude-rc envs list`.
 
-## Open
+## Safe default auth follow-up
 
-- The default chain still needs `CLAUDE_AI_CDP_URL` set to pick Chrome; without
-  it and without cswap it falls through to refreshing `~/.claude`, which the
-  CLI also holds.
+- CDP now probes `http://127.0.0.1:9222` with no env var needed (empty
+  `CLAUDE_AI_CDP_URL` disables). Cookie source precedence is env, live CDP,
+  state, local Chrome DB, so an old state jar cannot shadow the live browser.
+- `client._refresh` refuses the shared CLI file and macOS Keychain, including
+  explicitly supplied credentials loaded from either. Client-owned OAuth
+  files (explicit `credentials_path`) retain upstream's refresh and CAS save.
+- Offline tests stub `_cdp_cookies` in addition to isolating HOME. Regression
+  test verifies an expired shared credential makes no HTTP call or file write.
+- Live `whoami` + `list --limit 1` also passed with NO CDP env var configured
+  (auth `cookies:cdp`, org present).

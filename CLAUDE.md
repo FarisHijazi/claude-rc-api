@@ -60,9 +60,14 @@ On dev, uv needs the proxy CA plus the system bundle:
   the claude-accounts proxy): it logs that consumer out. cswap slots are read
   access-token-only; cswap owns their refresh.
 - Default on dev: the claude.ai `sessionKey` cookie read live from the
-  signed-in Chrome over CDP (`CLAUDE_AI_CDP_URL=http://127.0.0.1:9222`). Chrome
+  signed-in Chrome over CDP (automatically probes `http://127.0.0.1:9222`;
+  override `CLAUDE_AI_CDP_URL`, empty disables). Chrome
   owns those cookies: read, never write; re-read once on 401/403.
 - The chain is `credentials.resolve_auth`; change auth order only there.
+  Cookie source order: explicit env, live CDP, state file, Chrome DB. The
+  shared CLI file / Keychain may be re-read, but `client._refresh` refuses to
+  refresh either. A client-owned OAuth login must use its own file via
+  `credentials_path`, never the CLI's default path.
 - Never print, log, commit or put in fixtures any token or cookie value
   (`repr`s show names only).
 

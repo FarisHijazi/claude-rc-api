@@ -15,3 +15,12 @@ def _no_real_logins(monkeypatch, tmp_path_factory):
         ):
             monkeypatch.delenv(name)
     monkeypatch.setenv("HOME", str(tmp_path_factory.mktemp("home")))
+    # Never contact the real dev Chrome from offline tests. Tests of CDP can
+    # set this to a fake URL and replace _cdp_cookies themselves.
+    monkeypatch.setenv("CLAUDE_AI_CDP_URL", "")
+    from claude_rc import webauth
+
+    async def no_browser(url):
+        return []
+
+    monkeypatch.setattr(webauth, "_cdp_cookies", no_browser)

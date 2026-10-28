@@ -96,12 +96,15 @@ def test_source_precedence_env_state_chrome_cdp(chrome, monkeypatch):
     assert (jar.source, jar.session_key, jar.cookies["cf_clearance"]) == ("env", "sk-env", "cfv")
     monkeypatch.delenv("CLAUDE_AI_SESSION_KEY")
     monkeypatch.delenv("CLAUDE_AI_COOKIES")
+    assert webauth.load_jar().source == "cdp"
+    monkeypatch.setenv("CLAUDE_AI_CDP_URL", "")
     assert webauth.load_jar().source == "state"
     webauth.state_path().unlink()
     jar = webauth.load_jar()
     assert (jar.source, jar.detail, jar.session_key) == ("chrome", "Profile 1", "sk-p1")  # most recent
     assert "other" not in jar.cookies
     monkeypatch.setitem(sys.modules, "browser_cookie3", None)
+    monkeypatch.setenv("CLAUDE_AI_CDP_URL", "http://127.0.0.1:9222")
     jar = webauth.load_jar()
     assert (jar.source, jar.cookies) == ("cdp", {"sessionKey": "sk-cdp"})
     assert resolve_auth().origin == "cookies:cdp"

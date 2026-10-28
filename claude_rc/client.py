@@ -45,6 +45,7 @@ from .credentials import (
     load_org_uuid,
     org_uuid_from_profile,
     refresh_credentials,
+    default_credentials_path,
     resolve_auth,
 )
 from .environments import EnvironmentsMixin
@@ -432,6 +433,13 @@ class RemoteControlClient(
         return True
 
     def _refresh(self) -> None:
+        # The CLI owns these rotating grants; even a persisted refresh would
+        # invalidate another consumer's in-memory credential.
+        if self._creds.source_keychain or self._creds.source_path == default_credentials_path():
+            raise CredentialsError(
+                "shared CLI credentials are read-only; use Chrome CDP cookie auth "
+                "or credentials_path pointing to a client-owned OAuth login"
+            )
         self._creds = self._auth.credentials = refresh_credentials(
             self._creds, persist=self._persist_refresh, client=self._refresher
         )

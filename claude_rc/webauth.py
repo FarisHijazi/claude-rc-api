@@ -9,16 +9,16 @@ This module finds that jar and keeps it current. Cookie sources, first with a
 1. env ``CLAUDE_AI_SESSION_KEY`` (+ optional ``CLAUDE_AI_COOKIES``, a full
    ``name=value; …`` header for extras such as ``cf_clearance``). If the state
    file holds a jar rotated from this same key, that newer jar is used.
-2. the state file ``$XDG_STATE_HOME/claude-rc/cookies.json`` (mode 0600): the
+2. a logged-in Chrome over CDP (``CLAUDE_AI_CDP_URL``, default
+   ``http://127.0.0.1:9222``; empty disables): ``Storage.getCookies`` over the DevTools
+   websocket (needs ``websockets``).
+3. the state file ``$XDG_STATE_HOME/claude-rc/cookies.json`` (mode 0600): the
    latest jar we rotated ourselves.
-3. the local Chrome cookie store via ``browser_cookie3`` (optional install,
-   ``cc-proxy[web]``). Pin the profile with ``CLAUDE_AI_CHROME_ACCOUNT`` (email,
+4. the local Chrome cookie store via ``browser_cookie3`` (optional install,
+   ``claude-rc-api[web]``). Pin the profile with ``CLAUDE_AI_CHROME_ACCOUNT`` (email,
    looked up in Chrome's ``Local State``) or ``CLAUDE_AI_CHROME_PROFILE``;
    otherwise the most recently used profile wins. ``CLAUDE_AI_CHROME_DIR``
    overrides the user-data directory.
-4. a logged-in Chrome over CDP (``CLAUDE_AI_CDP_URL``, e.g.
-   ``http://127.0.0.1:9222``): ``Storage.getCookies`` over the DevTools
-   websocket (needs ``websockets``).
 
 Ownership (same rule as gemini-web-api's ``rotate_cookies_ourselves``): whoever
 supplies the cookies keeps them fresh. Cookies read from Chrome/CDP belong to
@@ -372,7 +372,7 @@ async def _cdp_cookies(cdp_url: str) -> list[dict]:
 def from_cdp() -> Optional[CookieJar]:
     """The claude.ai jar from a Chrome started with ``--remote-debugging-port``.
     Runs on its own loop in a worker thread, so it works under a running loop."""
-    cdp_url = os.environ.get(ENV_CDP_URL)
+    cdp_url = os.environ.get(ENV_CDP_URL, "http://127.0.0.1:9222")
     if not cdp_url:
         return None
     box: dict[str, list[dict]] = {}
@@ -397,7 +397,7 @@ def from_cdp() -> Optional[CookieJar]:
 def load_jar(*, use_state: bool = True) -> Optional[CookieJar]:
     """The first cookie source yielding a ``sessionKey`` (see module docstring),
     or ``None``."""
-    sources = (from_env, from_state, from_chrome, from_cdp) if use_state else (from_env, from_chrome, from_cdp)
+    sources = (from_env, from_cdp, from_state, from_chrome) if use_state else (from_env, from_cdp, from_chrome)
     for source in sources:
         jar = source()
         if jar is not None:

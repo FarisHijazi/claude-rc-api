@@ -745,8 +745,9 @@ def resolve_auth(
        CLI's ``CLAUDE_CODE_OAUTH_TOKEN`` (bare tokens: no refresh);
     4. env ``CLAUDE_RC_CSWAP_SLOT``, else cswap's live account (Claude Code's own login,
        Keychain on macOS) — access token only, cswap keeps owning the refresh;
-    5. ``~/.claude/.credentials.json`` (or ``credentials_path``), refreshed and
-       written back when it expires.
+    5. the CLI's credential store (file / macOS Keychain), re-read only, never
+       refreshed by the client; or explicit ``credentials_path`` pointing at a
+       client-owned OAuth login (refreshed and saved).
 
     ``slot_token`` replaces cc-proxy's slot reader (tests).
     """

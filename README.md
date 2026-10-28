@@ -21,7 +21,10 @@ upstream 0.4.0: create/unarchive/delete/share/tag cloud sessions, environments
 permission mode, effort, interrupt), permission and AskUserQuestion answers,
 slash commands, the account watch feed, attachments, claude.ai TTS, and
 claude.ai `sessionKey` cookie auth read from a signed-in Chrome
-(`CLAUDE_AI_CDP_URL=http://127.0.0.1:9222`). Shapes and live status:
+(automatically probes `http://127.0.0.1:9222`; `CLAUDE_AI_CDP_URL` overrides,
+empty disables). Chrome owns these cookies and keeps them fresh; the client
+re-reads on auth failure. Shared CLI OAuth credentials are never refreshed;
+use a separate client-owned OAuth file for refreshable bearer auth. Shapes and live status:
 [`docs/web-api.md`](./docs/web-api.md).
 
 ```bash

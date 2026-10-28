@@ -311,10 +311,12 @@ def test_401_refreshes_once_and_resends(tmp_path, monkeypatch):
         seen.append(req.headers["authorization"])
         return httpx.Response(401 if len(seen) == 1 else 200, json={})
 
-    with RemoteControlClient(org_uuid="o", transport=httpx.MockTransport(handler)) as rc:
+    owned = tmp_path / "owned-oauth.json"
+    owned.write_bytes((tmp_path / ".claude" / ".credentials.json").read_bytes())
+    with RemoteControlClient(credentials_path=str(owned), org_uuid="o", transport=httpx.MockTransport(handler)) as rc:
         rc.get_session("cse_1")
     assert seen == ["Bearer stale", "Bearer fresh"]
-    saved = json.loads((tmp_path / ".claude" / ".credentials.json").read_text())["claudeAiOauth"]
+    saved = json.loads(owned.read_text())["claudeAiOauth"]
     assert saved["accessToken"] == "fresh" and saved["refreshToken"] == "r2"
 
 
@@ -422,3 +424,15 @@ def test_cswap_live_account_is_the_default_login(tmp_path, monkeypatch):
     monkeypatch.setattr("claude_rc.credentials.cswap_current_slot", lambda: "2")
     auth = resolve_auth(slot_token=lambda s: (f"live-{s}", 9999999999999))
     assert (auth.credentials.access_token, auth.origin) == ("live-2", "cswap slot 2")
+
+
+def test_shared_cli_credential_is_never_refreshed(tmp_path):
+    _write_creds(tmp_path, token="expired", refresh="shared", expires_at=1)
+    calls = []
+    with RemoteControlClient(org_uuid="o", transport=httpx.MockTransport(
+        lambda req: calls.append(req) or httpx.Response(200, json={})
+    )) as rc:
+        with pytest.raises(CredentialsError, match="shared CLI credentials are read-only"):
+            rc.get_session("cse_1")
+    assert calls == []
+    assert json.loads((tmp_path / ".claude" / ".credentials.json").read_text())["claudeAiOauth"]["refreshToken"] == "shared"
