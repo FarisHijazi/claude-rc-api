@@ -495,21 +495,18 @@ def test_initialize_merges_pending_prompts(monkeypatch):
 
 
 def test_session_reads_and_updates_are_unwrapped(monkeypatch):
-    import httpx
-
     rc = _bare_rc()
     seen = []
 
-    def fake_request(method, url, **kw):
-        seen.append((method, url, kw.get("json")))
-        body = {"response_shape": {"id": "cse_x", "title": "a"}} if method == "GET" else {"session": {"id": "cse_x", "title": "b"}}
-        return httpx.Response(200, json=body)
+    # `_request` takes a base-relative path and returns the parsed body.
+    def fake_request(method, path, **kw):
+        seen.append((method, path, kw.get("json")))
+        return {"response_shape": {"id": "cse_x", "title": "a"}} if method == "GET" else {"session": {"id": "cse_x", "title": "b"}}
 
     monkeypatch.setattr(rc, "_request", fake_request)
-    rc.base_url = "https://api.example"
     assert rc.get_session("cse_x") == {"id": "cse_x", "title": "a"}
     assert rc.rename_session("cse_x", "b") == {"id": "cse_x", "title": "b"}
-    assert seen[1] == ("PUT", "https://api.example/v1/code/sessions/cse_x", {"title": "b"})
+    assert seen[1] == ("PUT", "/v1/code/sessions/cse_x", {"title": "b"})
 
 
 def test_send_message_message_uuid(monkeypatch):
@@ -941,13 +938,24 @@ class _FakeResp:
     def __init__(self, status, text="", json_body=None):
         self.status_code = status
         self.text = text
+        self.headers = {}
         self._json = json_body if json_body is not None else {}
 
     def json(self):
         return self._json
 
+    def read(self):
+        return self.text.encode()
+
+    def close(self):
+        pass
+
 
 class _FakeHttp:
+    """Records (method, url, headers) per call, answering from ``responses``.
+    Speaks both httpx shapes used here: ``post`` (enrollment) and
+    ``build_request`` + ``send`` (the client's ``_send``)."""
+
     def __init__(self, responses):
         self.responses = list(responses)
         self.calls = []
@@ -956,9 +964,19 @@ class _FakeHttp:
         self.calls.append(("POST", url))
         return self.responses.pop(0)
 
-    def request(self, method, url, **kw):
-        self.calls.append((method, url, kw.get("headers", {})))
+    def build_request(self, method, url, **kw):
+        return (method, url, kw.get("headers", {}))
+
+    def send(self, request, stream=False):
+        self.calls.append(request)
         return self.responses.pop(0)
+
+    def close(self):
+        pass
+
+
+# Every status: these tests read the response, not the raised APIError.
+_ANY_STATUS = range(100, 600)
 
 
 def _oauth_creds(**kw):
@@ -1008,12 +1026,9 @@ _EVENTS_URL = "https://api.anthropic.com/v1/code/sessions/x/events"
 def _bare_rc_with(creds, http):
     from claude_rc.client import RemoteControlClient
 
-    rc = RemoteControlClient.__new__(RemoteControlClient)
-    rc._creds = creds
-    rc._creds_path = creds.source_path
-    rc._persist_refresh = True
-    rc._auto_refresh = False
-    rc.base_url = "https://api.anthropic.com"
+    rc = RemoteControlClient(credentials=creds, org_uuid="org-x", auto_refresh=False)
+    rc._http.close()
+    rc._refresher.close()
     rc._org_uuid = None
     rc._http = http
     rc._refresher = http
@@ -1060,7 +1075,7 @@ def test_request_enrolls_and_retries_on_untrusted_device(tmp_path: Path, monkeyp
     monkeypatch.setattr(
         "claude_rc.client.enroll_trusted_device", lambda c, **kw: calls.append(kw) or _enrolls_dev_tok_1(c))
 
-    resp = rc._request("GET", _EVENTS_URL, extra_headers={"anthropic-beta": "b"})
+    resp = rc._send("GET", _EVENTS_URL, accept=_ANY_STATUS, headers={"anthropic-beta": "b"})
 
     assert resp.status_code == 200
     assert len(calls) == 1 and calls[0]["after_refusal"] is True  # enrolled exactly once
@@ -1082,15 +1097,15 @@ def test_lazy_enrollment_is_stamped_and_not_repeated(tmp_path: Path, monkeypatch
         _FakeResp(403, _REFUSED),  # a later call
     ])
     rc = _bare_rc_with(creds, http)
-    assert rc._request("GET", _EVENTS_URL).status_code == 403
+    assert rc._send("GET", _EVENTS_URL, accept=_ANY_STATUS).status_code == 403
     doc = json.loads(p.read_text())
     assert doc["trustedDeviceToken"] == "dev-tok-1" and doc["trustedDeviceEnrolledAfterRefusalAtMs"] > 0
     assert doc["claudeAiOauth"]["accessToken"] == "tok"
     monkeypatch.setattr("claude_rc.client._last_enrollment", float("-inf"))  # only the stamp guards now
-    assert rc._request("GET", _EVENTS_URL).status_code == 403
+    assert rc._send("GET", _EVENTS_URL, accept=_ANY_STATUS).status_code == 403
     assert [c[0] for c in http.calls] == ["GET", "POST", "GET", "GET"]
     restarted = _bare_rc_with(load_credentials(p), _FakeHttp([_FakeResp(403, _REFUSED)]))
-    assert restarted._request("GET", _EVENTS_URL).status_code == 403
+    assert restarted._send("GET", _EVENTS_URL, accept=_ANY_STATUS).status_code == 403
     assert [c[0] for c in restarted._http.calls] == ["GET"]
 
 
@@ -1100,7 +1115,7 @@ def test_request_takes_a_token_the_store_gained(tmp_path: Path, monkeypatch):
     p.write_text(json.dumps({**json.loads(p.read_text()), "trustedDeviceToken": "cli-token"}))
     http = _FakeHttp([_FakeResp(403, _REFUSED), _FakeResp(200, "{}", {"ok": True})])
     monkeypatch.setattr("claude_rc.client.enroll_trusted_device", lambda *a, **kw: pytest.fail("enrolled"))
-    assert _bare_rc_with(creds, http)._request("GET", _EVENTS_URL).status_code == 200
+    assert _bare_rc_with(creds, http)._send("GET", _EVENTS_URL, accept=_ANY_STATUS).status_code == 200
     assert http.calls[1][2].get("X-Trusted-Device-Token") == "cli-token"
 
 
@@ -1109,11 +1124,11 @@ def test_no_lazy_enrollment_without_a_store_to_guard_it(tmp_path: Path, monkeypa
     credentials and a client told not to write surface the 403 instead."""
     monkeypatch.setattr("claude_rc.client.enroll_trusted_device", lambda *a, **kw: pytest.fail("enrolled"))
     no_store = _bare_rc_with(_oauth_creds(), _FakeHttp([_FakeResp(403, _REFUSED)]))
-    assert no_store._request("GET", _EVENTS_URL).status_code == 403
+    assert no_store._send("GET", _EVENTS_URL, accept=_ANY_STATUS).status_code == 403
     _, creds = _stored_creds(tmp_path)
     in_memory = _bare_rc_with(creds, _FakeHttp([_FakeResp(403, _REFUSED)]))
     in_memory._persist_refresh = False
-    assert in_memory._request("GET", _EVENTS_URL).status_code == 403
+    assert in_memory._send("GET", _EVENTS_URL, accept=_ANY_STATUS).status_code == 403
 
 
 def test_request_does_not_loop_when_enrollment_fails(tmp_path: Path, monkeypatch):
@@ -1123,8 +1138,8 @@ def test_request_does_not_loop_when_enrollment_fails(tmp_path: Path, monkeypatch
     tries = []
     monkeypatch.setattr("claude_rc.client.enroll_trusted_device", lambda c, **kw: tries.append(kw))
     rc = _bare_rc_with(creds, _FakeHttp([_FakeResp(403, _REFUSED), _FakeResp(403, _REFUSED)]))
-    assert rc._request("GET", _EVENTS_URL).status_code == 403
-    assert rc._request("GET", _EVENTS_URL).status_code == 403  # original error; no retry storm
+    assert rc._send("GET", _EVENTS_URL, accept=_ANY_STATUS).status_code == 403
+    assert rc._send("GET", _EVENTS_URL, accept=_ANY_STATUS).status_code == 403  # original error; no retry storm
     assert len(tries) == 1
 
 
@@ -1196,7 +1211,7 @@ def test_recovery_follows_a_sign_in_before_enrolling(tmp_path: Path, monkeypatch
     p.write_text(json.dumps({**json.loads(p.read_text()), "trustedDeviceToken": "b-dev"}))
     http = _FakeHttp([_FakeResp(403, _REFUSED), _FakeResp(200, "{}", {"ok": True})])
     monkeypatch.setattr("claude_rc.client.enroll_trusted_device", lambda *a, **kw: pytest.fail("enrolled"))
-    assert _bare_rc_with(creds, http)._request("GET", _EVENTS_URL).status_code == 200
+    assert _bare_rc_with(creds, http)._send("GET", _EVENTS_URL, accept=_ANY_STATUS).status_code == 200
     retry = http.calls[1][2]
     assert (retry["Authorization"], retry["X-Trusted-Device-Token"]) == ("Bearer b-token", "b-dev")
 
@@ -1210,7 +1225,7 @@ def test_no_enrollment_after_a_sign_out(tmp_path: Path, monkeypatch):
         else:
             p.write_text(gone)
         rc = _bare_rc_with(creds, _FakeHttp([_FakeResp(403, _REFUSED)]))
-        assert rc._request("GET", _EVENTS_URL).status_code == 403
+        assert rc._send("GET", _EVENTS_URL, accept=_ANY_STATUS).status_code == 403
 
 
 def test_enrollment_floor_is_per_process(tmp_path: Path):
@@ -1220,7 +1235,7 @@ def test_enrollment_floor_is_per_process(tmp_path: Path):
     posts = 0
     for _ in range(3):
         http = _FakeHttp([_FakeResp(403, _REFUSED), _FakeResp(403, '{"error": "declined"}')])
-        _bare_rc_with(creds, http)._request("GET", _EVENTS_URL)
+        _bare_rc_with(creds, http)._send("GET", _EVENTS_URL, accept=_ANY_STATUS)
         posts += sum(c[0] == "POST" for c in http.calls)
     assert posts == 1
 
@@ -1230,7 +1245,7 @@ def test_env_trusted_device_token_is_sent_and_stops_enrollment(tmp_path: Path, m
     monkeypatch.setattr("claude_rc.client.enroll_trusted_device", lambda *a, **kw: pytest.fail("enrolled"))
     p, _ = _stored_creds(tmp_path)
     http = _FakeHttp([_FakeResp(403, _REFUSED)])
-    assert _bare_rc_with(load_credentials(p), http)._request("GET", _EVENTS_URL).status_code == 403
+    assert _bare_rc_with(load_credentials(p), http)._send("GET", _EVENTS_URL, accept=_ANY_STATUS).status_code == 403
     assert http.calls[0][2]["X-Trusted-Device-Token"] == "provisioned"
 
 
@@ -1243,7 +1258,7 @@ def test_unusable_refusal_stamp_blocks_enrollment(tmp_path: Path, monkeypatch, s
     p.write_text(json.dumps({**json.loads(p.read_text()), "trustedDeviceToken": "dev",
                              "trustedDeviceEnrolledAfterRefusalAtMs": stamp}))
     rc = _bare_rc_with(load_credentials(p), _FakeHttp([_FakeResp(403, _REFUSED)]))
-    assert rc._request("GET", _EVENTS_URL).status_code == 403
+    assert rc._send("GET", _EVENTS_URL, accept=_ANY_STATUS).status_code == 403
 
 
 def test_stored_token_with_a_recent_stamp_is_still_adopted(tmp_path: Path, monkeypatch):
@@ -1256,7 +1271,7 @@ def test_stored_token_with_a_recent_stamp_is_still_adopted(tmp_path: Path, monke
                              "trustedDeviceEnrolledAfterRefusalAtMs": int(time.time() * 1000)}))
     http = _FakeHttp([_FakeResp(403, _REFUSED), _FakeResp(200, "{}", {"ok": True})])
     monkeypatch.setattr("claude_rc.client.enroll_trusted_device", lambda *a, **kw: pytest.fail("enrolled"))
-    assert _bare_rc_with(creds, http)._request("GET", _EVENTS_URL).status_code == 200
+    assert _bare_rc_with(creds, http)._send("GET", _EVENTS_URL, accept=_ANY_STATUS).status_code == 200
     assert http.calls[1][2]["X-Trusted-Device-Token"] == "theirs"
 
 
@@ -1287,7 +1302,7 @@ def test_401_retry_keeps_extra_headers(tmp_path: Path):
     http = _FakeHttp([_FakeResp(401, "{}"), _FakeResp(200, "{}", {"ok": True})])
     rc = _bare_rc_with(creds, http)
     rc._auto_refresh = True
-    assert rc._request("GET", _EVENTS_URL, extra_headers={"anthropic-beta": "b"}).status_code == 200
+    assert rc._send("GET", _EVENTS_URL, accept=_ANY_STATUS, headers={"anthropic-beta": "b"}).status_code == 200
     assert http.calls[1][2]["Authorization"] == "Bearer rotated" and http.calls[1][2]["anthropic-beta"] == "b"
 
 
