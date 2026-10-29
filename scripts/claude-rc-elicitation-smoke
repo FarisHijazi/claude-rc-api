@@ -1,0 +1,161 @@
+#!/usr/bin/env python3
+"""Opt-in MCP elicitation/dialog/hook qualification on owned disposable cloud resources.
+
+An SDK FastMCP 1.30.0 child calls ctx.elicit; the worker relays it as an
+``elicitation`` control_request. accept/decline/cancel are answered through
+``answer_elicitation`` and proven by the child's own tool result and ledger.
+Also records hook registration and the session's MCP server names (for the
+Chrome forced-ask premise). ``--capture-web`` opens and closes one owned dev CDP
+tab on the owned session and scans the loaded web bundle, without any input.
+"""
+from __future__ import annotations
+
+import argparse
+import base64
+import hashlib
+import json
+import runpy
+import sys
+import uuid
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from claude_rc import RemoteControlClient
+
+helpers = runpy.run_path(str(Path(__file__).with_name("claude-rc-permission-smoke")))
+collect, tool_results = helpers["collect"], helpers["tool_results"]
+cleanup_resources = runpy.run_path(str(Path(__file__).with_name("claude-rc-mcp-smoke")))["cleanup_resources"]
+
+WEB_PATTERNS = ["can_use_tool", "request_user_dialog", "supportedDialogKinds", "dialog_kind",
+                "requested_schema", "elicitation_id", "mcp_server_name", "hook_callback", "askForTools"]
+SCAN = """async (pats) => {
+  const urls = [...new Set(performance.getEntriesByType('resource').map(e => e.name)
+      .filter(n => /\\.js(\\?|$)/.test(n)))];
+  const counts = Object.fromEntries(pats.map(p => [p, 0]));
+  for (const u of urls) {
+    let t; try { t = await (await fetch(u)).text(); } catch (e) { continue; }
+    for (const p of pats) counts[p] += t.split(p).length - 1;
+  }
+  return {scripts: urls.length, counts};
+}"""
+ANSWERS = (("accept", {"name": "Ada", "count": 3}), ("decline", None), ("cancel", None))
+
+
+def child_result(block):
+    content = block["content"]
+    texts = [content] if isinstance(content, str) else [b.get("text", "") for b in content]
+    return json.loads("".join(texts))
+
+
+def capture_web(url):
+    from playwright.sync_api import sync_playwright
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.connect_over_cdp("http://127.0.0.1:9222")
+        page = browser.contexts[0].new_page()
+        try:
+            page.goto(url, wait_until="domcontentloaded", timeout=90000)
+            page.get_by_role("textbox").wait_for(timeout=60000)
+            page.wait_for_timeout(5000)
+            return {"url": page.url, **page.evaluate(SCAN, WEB_PATTERNS)}
+        finally:
+            page.close()
+            browser.close()
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--capture-web", action="store_true")
+    args = parser.parse_args()
+    proof = {"run": "elicit-" + uuid.uuid4().hex[:10], "checks": [], "cleanup": [], "complete": False}
+    sid = eid = None
+
+    def save():
+        args.output.write_text(json.dumps(proof, indent=2) + "\n")
+
+    def record(name, **details):
+        proof["checks"].append({"name": name, **details})
+        save()
+        print(json.dumps(proof["checks"][-1]), flush=True)
+
+    with RemoteControlClient(direct=True, timeout=25) as client:
+        try:
+            eid = client.create_cloud_environment(proof["run"], cwd="/mnt/user-data/working",
+                description="Disposable generated-only elicitation qualification")["environment_id"]
+            proof["environment_id"] = eid
+            save()
+            sid = client.create_session(eid, title=proof["run"], model="claude-haiku-5-5",
+                                        permission_mode="default")["id"]
+            proof["session_id"] = sid
+            save()
+            init = client.initialize(sid, timeout=60)
+            record("worker", version=init.get("claude_code_version"),
+                   pending_user_dialog_requests=len(init.get("pending_user_dialog_requests") or []))
+            reply = client.request_control(sid, "initialize", timeout=60,
+                hooks={"PreToolUse": [{"matcher": "Bash", "hookCallbackIds": [proof["run"]], "timeout": 10}]})
+            record("hook_registration", hooks_applied=reply.get("hooks_applied"),
+                   cli_contract="false = a joining client's hooks were ignored; the stdin owner configured the session")
+            assert reply.get("hooks_applied") is False
+            if args.capture_web:
+                from claude_rc.lifecycle import session_web_url
+                record("web_bundle", **capture_web(session_web_url(sid)))
+
+            def reject(request):
+                client.deny_permission(sid, request, "Unexpected fixture operation; stop.", interrupt=True)
+                raise AssertionError(f"unexpected {request.kind}")
+
+            source = (Path(__file__).resolve().parent.parent / "tests/fixtures/mcp_elicitation.py").read_bytes()
+            path = "/mnt/user-data/working/" + proof["run"] + ".py"
+            events, _ = collect(client, sid,
+                f"Use Bash exactly once: printf %s {base64.b64encode(source).decode()} | base64 -d > {path}; "
+                f"sha256sum {path}. No other tools.", reject)
+            digest = hashlib.sha256(source).hexdigest()
+            results = tool_results(events, "Bash")
+            assert len(results) == 1 and digest in results[0]["content"]
+            record("fixture_bytes", sha256=digest, tool_use_id=results[0]["tool_use_id"])
+            server = proof["run"]
+            tool = f"mcp__{server}__ask"
+            added = client.set_worker_mcp_servers(sid, {server: {"type": "stdio", "command": "uv",
+                "args": ["run", "--with", "mcp==1.30.0", "python", path]}}, confirm=True, timeout=90)
+            assert server in added.get("added", []) and not added.get("errors"), json.dumps(added)[:300]
+            rows = client.mcp_status(sid, live_reply=True, timeout=40)
+            names = [row.get("name") or "" for row in rows]
+            record("mcp_servers", server_count=len(names), own_fixture_present=server in names,
+                   chrome_server_present="claude-in-chrome" in names)
+            ledger = []
+            for action, content in ANSWERS:
+                marker = f"ELICIT_{action.upper()}"
+                seen = []
+
+                def respond(request):
+                    if request.kind == "permission" and request.tool_name == tool and not seen:
+                        client.allow_once(sid, request)
+                        return
+                    if request.kind != "elicitation" or request.request.get("mcp_server_name") != server:
+                        reject(request)
+                    seen.append({k: request.request.get(k) for k in
+                                 ("mcp_server_name", "message", "mode", "requested_schema", "property_order")})
+                    client.answer_elicitation(sid, request, action, content)
+
+                events, _ = collect(client, sid,
+                    f"Call {tool} exactly once with marker {marker}. No other tools. Then reply DONE.", respond)
+                replies = tool_results(events, tool)
+                assert len(seen) == 1 and seen[0]["message"] == f"Generated elicitation {marker}"
+                assert len(replies) == 1 and not replies[0].get("is_error")
+                expected = {"marker": marker, "action": action, "content": content}
+                assert child_result(replies[0]) == expected
+                ledger.append(expected)
+                lines = client.read_file(sid, path[:-3] + ".elicit")["contents"].splitlines()
+                assert [json.loads(line) for line in lines] == ledger
+                record("elicitation_continuation", action=action, request=seen[0],
+                       child_tool_result=replies[0], ledger_rows=len(lines), ledger_exact=True)
+            proof["complete"] = True
+        except Exception as error:
+            record("aborted", error_class=type(error).__name__, error=str(error)[:300])
+            raise
+        finally:
+            cleanup_resources(client, sid, eid, proof, save)
+
+
+if __name__ == "__main__":
+    main()

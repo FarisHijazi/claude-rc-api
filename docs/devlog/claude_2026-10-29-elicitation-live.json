@@ -1,0 +1,187 @@
+{
+  "run": "elicit-1e06b6433b",
+  "checks": [
+    {
+      "name": "worker",
+      "version": "2.1.312",
+      "pending_user_dialog_requests": 0
+    },
+    {
+      "name": "hook_registration",
+      "hooks_applied": false,
+      "cli_contract": "false = a joining client's hooks were ignored; the stdin owner configured the session"
+    },
+    {
+      "name": "web_bundle",
+      "url": "https://claude.ai/code/session_0154EsXTt4VV59GnFmLTgs6y",
+      "scripts": 131,
+      "counts": {
+        "can_use_tool": 0,
+        "request_user_dialog": 0,
+        "supportedDialogKinds": 0,
+        "dialog_kind": 0,
+        "requested_schema": 0,
+        "elicitation_id": 0,
+        "mcp_server_name": 0,
+        "hook_callback": 0,
+        "askForTools": 0
+      }
+    },
+    {
+      "name": "fixture_bytes",
+      "sha256": "ab0cf1e58c307b471efb01a2ed9e10d1d8ef43a861b221c9e955d9f089665da6",
+      "tool_use_id": "toolu_013KsrBkqtj7RC8fm1SWRfDz"
+    },
+    {
+      "name": "mcp_servers",
+      "chrome_server_present": false,
+      "server_count": 13,
+      "own_fixture_present": true,
+      "inherited_kinds": [
+        "plugin"
+      ]
+    },
+    {
+      "name": "elicitation_continuation",
+      "action": "accept",
+      "request": {
+        "mcp_server_name": "elicit-1e06b6433b",
+        "message": "Generated elicitation ELICIT_ACCEPT",
+        "mode": "form",
+        "requested_schema": {
+          "properties": {
+            "count": {
+              "title": "Count",
+              "type": "integer"
+            },
+            "name": {
+              "title": "Name",
+              "type": "string"
+            }
+          },
+          "required": [
+            "name",
+            "count"
+          ],
+          "title": "Reply",
+          "type": "object"
+        },
+        "property_order": [
+          "name",
+          "count"
+        ]
+      },
+      "child_tool_result": {
+        "content": [
+          {
+            "text": "{\n  \"marker\": \"ELICIT_ACCEPT\",\n  \"action\": \"accept\",\n  \"content\": {\n    \"name\": \"Ada\",\n    \"count\": 3\n  }\n}",
+            "type": "text"
+          }
+        ],
+        "tool_use_id": "toolu_013c8EHj6VahVnyWcntp3Wky",
+        "type": "tool_result"
+      },
+      "ledger_rows": 1,
+      "ledger_exact": true
+    },
+    {
+      "name": "elicitation_continuation",
+      "action": "decline",
+      "request": {
+        "mcp_server_name": "elicit-1e06b6433b",
+        "message": "Generated elicitation ELICIT_DECLINE",
+        "mode": "form",
+        "requested_schema": {
+          "properties": {
+            "count": {
+              "title": "Count",
+              "type": "integer"
+            },
+            "name": {
+              "title": "Name",
+              "type": "string"
+            }
+          },
+          "required": [
+            "name",
+            "count"
+          ],
+          "title": "Reply",
+          "type": "object"
+        },
+        "property_order": [
+          "name",
+          "count"
+        ]
+      },
+      "child_tool_result": {
+        "content": [
+          {
+            "text": "{\n  \"marker\": \"ELICIT_DECLINE\",\n  \"action\": \"decline\",\n  \"content\": null\n}",
+            "type": "text"
+          }
+        ],
+        "tool_use_id": "toolu_0189wt29SyNbKzCjTSxWiN2L",
+        "type": "tool_result"
+      },
+      "ledger_rows": 2,
+      "ledger_exact": true
+    },
+    {
+      "name": "elicitation_continuation",
+      "action": "cancel",
+      "request": {
+        "mcp_server_name": "elicit-1e06b6433b",
+        "message": "Generated elicitation ELICIT_CANCEL",
+        "mode": "form",
+        "requested_schema": {
+          "properties": {
+            "count": {
+              "title": "Count",
+              "type": "integer"
+            },
+            "name": {
+              "title": "Name",
+              "type": "string"
+            }
+          },
+          "required": [
+            "name",
+            "count"
+          ],
+          "title": "Reply",
+          "type": "object"
+        },
+        "property_order": [
+          "name",
+          "count"
+        ]
+      },
+      "child_tool_result": {
+        "content": [
+          {
+            "text": "{\n  \"marker\": \"ELICIT_CANCEL\",\n  \"action\": \"cancel\",\n  \"content\": null\n}",
+            "type": "text"
+          }
+        ],
+        "tool_use_id": "toolu_01MwUgnML6sjLWXtb5czeVwe",
+        "type": "tool_result"
+      },
+      "ledger_rows": 3,
+      "ledger_exact": true
+    }
+  ],
+  "cleanup": [
+    {
+      "session_id": "cse_0154EsXTt4VV59GnFmLTgs6y",
+      "get_status": 404
+    },
+    {
+      "environment_id": "env_01Bvbvf5ujUGWWJYczJm6iQq",
+      "excluded_from_list": true
+    }
+  ],
+  "complete": true,
+  "environment_id": "env_01Bvbvf5ujUGWWJYczJm6iQq",
+  "session_id": "cse_0154EsXTt4VV59GnFmLTgs6y"
+}

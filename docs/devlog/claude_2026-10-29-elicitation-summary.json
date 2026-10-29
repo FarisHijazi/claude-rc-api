@@ -1,0 +1,32 @@
+{
+  "base": "f0581dcb9bd64f5194acd278a7e0719606c37861",
+  "branch": "feat/capture-dialogs",
+  "worker_cli": "2.1.312 (cloud worker initialize; same local binary inspected)",
+  "live_evidence": "claude_2026-10-29-elicitation-live.json",
+  "harness": "scripts/claude-rc-elicitation-smoke --output PATH [--capture-web]",
+  "qualified": {
+    "mcp_form_elicitation": {
+      "generator": "tests/fixtures/mcp_elicitation.py: FastMCP 1.30.0 stdio child, ctx.elicit(schema={name:str,count:int}), installed only in the owned session via set_worker_mcp_servers(confirm=True)",
+      "wire_request": "control_request{subtype:'elicitation', mcp_server_name, message, mode:'form', requested_schema, property_order}",
+      "wire_response": "control_response{response:{action:'accept'|'decline'|'cancel', content?}} via answer_elicitation (CLI schema c7o)",
+      "proof": "accept -> child tool_result {action:accept, content:{name:Ada,count:3}}; decline/cancel -> content null; child ledger read with worker read_file has exactly 1/2/3 matching rows; each preceded by a genuine MCP tool permission allowed once",
+      "offline": "tests/elicitation_fixture_test.py runs the same child under the real SDK ClientSession with the client's wire builder"
+    }
+  },
+  "unsupported_with_evidence": {
+    "request_user_dialog": "CLI 2.1.312 initialize schema: supportedDialogKinds is 'First-attached-client-wins on multi-client sessions; later initializes do not change it'; requestUserDialog is sent only for declared kinds, else the flow degrades to its no-dialog behavior. On cloud workers the host process attaches first, so an API client cannot cause a dialog for itself. No pending_user_dialog_requests observed (0).",
+    "hook_callback": "CLI 2.1.312: hooks_applied is 'false when a repeated initialize's hooks were ignored (a client joining a remote session another client configured)'; only the process owning stdin may replace hooks. Repeated live: initialize with PreToolUse hookCallbackIds returned hooks_applied:false.",
+    "chrome_forced_ask": "CLI: askForTools forces ask only for Claude in Chrome safe permissionless tools (e.g. tabs_context_mcp). Current web bundle (shared-p-m-0 chunk: QS='claude-in-chrome'; session chunk cicStubForcePin -> set_mcp_permission_mode_override{serverName:QS, mode:'default'}) sends no askForTools in any loaded script. The owned cloud worker exposed no claude-in-chrome server (13 servers, none named so). Connecting one needs the user's browser-extension relay, a connector action outside authorization; not attempted."
+  },
+  "web_bundle": {
+    "method": "Owned CDP tab on https://claude.ai/code and on the owned session page; fetched every loaded JS resource and counted literals; tabs closed in finally",
+    "landing_counts": "elicitation 5 (ToolApproval isElicitation/elicitationServerName, hub_mcp_elicitation card kind), control_request 3, set_permission_mode 2, AskUserQuestion 5; request_user_dialog 0, hook_callback 0, can_use_tool 0",
+    "limitation": "The incoming control_request parser is not in the loaded chunks (can_use_tool 0), so absence of request_user_dialog in the web bundle is not by itself proof; the dialog conclusion rests on the CLI contract."
+  },
+  "not_qualified": ["URL-mode elicitation", "Panel/rendered elicitation", "Elicitation timeout/abort paths"],
+  "safety": {
+    "resources": "one environment and one session, both created by the harness; session GET 404 and environment list exclusion asserted",
+    "browser": "own CDP tabs only, no input; one interrupted earlier scan may have left a bare https://claude.ai/code tab (not closed because ownership could not be proven)",
+    "outward_actions": "none; no shared OAuth refresh; no connector, network or account writes"
+  }
+}

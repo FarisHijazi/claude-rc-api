@@ -322,7 +322,9 @@ class PromptsMixin:
         self, session_id: str, request: PendingRequest | str, *, completed: bool = True, result: Any = None
     ) -> dict:
         """Settle a ``request_user_dialog`` (``behavior: completed | cancelled``).
-        Only answer kinds you declared in ``supportedDialogKinds``."""
+        Only answer kinds you declared in ``supportedDialogKinds``. The first
+        attached client's declaration wins, so a client joining a cloud worker
+        cannot declare kinds and has no dialog to answer."""
         rid, _ = _as_request(request, "request_user_dialog")
         return self.send_events(session_id, [cli_user_dialog_response(rid, completed=completed, result=result)])
 
@@ -330,12 +332,16 @@ class PromptsMixin:
         self, session_id: str, request: PendingRequest | str, action: str = "accept", content: dict | None = None
     ) -> dict:
         """Answer an MCP ``elicitation``: ``accept`` (with form ``content``),
-        ``decline`` or ``cancel``."""
+        ``decline`` or ``cancel``. Cloud workers relay a stdio MCP child's
+        ``elicitation/create`` as this request; ``content`` must satisfy the
+        request's ``requested_schema``."""
         rid, _ = _as_request(request, "elicitation")
         return self.send_events(session_id, [cli_elicitation_response(rid, action, content)])
 
     def answer_hook_callback(self, session_id: str, request: PendingRequest | str, output: Mapping[str, Any]) -> dict:
-        """Answer a ``hook_callback`` with the hook's JSON output."""
+        """Answer a ``hook_callback`` with the hook's JSON output. Only the
+        process owning the worker's stdin registers hooks; a joining client's
+        ``initialize`` reports ``hooks_applied: false`` and receives none."""
         rid, _ = _as_request(request, "hook_callback")
         return self.send_events(session_id, [cli_hook_callback_response(rid, dict(output))])
 
