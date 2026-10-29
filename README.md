@@ -13,23 +13,31 @@ uses.
 > break at any time. Use your own account, at your own risk. Full protocol
 > writeup in [`API_REFERENCE.md`](./API_REFERENCE.md).
 
-## This fork (0.8.0): Claude Code on the web
+## This fork (0.9.0): Claude Code on the web
 
 `FarisHijazi/claude-rc-api` extends upstream 0.4.0 with cloud session
 lifecycle, environments, routines, typed model/mode/effort controls, question
 and permission responses, resumable streams, workspace CAS, media, and
 claude.ai `sessionKey` cookie auth read from a signed-in Chrome
 (automatically probes `http://127.0.0.1:9222`; `CLAUDE_AI_CDP_URL` overrides,
-empty disables). Chrome owns these cookies and keeps them fresh; the client
-re-reads on auth failure. Shared CLI OAuth credentials are never refreshed;
-use a separate client-owned OAuth file for refreshable bearer auth. Shapes and live status:
-[`docs/web-api.md`](./docs/web-api.md). **Not full web parity:** routine worker
-execution, genuine permission prompts, cookie attachment uploads, owned OAuth
-refresh and several browser-only surfaces remain unqualified or unsupported.
-The matrix distinguishes live behavior from fixtures, blocked writes and gaps.
+empty disables). Chrome owns these cookies; the client re-reads on auth failure
+and offers explicit source-pinned recovery. This requires a signed-in browser and
+reachable CDP, not repeated manual cookie copying or a promise of silent renewal
+of a revoked login. Shared CLI OAuth credentials are never refreshed; owned
+OAuth helpers exist, but live enrollment/rotation remain unqualified.
+
+0.9.0 adds `command_capabilities()` / `dispatch --capabilities`, separating the
+captured web menu from worker-advertised commands and host handlers, plus
+receipt-correlated queued-question collection. Genuine permission choices,
+native questions, cookie attachments, two-model inference and exact queue
+cancel/legacy interrupt effects are live-qualified. **Not full web API parity:**
+routine execution, MCP mutation effects, Files API staging, owned OAuth rotation
+and uncaptured contracts retain gaps. Optional panel/local CLI presentation
+backlog is separate. [`docs/web-api.md`](./docs/web-api.md) distinguishes the
+requested API core, extended web APIs, presentation, live evidence and blockers.
 
 ```bash
-uv add "claude-rc-api[web,cli] @ git+https://github.com/FarisHijazi/claude-rc-api"
+uv add "claude-rc-api[web,cli] @ git+ssh://git@github.com/FarisHijazi/claude-rc-api"
 CLAUDE_AI_CDP_URL=http://127.0.0.1:9222 claude-rc whoami
 claude-rc envs list
 claude-rc create --model claude-haiku-5-5 "reply with PONG"
@@ -60,9 +68,9 @@ It also ships a `ManagedAgentsClient` for the sibling public Sessions API
 As a library / CLI, straight from the repo:
 
 ```bash
-uv add "claude-rc-api @ git+https://github.com/FarisHijazi/claude-rc-api"   # into a uv project
-pip install "git+https://github.com/FarisHijazi/claude-rc-api"              # into any venv
-uvx --from "git+https://github.com/FarisHijazi/claude-rc-api[cli]" claude-rc list   # run the CLI, zero install
+uv add "claude-rc-api @ git+ssh://git@github.com/FarisHijazi/claude-rc-api"   # into a uv project
+pip install "git+ssh://git@github.com/FarisHijazi/claude-rc-api"              # into any venv
+uvx --from "git+ssh://git@github.com/FarisHijazi/claude-rc-api[cli]" claude-rc list   # run the CLI, zero install
 ```
 
 For development in a checkout, use [uv](https://docs.astral.sh/uv/):

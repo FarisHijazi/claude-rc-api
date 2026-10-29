@@ -10,7 +10,7 @@ dependency (its `pyproject.toml`), so there is no second copy to keep in sync.
 - `origin` = `git@github.com:FarisHijazi/claude-rc-api.git` (push here; `main`).
 - `upstream` = `ThatCrispyToast/claude-rc-api`, **read-only**: fetch and merge
   `upstream/main` into `main`; never push there, never open upstream PRs/issues.
-- Version: ours is `0.8.0`+ (upstream already used 0.4.0). Bump the minor for a
+- Version: ours is `0.9.0` (upstream already used 0.4.0). Bump the minor for a
   new surface.
 
 ## Layout
@@ -282,3 +282,14 @@ Canonical core integration: `docs/devlog/claude_2026-10-29-core-integrated-live.
 732 offline/headless tests and fresh upload/permission/native-question effects
 and exact cleanup. These are plain paths, not includes. Blob deletion and full
 extended panel parity remain unsupported or incomplete; the gap plan is updated.
+
+0.9.0 final integration: `docs/devlog/claude_2026-10-29-final-integration.json`
+indexes 761 offline/headless tests and fresh auth/commands live harnesses with
+same-session continuation, fresh-client history, two-model inference, exact
+queue cancellation/legacy interrupt effects and exact resource cleanup. These
+paths are deliberately plain, not includes. `docs/web-api.md` separates requested
+web API core, extended web API gaps and optional local CLI/panel presentation;
+unqualified web operations must never be relabeled as presentation-only.
+Hatch owns the dynamic version in `claude_rc/_version.py`; use
+`uv run --with hatch hatch version minor` for a new surface. No new transport,
+shared grant refresh, persistent service or deployment was added.

@@ -1,9 +1,43 @@
-# Web controller: contracts and evidence (0.8.0)
+# Web controller: contracts and evidence (0.9.0)
 
-This is the canonical `claude_rc` implementation. All eight feature branches
-are merged. It is **not full browser parity**: a captured request builder,
-queue acknowledgement, fixture test, or terminal `success` alone is not proof
-that a worker executed the requested operation.
+This is the canonical `claude_rc` implementation. The original eight feature
+branches and independently verified final auth/command branches are integrated.
+It is **not complete web API parity or full browser parity**: a captured request
+builder, queue acknowledgement, fixture test, or terminal `success` alone is not
+proof that a worker executed the requested operation.
+
+## Requested API scope versus host presentation
+
+The requested deliverable is a programmatic **Claude Code WEB API**, not a clone
+of every browser screen or the complete local CLI. These boundaries do not turn
+an unimplemented or unqualified web operation into a UI-only feature.
+
+| Requested core | Current qualification | Remaining boundary |
+|---|---|---|
+| Authentication without repeated manual cookies | Automatic signed-in Chrome/CDP discovery, source-pinned reread and explicit recovery; real continuation after injected auth denial | Chrome must remain signed in/reachable. Owned OAuth enrollment/rotation and natural month-scale expiry are not live-qualified |
+| Create, discover and configure environments/sessions | Cookie environment CRUD/archive, inline/deferred session creation, configured model/mode and worker execution | Pool execution, exhaustive repository paging, effort/multi-source variants, editable secrets and bearer-write lineage remain unqualified |
+| Chat, stream and durable readback | Own processing receipts, completed replies, paginated fresh-client history and bounded recovery | Natural worker replacement/watch 410; send-now/priority races and v1 interrupt receipts remain unqualified |
+| Models and commands | Haiku/Sonnet model-tagged inference; mode and flag readbacks; typed controls, advertised worker commands and captured 22-name web menu enumerated separately | Flag storage is not inference proof; not every advertised command was executed. Unsupported cloud controls fail closed |
+| Permissions and questions | Genuine allow/deny/exact session-rule reuse; choice and native text/number/follow-up tool results | Persistent/restart/redirection rule variants, actual dialogs/elicitation and hook continuation remain unqualified; tested cloud hooks returned `hooks_applied:false` |
+| Lifecycle | Rename, archive, restore followed by a fresh reply, delete followed by GET 404 | Share/export writes not exercised; fork/grouping/SCM contracts uncaptured |
+
+**Extended web API surfaces remain API gaps, not presentation extras.** Routine
+worker execution/cron/cancellation (observed quota denial), MCP mutations/staged
+results, Files API mount/seed, nonempty attachment prefetch, network/connector
+writes and uncaptured fork/SCM routes retain their exact matrix status below.
+Standalone org attachment deletion has no captured contract; session deletion
+was proven not to delete the uploaded blob.
+
+**Presentation/local CLI extras are separate.** Rebuilding management forms,
+native-question widgets, every menu renderer, theme/copy/pinning and host-local
+CLI workflows is not required to expose their underlying web operations. The
+panel's missing renderers remain development backlog rather than API parity
+failures. Conversely, a renderer cannot establish an unverified API effect.
+W2 captures the actual Code menu and worker catalog: design/slides are absent
+from that captured web menu, not proven globally unavailable. `/status` and
+`/autocompact` currently require host handlers; absence of a handler or admitted
+control is not evidence that every possible server-side contract is UI-only.
+All outstanding API and rendered acceptance items remain in the gap plan G.
 
 ## Evidence and status vocabulary
 
@@ -51,7 +85,21 @@ branches were not yet integrated are historical, not the current main state.
 
 ## Canonical core integration
 
-**LIVE CHECK K:** the merged canonical tree passed 732 offline/headless tests
+**LIVE CHECK 0.9.0:** the final merged implementation passed **761 offline/headless
+tests** (three existing legacy deprecation warnings). Fresh
+`claude_2026-10-29-final-integrated-auth.json` proves real 401 → 200 → 200 recovery,
+completed turns before/after recovery on one session and fresh-client paged
+history. `claude_2026-10-29-final-integrated-commands.json` proves two-model tagged
+inference, mode/flag readbacks, seeded Edit without Read, exact queued cancellation,
+question continuation and legacy interrupt preventing a file write. Both sessions
+returned GET 404; the command environment was archived and excluded. No menu was
+recaptured in this run; W2 retains the actual browser capture. The recovery CLI
+also passed. `claude_2026-10-29-final-integration.json` indexes method and limits.
+This is scoped qualification, not natural expiry, owned OAuth rotation or full
+web API parity. All these paths are relative to `docs/devlog/` and deliberately
+plain, not includes.
+
+**LIVE CHECK K (prior core run):** the merged canonical tree passed 732 offline/headless tests
 (three existing deprecation warnings). Fresh binary upload/download/worker hash,
 genuine allow/deny/exact session-rule reuse and native text/number/follow-up
 continuation passed. All three disposable sessions returned GET 404; the native

@@ -1,0 +1,82 @@
+{
+  "tested_sha": "c4e6334 plus 0.9.0 version bump",
+  "checks": [
+    {
+      "name": "readonly_account_sessions_environments",
+      "passed": true,
+      "source": "cookies:cdp",
+      "environment_count": 5
+    },
+    {
+      "name": "initial_worker_turn",
+      "passed": true,
+      "exact_assistant_marker": true,
+      "own_processing_receipt": true,
+      "turn_completed": true,
+      "frames": 36
+    },
+    {
+      "name": "automatic_recovery",
+      "passed": true,
+      "http": [
+        {
+          "method": "GET",
+          "path": "/v1/code/sessions",
+          "status": 401
+        },
+        {
+          "method": "GET",
+          "path": "/api/account",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/v1/code/sessions",
+          "status": 200
+        }
+      ],
+      "same_account_org": true,
+      "fault": "invalid client-memory cookie, real server denial, not expiry"
+    },
+    {
+      "name": "explicit_recovery_no_replay",
+      "passed": true,
+      "http": [
+        {
+          "method": "GET",
+          "path": "/api/account",
+          "status": 200
+        }
+      ],
+      "same_account_org": true
+    },
+    {
+      "name": "same_session_post_recovery_continuation",
+      "passed": true,
+      "exact_assistant_marker": true,
+      "own_processing_receipt": true,
+      "turn_completed": true,
+      "frames": 11
+    },
+    {
+      "name": "fresh_client_durable_history_readback",
+      "passed": true,
+      "both_markers": true,
+      "completed_turns": 2,
+      "same_account_org": true
+    }
+  ],
+  "created_sessions": [
+    "cse_0154EsXU4xpt9LyYCyM5o6BQ"
+  ],
+  "cleanup": [
+    {
+      "session_id": "cse_0154EsXU4xpt9LyYCyM5o6BQ",
+      "get_status": 404
+    }
+  ],
+  "grant_reads_or_exchanges": 0,
+  "browser_writes": 0,
+  "natural_expiry_observed": false,
+  "outcome": "PASS"
+}

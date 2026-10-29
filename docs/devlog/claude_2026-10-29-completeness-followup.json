@@ -1,8 +1,8 @@
 {
-  "version": "0.8.0",
+  "version": "0.9.0",
   "baseline": "a13783c",
   "full_web_parity": false,
-  "summary": "Added and live-qualified metadata-only environment editing, routine edit/history screens, read-only redacted network inspection, binary/base64 CAS editing and conflict-safe drafts. Qualified env/state cookie loading and actual source-pinned 401 recovery using browser-derived test cookies. No claim that all requested gaps are closed. Canonical follow-up now qualifies cookie Code uploads, genuine allow/deny/exact session-rule reuse and native text/number/follow-up API continuation; extended panel parity remains incomplete.",
+  "summary": "Added and live-qualified metadata-only environment editing, routine edit/history screens, read-only redacted network inspection, binary/base64 CAS editing and conflict-safe drafts. Qualified env/state cookie loading and actual source-pinned 401 recovery using browser-derived test cookies. No claim that all requested gaps are closed. Canonical follow-up now qualifies cookie Code uploads, genuine allow/deny/exact session-rule reuse and native text/number/follow-up API continuation; extended panel parity remains incomplete. Final integration adds independently verified source-pinned auth recovery, capability enumeration and own-message blocking-prompt correlation. Fresh integrated auth/commands checks passed; API scope is explicitly separated from optional presentation, without closing the remaining web API gaps.",
   "tests": {
     "full_with_playwright": "710 passed, 3 existing legacy fire_routine deprecation warnings",
     "management_live": "claude_2026-10-29-management-rendered-create-rerun.json",
@@ -13,7 +13,10 @@
     "auth_source_live": "claude_2026-10-29-auth-source-live.json",
     "previous_evidence": "claude_2026-10-28-completeness-followup.json",
     "canonical_integrated_offline_headless": "732 passed, 3 existing deprecation warnings",
-    "canonical_integrated_live": "claude_2026-10-29-core-integrated-live.json"
+    "canonical_integrated_live": "claude_2026-10-29-core-integrated-live.json",
+    "final_integrated_offline_headless": "761 passed, 3 existing legacy fire_routine warnings",
+    "final_integrated_auth": "claude_2026-10-29-final-integrated-auth.json",
+    "final_integrated_commands": "claude_2026-10-29-final-integrated-commands.json"
   },
   "scope_and_safety": {
     "worktree": "worktrees/completeness-fixes",
@@ -296,7 +299,7 @@
     {
       "id": "overall_verification",
       "status": "partial_completion_not_full_parity",
-      "evidence": "Canonical merged tree: 732 offline/headless tests passed; fresh upload, genuine permission/file effects and native/follow-up API continuation passed. Remaining extended-panel, approval, quota, grant and uncaptured-contract gaps are explicit.",
+      "evidence": "Canonical merged tree: 732 offline/headless tests passed; fresh upload, genuine permission/file effects and native/follow-up API continuation passed. Remaining extended-panel, approval, quota, grant and uncaptured-contract gaps are explicit. Final merged 0.9.0 tree: 761 offline/headless tests; fresh auth before/after continuation and paged readback; two-model inference, seed/edit, exact queue cancellation and legacy interrupt outcome all passed with exact cleanup.",
       "remaining": [
         "All rows above that are not fully qualified"
       ],
@@ -318,6 +321,28 @@
   "canonical_integration": {
     "evidence": "claude_2026-10-29-core-integrated-live.json",
     "full_web_parity": false,
-    "supersedes": "Historical missing permission/native generator and rejected cookie-upload states only; other gaps remain."
+    "supersedes": "Historical missing permission/native generator and rejected cookie-upload states only; other gaps remain.",
+    "final_evidence": "claude_2026-10-29-final-integration.json"
+  },
+  "scope_classification": {
+    "requested_core": [
+      "browser-source authentication",
+      "create/chat/environments",
+      "models/commands/questions/permissions",
+      "history/recovery/lifecycle"
+    ],
+    "extended_web_api_gaps_not_ui_only": [
+      "routine execution/cron/cancel",
+      "MCP mutations/staging",
+      "Files API mount/seed and attachment deletion",
+      "network/connector writes",
+      "uncaptured fork/grouping/SCM routes"
+    ],
+    "separate_presentation_backlog": [
+      "panel renderers/management forms",
+      "theme/copy/pinning",
+      "host-local CLI workflows"
+    ],
+    "rule": "Missing renderer or absent menu entry is not proof a web API does not exist. Retain all API gaps and evidence boundaries."
   }
 }

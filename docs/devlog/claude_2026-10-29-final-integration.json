@@ -1,0 +1,74 @@
+{
+  "date": "2026-10-29",
+  "version": "0.9.0",
+  "base": "eb77674307c74f05df04b35a2428184ca88d01ed",
+  "branch": "feat/final-integrate-1029",
+  "sequential_merges": [
+    "080684cd811f7ceaf69f9691949677d3f24b29d0",
+    "3a44732b4db7dff7c5f538c6197e68b825127af0"
+  ],
+  "tested_implementation_commit": "c4e6334f11db18197fd4faffb2285ba166fc1179",
+  "tested_delta": "Hatch-generated 0.9.0 version; subsequent changes are documentation/evidence only",
+  "changes": [
+    "Merged verified auth recovery/isolated PKCE hardening through existing auth owner",
+    "Merged capability enumeration and receipt-gated blocking prompt collection through existing commands/streaming owners",
+    "Hatch version minor generated 0.9.0",
+    "Separated requested API core, extended web API gaps and optional presentation; corrected stale README permission/upload qualification and SSH examples"
+  ],
+  "reuse": "Original upstream client, prior exhaustive research and branch independent qualification; existing smoke collectors, dispatch and auth transport. No new service, transport or credential owner.",
+  "tests": {
+    "command": "uv run --extra test --extra web --extra cli --with playwright pytest -q",
+    "passed": 761,
+    "warnings": 3,
+    "seconds": 70.44,
+    "exit_code": 0
+  },
+  "live": {
+    "auth_evidence": "claude_2026-10-29-final-integrated-auth.json",
+    "commands_evidence": "claude_2026-10-29-final-integrated-commands.json",
+    "method": "Existing dev Chrome CDP read-only cookie source, direct HTTP, owned disposable sessions/environment; no browser tab or grant exchange",
+    "auth": "Real invalid-memory-cookie 401 -> account 200 -> original GET 200; same identity/org; completed before/after turns and fresh-client paged history",
+    "recovery_cli": "scripts/claude-rc-auth recover --direct exited 0: account_verified, session_read true; cookies_changed false",
+    "commands": "claude-rc-command-smoke --qualify-controls exited 0: Haiku/Sonnet tagged inference, modes, flag readback, cost/plan/hooks/rules/version shape replies, seed/Edit without Read, real question continuation, exact queued UUID cancelled with absent generated output, legacy interrupt prevents post-question write and permits next turn",
+    "cleanup": [
+      {
+        "session_id": "cse_0154EsXU4xpt9LyYCyM5o6BQ",
+        "get_status": 404
+      },
+      {
+        "session_id": "cse_0154EsXTT9nhmPZAHoKs23P9",
+        "get_status": 404
+      },
+      {
+        "environment_id": "env_01Sejqk8Cc2mZmkMBtt9tETm",
+        "excluded_from_list": true
+      }
+    ],
+    "menu_capture": "Not repeated; retained actual W2 browser capture",
+    "not_expiry_proof": true
+  },
+  "limits": [
+    "Continuous cookie auth depends on signed-in reachable Chrome; natural month-scale expiry/rotation/revocation is not qualified",
+    "No independent owned OAuth grant; server rotation/restart/concurrency remain simulated only; no shared grants consumed",
+    "Flag readback is not inference behavior; nonempty file suggestions and plan content unqualified",
+    "Send-now/priority races, v1 interrupt receipts, task messaging and control cancellation unqualified",
+    "Prior controller-file GET 404 despite successful worker read remains unexplained, not fixed by this integration",
+    "Routine quota rejection retained; actual marker/cron/active cancellation unqualified",
+    "Cloud hook registration not applied; dialog/elicitation and MCP effect fixtures missing",
+    "Standalone blob deletion unsupported; Files API mount/seed and nonempty prefetch unqualified",
+    "Pool/repository/configuration variants and platform locking variants remain unqualified",
+    "Public shares/exports/feedback/network/connector writes not executed; uncaptured contracts remain unsupported",
+    "Optional rendered/panel/local CLI backlog remains separate, not evidence to relabel web API gaps"
+  ],
+  "full_web_api_parity": false,
+  "full_browser_parity": false,
+  "safety": {
+    "shared_grant_exchanges": 0,
+    "existing_session_mutations": 0,
+    "browser_writes": 0,
+    "deployment_or_restart": false,
+    "persistent_service_added": false,
+    "external_report_published": false,
+    "untracked_canonical_review_evidence_preserved": true
+  }
+}
