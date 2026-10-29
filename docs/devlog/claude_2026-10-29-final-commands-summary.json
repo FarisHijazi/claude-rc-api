@@ -1,0 +1,88 @@
+{
+  "date": "2026-10-29",
+  "scope": "commands.py/streaming.py API capability discovery and bounded cloud control/queue qualification; not UI recreation or full parity",
+  "base": "eb77674307c74f05df04b35a2428184ca88d01ed",
+  "branch": "feat/final-commands",
+  "full_parity": false,
+  "primary_evidence": "claude_2026-10-29-final-commands-qualified-rerun.json",
+  "reproduction": "uv run --extra web --extra test --extra cli --with playwright python scripts/claude-rc-command-smoke --qualify-controls --capture-web-catalog --output <new-evidence.json>",
+  "reuse": {
+    "upstream_inspected": "upstream/main fac6d28eb1cf797f95abe22ee95b7f23fb246e4d: existing message/watch examples and client; no command capability enumeration or genuine question-boundary queue acceptance script",
+    "prior_contracts": "Reused API_REFERENCE.md and group05 live/independent evidence, existing commands dispatch, streaming correlation, prompt owner, and claude-rc-permission-smoke collect/tool_results helpers. No new transport, poller, service, credential owner or UI renderer.",
+    "current_discovery": "Actual signed-in Code web composer on owned sessions plus fresh worker initialize. Public bundle inspection exposed a DIFFERENT shared chat/desktop port/explain/refuse registry; it was not substituted for the observed Code composer catalog. Existing captured cloud admission policy remains intact."
+  },
+  "implementation": [
+    "command_capabilities(session_id, timeout=15, local_handlers=None) performs one initialize and separates captured web names, actual worker names/aliases, API routes and host-required/unsupported reasons. available means dispatchable, not proven execution.",
+    "claude-rc dispatch SESSION --capabilities executes enumeration without dispatching a slash prompt. Existing typed/advertised dispatch and admission gates remain the only write paths.",
+    "Captured 22 Code menu names, including advisor after the session has run; design/slides are absent from that menu despite appearing in the 55-name worker harness catalog.",
+    "status/autocompact now fail locally without explicit handlers even when worker-advertised. Reasons identify status presentation and the absence of an admitted cloud autocompact-setting control. Sandbox keeps its cloud-rejected host-dialog reason.",
+    "send_and_collect no longer terminates on an earlier turn's question while its own message is queued. Both results and blocking prompts require the exact owned message's processing receipt, with recovered-history timestamp ordering enforced.",
+    "New optional live smoke owns a fresh explicit workspace environment/session, and optionally one dev CDP tab; it proves actual tool results/reads/continuations and exact cleanup."
+  ],
+  "live_qualified": [
+    "Current Code composer menu equals the captured 22-name web catalog exactly; full 55-name worker command advertisement and start_shell_task_v1 capability recorded separately.",
+    "Haiku 5.5 and Sonnet 5.5: applied.model equality, exact MODEL_PROOF_OK assistant reply, matching assistant message model, own-message receipt checked by existing collector and real successful result IDs.",
+    "plan/acceptEdits/default: worker verdict and independent initialize permission-mode equality.",
+    "Effort low, fast true/false, advisor model/off, thinking false/true and view verbose/normal: independent effective flag-layer reads; advisor applied readback also matched. Normal view and advisor off normalize to absent/null settings.",
+    "Cost, absent plan, hooks listing, permission rules and binary version: actual worker reply shapes, not event enqueue acknowledgements. No private setting/rule bodies logged.",
+    "Worker read_file returns generated exact bytes. seed_read_state on a distinct file never read through the worker is followed by a correlated successful Edit with no Read invocation, then exact updated worker file readback. Earlier runs also independently read these bytes through controller files.",
+    "At a genuine AskUserQuestion boundary, an exact UUID is queued with null processing fields, cancel_async_message returns cancelled:true, the exact question receives its answer/tool-result, no cancelled output is generated, and a subsequent marker turn completes.",
+    "Legacy interrupt at a genuine question: exact question tool-use ID receives an error tool-result, the intended post-answer write is absent from the worker directory and controller GET returns 404, and a fresh AFTER_INTERRUPT_OK turn completes. This is not interrupt_receipt_v1 proof."
+  ],
+  "important_protocol_distinction": "Cancelled queue envelopes later acquired processing_at/processed_at timestamps even though the worker returned cancelled:true and did not execute the queued prompt. Transport processing timestamps alone do not establish model inference or invalidate cancellation.",
+  "remaining_limitations": [
+    "Only start_shell_task_v1 was advertised; the captured cloud gate rejects start_shell_task. No new bypass was added.",
+    "Send-now, priority race variants, interrupt_receipt_v1 and task messaging remain unqualified: no matching advertised cloud task/receipt fixture. Absence of advertisement is not proof the platform can never support them.",
+    "Flag-layer persistence/readback does not prove fast/advisor/thinking inference behavior or rendered view changes.",
+    "file_suggestions returned an empty list in these no-repository fixtures; nonempty search results and nonempty plan content are not qualified.",
+    "Seed then Edit without Read is a positive continuation proof, not a controlled causal comparison against every unseeded edit behavior.",
+    "Worker-advertised prompt commands retain the prior recap execution proof; the new snapshot does not claim all 55 worker commands were executed.",
+    "Host-local configuration/authentication/presentation requires a host handler; renderer absence is not a new web API defect. No artifact, login/logout, feedback, connector or external-side-effect command was executed.",
+    "A controller-file GET 404 after a successful worker read remains unexplained in one combined-control run. Final command qualification uses the owning worker read_file/directory protocol rather than claiming controller file sync parity."
+  ],
+  "retained_failures": [
+    {
+      "evidence": "claude_2026-10-29-final-commands-live.json",
+      "location": "qualify_commands.py read_file probe",
+      "cause": "Worker denied a path outside the default repository workspace",
+      "resolution": "Use a new disposable environment with explicit /mnt/user-data/working; worker reads and seed/edit effects then passed. Original rejection retained."
+    },
+    {
+      "evidence": "claude_2026-10-29-final-command-catalog-live.json",
+      "location": "claude-rc-command-smoke browser menu wait",
+      "cause": "Test selected role=listbox, but Code uses role=menu",
+      "resolution": "Use the verified role=menu|listbox selector. Actual menu capture and exact catalog equality passed."
+    },
+    {
+      "evidence": "claude_2026-10-29-final-commands-qualified.json",
+      "location": "claude-rc-command-smoke controller get_session_file after matching worker read",
+      "cause": "Unverified: controller endpoint returned HTTP 404 despite worker read_file returning expected bytes",
+      "resolution": "Preserved failure; final read-state proof uses worker-owned read_file and directory observations. No claim that controller sync timing or mapping was fixed."
+    }
+  ],
+  "other_retained_passes": [
+    "claude_2026-10-29-final-queue-live.json",
+    "claude_2026-10-29-final-queue-interrupt-live.json",
+    "claude_2026-10-29-final-command-catalog-rerun.json"
+  ],
+  "evidence_sanitization": "Historical duplicate routing tables and worker descriptions removed by a local redactor; original SHA256 recorded. Checks, exact created IDs and cleanup unchanged. Final primary snapshot is complete.",
+  "tests": {
+    "targeted": "202 passed: command_capabilities_test.py, queue_correlation_test.py, test_controls.py, test_streaming.py",
+    "final_full": "744 passed, 3 existing legacy fire_routine deprecation warnings",
+    "command": "uv --directory <worktree> run --offline --extra test --extra web --extra cli --with playwright pytest -q",
+    "regressions": "Enumeration/handler availability, CLI enumerate-only path and conflicting arguments; local status/autocompact/design/slides no-chat gates; prior blocking prompt ignored with either live receipt or recovered history."
+  },
+  "cleanup": {
+    "created_sessions": 7,
+    "all_session_get_404": true,
+    "created_environments": 6,
+    "all_environment_list_exclusion": true,
+    "owned_browser_tabs_closed": true,
+    "existing_session_mutations": false,
+    "shared_grants_consumed": false,
+    "auth_or_panel_edits": false,
+    "external_account_or_connector_writes": false,
+    "public_shares_feedback_exports_network_writes": false,
+    "service_deploy_restart_or_persistent_process": false
+  }
+}

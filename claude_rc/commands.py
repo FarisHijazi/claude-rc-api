@@ -126,8 +126,23 @@ LOCAL_COMMANDS = frozenset({
     "theme", "login", "logout", "config", "sandbox", "skills", "workflows", "usage-credits",
     "design", "slides", "copy", "channels", "settings", "agents", "output-style", "focus",
     "heapdump", "import", "insights", "skill-doctor", "goal", "design-consent", "design-revoke",
-    "doctor", "team-onboarding",
+    "doctor", "team-onboarding", "status", "autocompact",
 })
+# Observed in the Code web composer, not the shared chat/desktop composer.
+WEB_SLASH_COMMANDS = frozenset({
+    "btw", "rewind", "feedback", "model", "effort", "fast", "plan", "permissions",
+    "skills", "rename", "diff", "tasks", "workflows", "status", "usage", "usage-credits",
+    "autocompact", "config", "sandbox", "theme", "advisor", "login",
+})
+LOCAL_COMMAND_REASONS = {
+    "status": "web status presentation; inspect initialize/get_settings through the API",
+    "autocompact": "web configuration presentation; no admitted cloud autocompact-setting control",
+    "sandbox": "host sandbox configuration; get_sandbox_dialog is rejected in cloud sessions",
+    "design": "not in the captured Code web catalog; host artifact workflow required",
+    "slides": "not in the captured Code web catalog; host artifact workflow required",
+    "login": "host authentication flow; slash dispatch never changes browser credentials",
+    "logout": "host authentication flow; slash dispatch never revokes browser credentials",
+}
 CONTROL_COMMANDS = {
     "model": "set_model", "plan": "set_permission_mode", "effort": "apply_flag_settings",
     "fast": "apply_flag_settings", "advisor": "apply_flag_settings", "permissions": "list_permission_rules",
@@ -153,7 +168,7 @@ def is_client_only(name: str) -> bool:
 
 def command_table(commands: Sequence[Any] = ()) -> list[dict]:
     table = [{"name": name, "route": "control", "target": target} for name, target in CONTROL_COMMANDS.items()]
-    table += [{"name": name, "route": "local", "target": "host renderer required"} for name in LOCAL_COMMANDS]
+    table += [{"name": name, "route": "local", "target": LOCAL_COMMAND_REASONS.get(name, "host renderer required")} for name in LOCAL_COMMANDS]
     table += [{"name": "help", "route": "local", "target": "command_table"}]
     table += [{"name": name, "route": "unsupported", "target": reason} for name, reason in UNSUPPORTED_COMMANDS.items()]
     for cmd in commands:
@@ -172,7 +187,8 @@ def dispatch_command(client, session_id: str, name: str, args: str = "", *,
     if name in LOCAL_COMMANDS:
         handler = (local_handlers or {}).get(name)
         if handler is None:
-            raise LocalCommandRequired(f"/{name} needs a local host renderer; no worker message was sent")
+            reason = LOCAL_COMMAND_REASONS.get(name, "local host renderer required")
+            raise LocalCommandRequired(f"/{name}: {reason}; no worker message was sent")
         return {"via": "local", "command": name, "result": handler(args)}
     if name == "help":
         return {"via": "local", "command": name, "result": command_table(commands or ())}
@@ -262,6 +278,31 @@ def dispatch_command(client, session_id: str, name: str, args: str = "", *,
 
 
 class CommandsMixin:
+    def command_capabilities(self, session_id: str, *, timeout: float = 15.0,
+                             local_handlers: Mapping[str, Callable] | None = None) -> dict:
+        """One handshake snapshot separating web names, API routes and host work.
+
+        Availability means dispatchable, not live-qualified execution. Worker
+        names/aliases are session-specific; they are never a universal CLI list.
+        """
+        init = self.initialize(session_id, timeout=timeout)
+        advertised = [row for row in init.get("commands") or [] if isinstance(row, Mapping)]
+        worker_names = {row.get("name") for row in advertised}
+        rows = []
+        for row in command_table(advertised):
+            name, route = row["name"], row["route"]
+            available = (route in {"control", "worker"} or name == "help" or
+                         (route == "local" and callable((local_handlers or {}).get(name))))
+            rows.append({**row, "web_catalog": name in WEB_SLASH_COMMANDS,
+                         "worker_advertised": name in worker_names,
+                         "available": available,
+                         "reason": None if available else row["target"]})
+        return {"worker_version": init.get("claude_code_version"),
+                "capabilities": list(init.get("capabilities") or []),
+                "web_catalog": sorted(WEB_SLASH_COMMANDS), "commands": rows,
+                "worker_commands": [{"name": row.get("name"), "aliases": row.get("aliases") or []}
+                                    for row in advertised]}
+
     def browser_models(self) -> dict:
         return self._request("GET", f"/api/organizations/{self.org_uuid}/model_selector/cc", web=True)
 
@@ -311,10 +352,15 @@ class CommandsMixin:
 def register_command_cli(subparsers, *, parents=()) -> None:
     parser = subparsers.add_parser("dispatch", help="dispatch a typed/local/advertised worker slash command", parents=list(parents))
     parser.add_argument("session_id")
-    parser.add_argument("name")
+    parser.add_argument("name", nargs="?", default="help")
     parser.add_argument("args", nargs="?", default="")
+    parser.add_argument("--capabilities", action="store_true", help="enumerate web/API/worker routes from one handshake; do not dispatch")
     parser.add_argument("--timeout", type=float, default=15.0)
 
 
 def dispatch_command_cli(client, args) -> dict:
+    if getattr(args, "capabilities", False):
+        if args.name != "help" or args.args:
+            raise ValueError("--capabilities cannot be combined with command dispatch")
+        return client.command_capabilities(args.session_id, timeout=args.timeout)
     return dispatch_command(client, args.session_id, args.name, args.args, timeout=args.timeout)

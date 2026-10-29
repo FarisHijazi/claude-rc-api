@@ -1,0 +1,63 @@
+{
+  "run": "commands-c33402c1d9ab",
+  "checks": [
+    {
+      "name": "read_file",
+      "path": "/mnt/user-data/working/commands-c33402c1d9ab.txt",
+      "tool_use_id": "toolu_011icRm8c2PANhyQPjoZgitz",
+      "exact_bytes": true
+    },
+    {
+      "name": "aborted",
+      "error_class": "TimeoutError"
+    }
+  ],
+  "cleanup": [
+    {
+      "session_id": "cse_0154EsXPnbDzm1t5PYLJENA8",
+      "get_status": 404
+    },
+    {
+      "environment_id": "env_01KY6dnXLUcKtbF92Vz3zoai",
+      "excluded_from_list": true
+    }
+  ],
+  "complete": false,
+  "environment_id": "env_01KY6dnXLUcKtbF92Vz3zoai",
+  "session_id": "cse_0154EsXPnbDzm1t5PYLJENA8",
+  "catalog_summary": {
+    "worker_version": "2.1.312",
+    "capabilities": [
+      "start_shell_task_v1"
+    ],
+    "web_catalog": [
+      "autocompact",
+      "btw",
+      "config",
+      "diff",
+      "effort",
+      "fast",
+      "feedback",
+      "login",
+      "model",
+      "permissions",
+      "plan",
+      "rename",
+      "rewind",
+      "sandbox",
+      "skills",
+      "status",
+      "tasks",
+      "theme",
+      "usage",
+      "usage-credits",
+      "workflows"
+    ],
+    "worker_command_count": 55,
+    "omitted_route_rows": 79
+  },
+  "evidence_redaction": {
+    "original_sha256": "3d770593cab2d8fec4b885296004b175784017ac54842421a7539936241b1617",
+    "removed": "Repeated route tables or worker descriptions only; checks, exact resource IDs and cleanup unchanged"
+  }
+}

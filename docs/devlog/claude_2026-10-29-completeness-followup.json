@@ -201,16 +201,16 @@
     },
     {
       "id": "queue_tasks",
-      "status": "unqualified_live_outcomes",
-      "evidence": "Existing task output/stop proofs do not establish queue races or task messaging. No new queue mutation acceptance is claimed.",
+      "status": "exact_cancel_and_legacy_interrupt_live_qualified",
+      "evidence": "final-commands-summary and final-commands-qualified-rerun: exact UUID queued at genuine question, cancelled:true, absent generated response and fresh completed turn; legacy interrupt yields exact question error tool-result, prevents post-question write, and permits next inference. Only start_shell_task_v1 advertised; cloud admission rejects start_shell_task. Cancelled transport envelopes later gain processing timestamps without model execution.",
       "remaining": [
-        "Queued cancel/send-now/priority races",
-        "Capability-matched interrupt receipts",
-        "Task messaging",
-        "Control cancellation"
+        "Send-now and priority race variants",
+        "Capability-matched interrupt_receipt_v1 receipts",
+        "Advertised agent-task messaging fixture",
+        "In-flight control cancellation"
       ],
-      "next": "Hold an exact owned worker at a genuine question/task boundary, record message/task UUIDs, and assert processing receipts and eventual transcript/file outcomes after each control.",
-      "estimate": "2-4 hours"
+      "next": "Use an actually advertised cloud variant before qualifying send-now/receipt/task-message effects; retain legacy outcome evidence without relabeling it v1 support.",
+      "estimate": "1-2 hours after a matching advertised fixture is available"
     },
     {
       "id": "recovery",
@@ -225,14 +225,15 @@
     },
     {
       "id": "control_variants",
-      "status": "partial_live",
-      "evidence": "Real panel Sonnet/Haiku model switches verified with applied settings; plan/acceptEdits verified with initialize. No alternative-model inference or blanket flag readback claim.",
+      "status": "key_inference_flag_layers_and_read_state_live_qualified",
+      "evidence": "final-commands-summary and final-commands-qualified-rerun: Haiku/Sonnet applied readback and actual model-tagged marker replies; plan/acceptEdits/default initialize readback; fast true/false, advisor model/off, thinking false/true and verbose/normal effective flag readback; cost/plan/settings/hooks/rules/version reply shapes; seed then successful Edit without Read and exact updated worker bytes. Current Code menu has 22 names, distinct from 55 advertised worker harness commands; executable command_capabilities and CLI dispatch --capabilities enumerate both.",
       "remaining": [
-        "Fast/advisor/thinking/view variants with independent readback",
-        "Full cost/plan/settings/hooks/rules/version/suggestions/read-state method-specific qualification"
+        "Fast/advisor/thinking inference-level behavior, beyond stored flags",
+        "Nonempty plan and file-suggestion results",
+        "Unsupported/unadvertised advanced queue/task variants"
       ],
-      "next": "Capture accepted enum/value contracts, record one applied/readback assertion per method and restore fixture state; report model quota rejections honestly.",
-      "estimate": "2-4 hours"
+      "next": "Preserve the distinction between flag readback, actual inference and host presentation. Obtain a matching supported fixture for remaining variants rather than infer every CLI command belongs to the web catalog.",
+      "estimate": "1-2 hours per matching supported fixture"
     },
     {
       "id": "discovery_environments",

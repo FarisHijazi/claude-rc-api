@@ -391,11 +391,10 @@ def send_and_collect(self, session_id: str, text: str, *, print_stream: bool = F
                 if isinstance(receipt, dict) and event_id and receipt.get("event_id") == event_id:
                     if not started and receipt.get("status") in ("DELIVERY_STATUS_PROCESSING", "DELIVERY_STATUS_PROCESSED"):
                         started, started_at = True, receipt.get("timestamp")
-            if event.type == "result":
+            if event.type == "result" or event.is_blocking_control:
                 if not started:
-                    # A previous turn can finish while our message is still queued.
-                    # History may now show a *later* processing time, so compare
-                    # against this result's creation, not just a non-null receipt.
+                    # An earlier turn can finish or ask a question while ours is
+                    # queued. A recovered receipt must predate this event.
                     for row in iter_history(self, session_id, after_sequence_num=start):
                         stamp = processing_time(row)
                         if stamp and no_later_than(stamp, event.raw.get("created_at")):
