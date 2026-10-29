@@ -32,7 +32,7 @@
     "method": "send_and_collect",
     "failure": "A next message starts transport processing before the previous turn's result is emitted. Receipt/time gating alone therefore accepts an unrelated result and returns before the requested task begins.",
     "live_before_fix": "protocol-queue-streamed returned a successful result with no requested task_started event; isolated task-only premise passed. Final fixed run reproduces the race with explicit message owners.",
-    "live_after_fix": "Final run task message 03dcb150-bdaf-418c-a23e-8e9896dfe277 received PROCESSING before preceding LATER result 50e39788-4149-4a8c-a9d8-b4e40cc4aee2. Collector retained that frame but skipped it and returned own result 77667108-caac-4b51-9dd1-455792c30f2a after actual Bash task creation.",
+    "live_after_fix": "Final run retained and skipped preceding LATER result 50e39788-4149-4a8c-a9d8-b4e40cc4aee2 and returned own result 77667108-caac-4b51-9dd1-455792c30f2a after actual Bash task creation. Correction from independent verification: retained LATER result created_at 02:12:23.975218Z precedes task PROCESSING timestamp 02:12:24.003508103Z and appears earlier in the stream. This trace does not establish receipt-first ordering; that defect is reproduced deterministically offline.",
     "fix": "When result user_message_uuid/user_message_uuids fields are present, require exact collected-message membership in addition to the existing processing/time gate. Results without these fields retain the legacy gate. Explicit message_uuid=None now generates and forwards the correlation UUID before send.",
     "regression": "Three single/folded/list UUID cases failed before the fix and pass after it; explicit None generation and typed live-control rejection also pass"
   },

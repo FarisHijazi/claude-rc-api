@@ -11,8 +11,18 @@ from claude_rc import RemoteControlClient
     {"user_message_uuid": "own-message"},
     {"user_message_uuids": ["another-folded-message", "own-message"]},
     {"user_message_uuid": "another-folded-message", "user_message_uuids": ["own-message"]},
+    {"user_message_uuid": "own-message", "user_message_uuids": ["another-message"]},
 ])
-def test_explicit_result_uuid_rejects_another_turn_after_own_processing(own_fields):
+@pytest.mark.parametrize("other_fields", [
+    {"user_message_uuid": "previous-message", "user_message_uuids": ["previous-message"]},
+    {"user_message_uuid": "previous-message"},
+    {"user_message_uuids": ["previous-message"]},
+    {"user_message_uuids": "prefix-own-message-suffix"},
+    {"user_message_uuids": []},
+    {"user_message_uuid": None},
+    {"user_message_uuids": None},
+])
+def test_explicit_result_uuid_rejects_another_turn_after_own_processing(own_fields, other_fields):
     def frame(data, kind="client_event"):
         return f"event: {kind}\ndata: {json.dumps(data)}\n\n".encode()
 
@@ -31,8 +41,7 @@ def test_explicit_result_uuid_rejects_another_turn_after_own_processing(own_fiel
                        "timestamp": "2026-10-29T02:00:01Z"}
             return httpx.Response(200, content=(
                 frame(receipt, "delivery_update") +
-                frame(result(2, {"user_message_uuid": "previous-message",
-                                 "user_message_uuids": ["previous-message"]})) +
+                frame(result(2, other_fields)) +
                 frame(result(3, own_fields))))
         return httpx.Response(200, json={"data": []})
 

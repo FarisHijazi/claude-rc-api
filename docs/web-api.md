@@ -205,7 +205,7 @@ neither cookie rereads nor isolated OAuth helpers can guarantee silent renewal.
 
 | Capability | Implementation | Verification / boundary |
 |---|---|---|
-| Send, processing receipts and own-turn collection | Implemented | Live I/S/W3: exact reply and completion; W3 observes previous result arriving after the new message's processing receipt. Explicit result message UUIDs must match; legacy receipt/time fallback retained |
+| Send, processing receipts and own-turn collection | Implemented | Live I/S/W3: exact reply and completion, previous results ignored. Receipt-first unrelated-result rejection is reproduced offline, not established by the retained live trace. Explicit result message UUIDs must match; legacy receipt/time fallback retained |
 | Paginated durable history (page size ≤500) | Implemented | Live I/S; panel H renders all 233 real durable events through two ascending pages, oldest anchor once; T also covers 451 events. Metadata is retained by `history_page`, and incomplete/error history is not labeled complete |
 | Metadata-preserving stream and legacy `stream_events` delegate | Implemented | Live I/S; unknown/meta/ephemeral vocabulary retained |
 | Disconnect/resume, ordering and deduplication | Implemented | Live I/S: replay payloads equal paginated history |
@@ -294,8 +294,10 @@ Q2 also archives its environment and verifies list exclusion.
 `command_table()` lists routing, not proof that every local renderer exists.
 **LIVE CHECK W3:** `scripts/claude-rc-queue-smoke --output <new-evidence.json>`
 passed held-question priority/file assertions and queue-to-task continuation.
-The stream retained but skipped the preceding LATER result after the new task
-message's processing receipt; its final result named the task message UUID.
+The stream retained but skipped the preceding LATER result; its final result
+named the task message UUID. Correction: the retained trace places LATER before
+the new task's PROCESSING receipt, not after it. Receipt-first rejection is an
+offline regression proof, not a reproduced live ordering.
 Three regression variants failed before the fix; 766 offline/headless tests
 pass afterward (three existing deprecation warnings). Both final owned sessions
 and every retained failed-run session returned GET 404; environments were
@@ -303,6 +305,18 @@ archived and excluded. Only `start_shell_task_v1` was advertised, so send-now
 and v1 receipt variants were not sent. CLI 2.1.312's cloud relay emits its own
 `still_queued` reply, not the v1 worker receipt. No bridge qualification or full
 priority-race parity is inferred. W3 indexes source digest and retained failures.
+
+**INDEPENDENT LIVE CHECK W3:**
+`docs/devlog/claude_2026-10-29-protocol-queue-independent.json` verifies revision
+`2f25ebaee3c350dde6d1a1d605b6c715d9abbbed` on one fresh disposable fixture:
+exact `NEXT\nLATER\n` bytes, own queue results, correlated Bash task creation,
+18-byte marker output, stopped notification, 28-byte killed output and typed
+request-correlated task-message rejection. Session deletion returned GET 404;
+the archived environment was absent from listings. The expanded suite passed
+791 offline/headless tests; 28 ownership refutations fail against the preserved
+base and pass with the fix. Both retained final and independent live traces put
+the preceding result before PROCESSING, so neither demonstrates the receipt-first
+race live. No send-now/v1-receipt or in-flight cancellation claim is added.
 
 **LIVE CHECK W2:** the current signed-in Code composer offered 22 names, exactly
 matching `command_capabilities().web_catalog` in the final acceptance run. This

@@ -125,8 +125,13 @@ On dev, uv needs the proxy CA plus the system bundle:
   `send_task_message`. Send-now/v1 receipts remain unadvertised; in-flight control
   cancellation has no accepted long-lived fixture. Result `user_message_uuid` /
   `user_message_uuids`, when present, must match the collected message even after
-  its processing receipt: cloud can begin the next message before emitting the
-  preceding result. Legacy results without these fields retain receipt/time gates.
+  its processing receipt; a receipt must not override explicit result ownership.
+  Legacy results without these fields retain receipt/time gates.
+  Independent verification is indexed by
+  `docs/devlog/claude_2026-10-29-protocol-queue-independent.json`: 791 tests pass,
+  28 correlation cases fail against the preserved base and pass with the fix.
+  One fresh live fixture repeats priority/file/task/rejection/cleanup effects.
+  Retained live traces do not prove the receipt-first race; its proof is offline.
   These evidence paths are deliberately plain, not includes.
 - Group05 live evidence, per-capability limitations and integration contracts
   are in `docs/devlog/claude_2026-10-28-group05-live.json` (deliberately a plain
