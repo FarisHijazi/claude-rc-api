@@ -310,6 +310,26 @@ isolated headless browser suite. The recovery's first live run exposed an unsync
 ledger 404; expiry now checks the child ledger through worker `read_file`, not a
 potentially stale synced-file snapshot. The failed run and its cleanup are retained.
 
+**INDEPENDENT LIVE CHECK MC:** a separate verifier at `1da331d` reran all
+781 offline/headless tests (61.35 seconds, three existing deprecation warnings)
+and the unchanged cloud harness. `docs/devlog/claude_2026-10-29-protocol-mcp-independent-live.json`
+records actual direct/model replies, disable/re-enable/reconnect, permission
+counts 1 then 0, exact 271-byte output, stale-CAS preservation, expired request's
+unchanged ledger and absent output, and exact child PID 327 absence. A fresh
+client independently rechecked all eight historical/current session GET 404s and
+archived-environment list exclusions. `docs/devlog/claude_2026-10-29-protocol-mcp-independent-summary.json`
+records those reads plus offline explicit-session routing and ten unchanged
+fail-before-HTTP rejection checks. No defect was confirmed; no implementation
+change was made. These are deliberately plain paths, not includes.
+
+The MCP admission exception uses only the chosen session's existing event route,
+not account connector configuration. The typed replacement helper requires
+`confirm=True`; the allowlist is a protocol compatibility gate, not an
+authorization boundary for generic controls/raw events. Live cross-session
+isolation was not tested; permission override enforcement, Chrome forced-ask,
+remote REST variants, natural expiry and large-file/platform variants remain
+unqualified.
+
 `command_table()` lists routing, not proof that every local renderer exists.
 **LIVE CHECK W2:** the current signed-in Code composer offered 22 names, exactly
 matching `command_capabilities().web_catalog` in the final acceptance run. This

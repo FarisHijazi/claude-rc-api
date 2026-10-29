@@ -149,6 +149,14 @@ On dev, uv needs the proxy CA plus the system bundle:
   tests. Read the child call ledger with worker `read_file`, not the synced-file
   snapshot: child-written files may not yet exist in that snapshot. Cleanup still
   attempts environment archive after a session-cleanup failure and fails closed.
+  A separate verifier reran all 781 tests and the complete cloud fixture:
+  `docs/devlog/claude_2026-10-29-protocol-mcp-independent-live.json` and
+  `docs/devlog/claude_2026-10-29-protocol-mcp-independent-summary.json` (plain paths).
+  Fresh-client reads confirm all eight recorded sessions return 404 and their
+  environments are excluded. Exact session routing and unchanged rejection gates
+  passed offline; this is not a live cross-session isolation proof. The admission
+  allowlist is not an authorization boundary: generic control/raw-event callers
+  retain responsibility for their chosen session and explicit consent.
 
 ## Auth rules
 

@@ -1,0 +1,80 @@
+{
+  "reviewed_sha": "1da331dc8804c8e8bf791e8f9f1f541c94f1a946",
+  "confirmed_defects": [],
+  "offline_scope_assertions": {
+    "explicit_session_urls_only": true,
+    "unrelated_account_or_rest_writes": 0,
+    "unconfirmed_replacement_requests": 0,
+    "unqualified_controls_rejected_before_http": 10,
+    "cloud_gate_exception": "mcp_set_servers only; not an authorization boundary",
+    "limitation": "Mock routing checks are not live cross-session isolation proof. Generic send_control/request_control and raw events remain caller-owned protocol escape hatches."
+  },
+  "full_suite": {
+    "passed": 781,
+    "warnings": 3,
+    "seconds": 61.35,
+    "includes": [
+      "real local SDK stdio child",
+      "isolated headless browser"
+    ]
+  },
+  "live_evidence": "claude_2026-10-29-protocol-mcp-independent-live.json",
+  "fresh_client_cleanup": [
+    {
+      "session_id": "cse_0154EsXTLHHsVa6Ehc2HW7Vq",
+      "get_status": 404,
+      "environment_id": "env_011Xne2gGAKCVP3PGUPni7bF",
+      "excluded_from_list": true
+    },
+    {
+      "session_id": "cse_0154EsXTy9LgwWCgJSUAhUhc",
+      "get_status": 404,
+      "environment_id": "env_01RzQgbmEwRnjMUWindQiJbQ",
+      "excluded_from_list": true
+    },
+    {
+      "session_id": "cse_0154EsXSecLZ61Ripto8rRT6",
+      "get_status": 404,
+      "environment_id": "env_01QDDeyJReBt8gutrhvugRGT",
+      "excluded_from_list": true
+    },
+    {
+      "session_id": "cse_0154EsXPgXbMCMhd4Jr7xynP",
+      "get_status": 404,
+      "environment_id": "env_01GjUsuWfQW63p1uWQeXGEHL",
+      "excluded_from_list": true
+    },
+    {
+      "session_id": "cse_0154EsXTLK2brxz9af3x6ERd",
+      "get_status": 404,
+      "environment_id": "env_012MpUKuGfGa7WcT52SSo4yc",
+      "excluded_from_list": true
+    },
+    {
+      "session_id": "cse_0154EsXTWVDPYePhNDjSxNSQ",
+      "get_status": 404,
+      "environment_id": "env_01Np6yd5dm8e1zwmAHHzQPv7",
+      "excluded_from_list": true
+    },
+    {
+      "session_id": "cse_0154EsXQgj2yWrAHVSqVPX6F",
+      "get_status": 404,
+      "environment_id": "env_01SUcyKouBDGSCeLXsiGSSZB",
+      "excluded_from_list": true
+    },
+    {
+      "session_id": "cse_0154EsXQL9XZuAsym18Z7aJn",
+      "get_status": 404,
+      "environment_id": "env_01JE29Wug1da2mzwk4YhZsij",
+      "excluded_from_list": true
+    }
+  ],
+  "limitations": [
+    "permission override enforcement",
+    "Chrome forced-ask behavior",
+    "remote REST configuration/approval effects",
+    "natural expiry",
+    "large-file/platform variants",
+    "live cross-session isolation"
+  ]
+}
