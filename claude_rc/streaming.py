@@ -342,6 +342,8 @@ def send_and_collect(self, session_id: str, text: str, *, print_stream: bool = F
     A failed history read aborts before writing, not a replay of an old result.
     A result qualifies only after this message's processing receipt (or an
     earlier processing timestamp recovered from history), never its queue ack.
+    Explicit result user-message UUIDs must also name this message: the next
+    message can start processing before the previous result reaches the stream.
     Returned frames can include other turns while this message was queued.
     Stream deadlines bound reads/backoff, not synchronous history/POST callbacks.
     """
@@ -350,7 +352,9 @@ def send_and_collect(self, session_id: str, text: str, *, print_stream: bool = F
     history = self.list_events(session_id, limit=1, sort_order="desc")
     start = max((event.sequence_num or 0 for event in history), default=0)
     collected: list[Event] = []
-    message_id = prompt_options.setdefault("message_uuid", str(uuid.uuid4()))
+    message_id = prompt_options.get("message_uuid")
+    if message_id is None:
+        message_id = prompt_options["message_uuid"] = str(uuid.uuid4())
     event_id = None
     started = False
     started_at = None
@@ -391,6 +395,12 @@ def send_and_collect(self, session_id: str, text: str, *, print_stream: bool = F
                 if isinstance(receipt, dict) and event_id and receipt.get("event_id") == event_id:
                     if not started and receipt.get("status") in ("DELIVERY_STATUS_PROCESSING", "DELIVERY_STATUS_PROCESSED"):
                         started, started_at = True, receipt.get("timestamp")
+            if event.type == "result":
+                owners = event.payload.get("user_message_uuids")
+                owner = event.payload.get("user_message_uuid")
+                if "user_message_uuid" in event.payload or "user_message_uuids" in event.payload:
+                    if message_id != owner and not (isinstance(owners, list) and message_id in owners):
+                        continue
             if event.type == "result" or event.is_blocking_control:
                 if not started:
                     # An earlier turn can finish or ask a question while ours is

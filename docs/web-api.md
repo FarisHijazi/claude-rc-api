@@ -67,6 +67,7 @@ Evidence files are deliberately plain paths, not force-loaded includes:
 | W | `claude_2026-10-28-group05-independent-summary.json` and its linked task/rerun evidence |
 | W2 | `claude_2026-10-29-final-commands-summary.json`; `claude_2026-10-29-final-commands-qualified-rerun.json` (current web catalog, controls, seed-state and queue/interrupt effects; earlier failures retained) |
 | MC | `claude_2026-10-29-protocol-mcp-recovery-qualified.json` (independent recovery rerun: cloud SDK child, tool replies, permission-rule reuse, staged bytes/CAS/expiry, exact child/session/environment cleanup); `claude_2026-10-29-protocol-mcp-summary.json` (provenance, prior qualification, retained failures and per-capability limits) |
+| W3 | `claude_2026-10-29-protocol-queue-summary.json`; `claude_2026-10-29-protocol-queue-final.json` (held-question priority execution, cross-turn result race, shell-task output/stop and typed task-message rejection) |
 | E | `claude_2026-10-28-group06-independent-evidence.json`, `claude_2026-10-28-group06-contracts.json` |
 | F | `group07-independent-2026-10-28.json` |
 | R | `claude_2026-10-28-group08-independent-evidence.json` |
@@ -206,7 +207,7 @@ neither cookie rereads nor isolated OAuth helpers can guarantee silent renewal.
 
 | Capability | Implementation | Verification / boundary |
 |---|---|---|
-| Send, processing receipts and own-turn collection | Implemented | Live I/S: exact reply and turn completion; unrelated queued result rejected offline |
+| Send, processing receipts and own-turn collection | Implemented | Live I/S/W3: exact reply and completion, previous results ignored. Receipt-first unrelated-result rejection is reproduced offline, not established by the retained live trace. Explicit result message UUIDs must match; legacy receipt/time fallback retained |
 | Paginated durable history (page size ≤500) | Implemented | Live I/S; panel H renders all 233 real durable events through two ascending pages, oldest anchor once; T also covers 451 events. Metadata is retained by `history_page`, and incomplete/error history is not labeled complete |
 | Metadata-preserving stream and legacy `stream_events` delegate | Implemented | Live I/S; unknown/meta/ephemeral vocabulary retained |
 | Disconnect/resume, ordering and deduplication | Implemented | Live I/S: replay payloads equal paginated history |
@@ -216,7 +217,7 @@ neither cookie rereads nor isolated OAuth helpers can guarantee silent renewal.
 | Ephemeral MCP liveReply correlation | Implemented | Live S; merged `mcp_status(live_reply=True)` uses this correlator. Missed ephemeral replies cannot be replayed |
 | Account watch mint/resume/rename/archive | Implemented | Live S; notifications may be `added` snapshots, not always `changed` |
 | Watch 410/remint/resync | Implemented | Offline; natural 410 not observed |
-| Priorities, cancellation, send-now and interrupt receipts | Implemented subset qualified | Live W2: exact UUID queued at a genuine question, `cancelled:true`, no cancelled response and a fresh completed turn; legacy interrupt produces the exact question's error tool-result and prevents its post-question write. Send-now/priority races and v1 receipts remain unqualified; only `start_shell_task_v1` was advertised |
+| Priorities, cancellation, send-now and interrupt receipts | Implemented subset qualified | Live W2: exact queued UUID cancellation and legacy interrupt preventing a file write. Live W3: later then next queued at a genuine question, both unprocessed before release; processing receipts, exact own results and `NEXT\nLATER\n` file bytes prove next-before-later execution. Other priority races, send-now and v1 receipts remain unqualified; only `start_shell_task_v1` advertised |
 
 The server's `control_only=1` suppresses ephemeral responses. `stream_control`
 therefore filters the full stream locally by default. `server_filter=True` is an
@@ -283,8 +284,8 @@ Q2 also archives its environment and verifies list exclusion.
 | Host-local account/settings/skills/workflow/usage presentation | Implemented subset | Panel passes local handlers for `/login` auth status, `/config`/`settings` effective worker settings, `/skills` account discovery, `/workflows` advertised workflow names and `/usage-credits` account usage; `/copy` copies loaded transcript and `/logout` detaches this panel without revoking browser/shared auth. This is not PKCE enrollment or browser logout parity; unimplemented sandbox/design/slides/other menus still fail closed |
 | Directory/file/diff worker controls | Implemented | Live W owned marker reads; I Changes HTTP adapter; response can legitimately be null |
 | Guarded rewind | Implemented | Live W matching target; unguarded rewind failed earlier independent assertion |
-| Task output/stop/end-session | Implemented | Live W marker output, stopped-task notification and worker verdict |
-| Task messaging / control cancellation | Implemented | Offline; dedicated live outcomes missing |
+| Task output/stop/end-session | Implemented | Live W marker output, stopped-task notification and worker verdict; W3 independently verifies exact shell-task ID, 18 marker bytes, stopped notification and 28-byte output including `[killed]` |
+| Task messaging / control cancellation | Implemented wire helpers, cloud messaging unsupported | Live W3: exact request-ID-correlated `ControlRejected: Unsupported control request subtype: send_task_message`; source handler also rejects. Shell output/stop is not agent messaging. In-flight control cancellation remains blocked without an accepted long-lived control fixture |
 | MCP status/toggle/reconnect/permission override | Implemented | Live MC connected/disabled status, rejected disabled call and exact replies after enable/reconnect. Default/auto/clear and askForTools object shapes received worker success; override enforcement remains unqualified: account policy allowed bypass but worker rejected transition without its startup flag. askForTools forced-ask applies to Chrome-safe tools; generic fixture cannot prove it |
 | MCP call/staged input/output/expiry/result exclusion | Implemented/gated | Live MC direct/model tool replies and exact session-rule reuse; 271-byte binary synced-lane round trip, opaque input/output etags, stale-CAS output_conflict preserving newer bytes, expiry leaves tool-call ledger unchanged and output absent. Result exclusion remains unsupported remotely, worker-owned local-pipe only |
 | Session dynamic worker MCP replacement | Implemented | Live MC `set_worker_mcp_servers(..., confirm=True)` over existing durable control writer. Session-scoped replacement can remove inherited servers from that worker; empty mapping disconnects child, exact PID absence verified. No global connector mutation |
@@ -331,6 +332,32 @@ remote REST variants, natural expiry and large-file/platform variants remain
 unqualified.
 
 `command_table()` lists routing, not proof that every local renderer exists.
+**LIVE CHECK W3:** `scripts/claude-rc-queue-smoke --output <new-evidence.json>`
+passed held-question priority/file assertions and queue-to-task continuation.
+The stream retained but skipped the preceding LATER result; its final result
+named the task message UUID. Correction: the retained trace places LATER before
+the new task's PROCESSING receipt, not after it. Receipt-first rejection is an
+offline regression proof, not a reproduced live ordering.
+Three regression variants failed before the fix; 766 offline/headless tests
+pass afterward (three existing deprecation warnings). Both final owned sessions
+and every retained failed-run session returned GET 404; environments were
+archived and excluded. Only `start_shell_task_v1` was advertised, so send-now
+and v1 receipt variants were not sent. CLI 2.1.312's cloud relay emits its own
+`still_queued` reply, not the v1 worker receipt. No bridge qualification or full
+priority-race parity is inferred. W3 indexes source digest and retained failures.
+
+**INDEPENDENT LIVE CHECK W3:**
+`docs/devlog/claude_2026-10-29-protocol-queue-independent.json` verifies revision
+`2f25ebaee3c350dde6d1a1d605b6c715d9abbbed` on one fresh disposable fixture:
+exact `NEXT\nLATER\n` bytes, own queue results, correlated Bash task creation,
+18-byte marker output, stopped notification, 28-byte killed output and typed
+request-correlated task-message rejection. Session deletion returned GET 404;
+the archived environment was absent from listings. The expanded suite passed
+791 offline/headless tests; 28 ownership refutations fail against the preserved
+base and pass with the fix. Both retained final and independent live traces put
+the preceding result before PROCESSING, so neither demonstrates the receipt-first
+race live. No send-now/v1-receipt or in-flight cancellation claim is added.
+
 **LIVE CHECK W2:** the current signed-in Code composer offered 22 names, exactly
 matching `command_capabilities().web_catalog` in the final acceptance run. This
 is not the shared chat/desktop command registry or the worker's 55-name harness
@@ -468,6 +495,7 @@ uv run --extra web python scripts/claude-rc-upload-smoke --evidence ./upload-evi
 uv run --extra web python scripts/claude-rc-permission-smoke --output ./permission-evidence.json
 uv run --extra web python scripts/claude-rc-question-smoke --output ./question-evidence.json
 uv run --extra web --with playwright python scripts/claude-rc-command-smoke --qualify-controls --capture-web-catalog --output ./command-evidence.json
+uv run --extra web python scripts/claude-rc-queue-smoke --output ./queue-evidence.json
 ```
 
 The permission smoke exits zero only after every permission/file assertion and

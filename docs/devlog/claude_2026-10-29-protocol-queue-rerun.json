@@ -1,0 +1,99 @@
+{
+  "run": "queue-5e12a6f9da73",
+  "profile": "cloud",
+  "checks": [
+    {
+      "name": "initialize",
+      "capabilities": [
+        "start_shell_task_v1"
+      ],
+      "version": "2.1.312"
+    },
+    {
+      "name": "send_now",
+      "status": "not_advertised",
+      "required_capability": "interrupt_send_now_v1",
+      "attempted": false,
+      "reason": "No v1 claim from cloud relay receipts; an unsupported send-now can become plain Stop"
+    },
+    {
+      "name": "interrupt_v1_receipts",
+      "status": "not_advertised",
+      "required_capability": "interrupt_receipt_v1",
+      "attempted": false,
+      "reason": "No v1 claim from cloud relay receipts; an unsupported send-now can become plain Stop"
+    },
+    {
+      "name": "question_boundary",
+      "request_id": "52e9eb84-3e40-4f44-ae14-59a8ff45bdcd",
+      "tool_use_id": "toolu_0184v3GGQm2xDMAWQuKLqyW8",
+      "queued": [
+        {
+          "priority": "later",
+          "marker": "LATER",
+          "message_uuid": "c1e06efd-d914-4a96-8015-f2e5981c2374",
+          "event_id": "c1e06efd-d914-4a96-8015-f2e5981c2374",
+          "stored_priority": "later",
+          "processing_before_release": null
+        },
+        {
+          "priority": "next",
+          "marker": "NEXT",
+          "message_uuid": "6c6787e6-6ca2-40bd-9de3-a46e87cabc50",
+          "event_id": "6c6787e6-6ca2-40bd-9de3-a46e87cabc50",
+          "stored_priority": "next",
+          "processing_before_release": null
+        }
+      ]
+    },
+    {
+      "name": "priority_boundary_effect",
+      "status": "qualified_observation",
+      "receipts": [
+        {
+          "priority": "later",
+          "marker": "LATER",
+          "message_uuid": "c1e06efd-d914-4a96-8015-f2e5981c2374",
+          "event_id": "c1e06efd-d914-4a96-8015-f2e5981c2374",
+          "stored_priority": "later",
+          "processing_before_release": null,
+          "processing_at": "2026-10-29T02:03:23.218276Z",
+          "processed_at": null
+        },
+        {
+          "priority": "next",
+          "marker": "NEXT",
+          "message_uuid": "6c6787e6-6ca2-40bd-9de3-a46e87cabc50",
+          "event_id": "6c6787e6-6ca2-40bd-9de3-a46e87cabc50",
+          "stored_priority": "next",
+          "processing_before_release": null,
+          "processing_at": "2026-10-29T02:03:15.999092Z",
+          "processed_at": "2026-10-29T02:03:23.195051Z"
+        }
+      ],
+      "file_contents": "NEXT\nLATER\n",
+      "execution_order": [
+        "NEXT",
+        "LATER"
+      ],
+      "limitation": "One held-question ordering observation, not a guarantee across in-flight races"
+    }
+  ],
+  "cleanup": [
+    {
+      "session_id": "cse_0154EsXTV39dMYoxpgrtz5RD",
+      "get_status": 404
+    },
+    {
+      "environment_id": "env_01AM6voMk5dhdqARTq6iyeKQ",
+      "absent_from_list": true
+    }
+  ],
+  "complete": false,
+  "environment_id": "env_01AM6voMk5dhdqARTq6iyeKQ",
+  "session_id": "cse_0154EsXTV39dMYoxpgrtz5RD",
+  "failure": {
+    "type": "AssertionError",
+    "message": "no task_started event"
+  }
+}

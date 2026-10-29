@@ -1,0 +1,117 @@
+{
+  "date": "2026-10-29",
+  "base": "75a0f37a70e8890fc556c4793a6b3d65034fadaa",
+  "branch": "feat/protocol-queue-receipts",
+  "scope": "Queue receipt/result correlation in streaming.py plus queue/task harness, tests and evidence only; commands.py unchanged",
+  "full_parity": false,
+  "primary_evidence": "claude_2026-10-29-protocol-queue-final.json",
+  "additional_successful_evidence": [
+    "claude_2026-10-29-protocol-queue-qualified.json",
+    "claude_2026-10-29-protocol-task-isolated.json"
+  ],
+  "reproduction": "uv run --extra web python scripts/claude-rc-queue-smoke --output <new-evidence.json>",
+  "reuse": {
+    "current_upstream": "git ls-remote upstream refs/heads/main matched inspected upstream/main fac6d28eb1cf797f95abe22ee95b7f23fb246e4d",
+    "upstream_inspection": "Existing cancel_queued_message, interrupt and stop_task were reused; upstream has no held-question priority/task acceptance harness or explicit-result UUID correlation fix",
+    "local_owners": "Existing RemoteControlClient transport/event writer, streaming.send_and_collect, prompt answer owner and permission-smoke collect/tool_results helpers; no second writer, poller service or credential owner",
+    "native_source": {
+      "version": "2.1.312",
+      "binary_sha256": "4f4178ce41d83e23341ebfbaecdbcf8ea6bf7baea0690025abe49eeec3a5d01d",
+      "observations": [
+        "Cloud admission forwards send_task_message, but its actual handler throws Unsupported control request subtype; live rejection matches",
+        "Cloud handleInterrupt emits its own still_queued/cancelled response and forwards the interrupt; this is not the answering worker's v1 receipt",
+        "interrupt_send_now_v1 schema warns that a CLI without the capability handles send_now as plain interrupt",
+        "Cloud handleCancelRequest delegates to outbound.cancelForward; print-side control_cancel_request aborts only a matching in-flight request",
+        "get_task_output reads shell/Monitor tail bytes; it is not agent-task messaging",
+        "start_shell_task_v1 can be advertised while the host-originated cloud admission switch rejects start_shell_task"
+      ]
+    }
+  },
+  "confirmed_bug": {
+    "file": "claude_rc/streaming.py",
+    "method": "send_and_collect",
+    "failure": "A next message starts transport processing before the previous turn's result is emitted. Receipt/time gating alone therefore accepts an unrelated result and returns before the requested task begins.",
+    "live_before_fix": "protocol-queue-streamed returned a successful result with no requested task_started event; isolated task-only premise passed. Final fixed run reproduces the race with explicit message owners.",
+    "live_after_fix": "Final run retained and skipped preceding LATER result 50e39788-4149-4a8c-a9d8-b4e40cc4aee2 and returned own result 77667108-caac-4b51-9dd1-455792c30f2a after actual Bash task creation. Correction from independent verification: retained LATER result created_at 02:12:23.975218Z precedes task PROCESSING timestamp 02:12:24.003508103Z and appears earlier in the stream. This trace does not establish receipt-first ordering; that defect is reproduced deterministically offline.",
+    "fix": "When result user_message_uuid/user_message_uuids fields are present, require exact collected-message membership in addition to the existing processing/time gate. Results without these fields retain the legacy gate. Explicit message_uuid=None now generates and forwards the correlation UUID before send.",
+    "regression": "Three single/folded/list UUID cases failed before the fix and pass after it; explicit None generation and typed live-control rejection also pass"
+  },
+  "capabilities": [
+    {
+      "name": "priority_next_before_later",
+      "status": "qualified_scoped_cloud",
+      "evidence": "Actual AskUserQuestion request/tool-use IDs; later then next exact user UUIDs stored with no processing stamp before release; next processing predates later; independent file read is exactly NEXT\\nLATER\\n; exact own successful durable result UUIDs and marker strings asserted",
+      "limitation": "Held-question next/later ordering only, not priority now, all in-flight races, or bridge parity"
+    },
+    {
+      "name": "send_now",
+      "status": "not_advertised_unqualified_cloud",
+      "evidence": "Fresh initialize advertises only start_shell_task_v1, not interrupt_send_now_v1; no send-now mutation sent",
+      "limitation": "Avoids mislabeling a plain Stop fallback as successful send-now"
+    },
+    {
+      "name": "interrupt_v1_receipts",
+      "status": "not_advertised_unqualified_cloud",
+      "evidence": "interrupt_receipt_v1 absent; source differentiates relay acknowledgement from answering worker receipt",
+      "limitation": "Prior qualified legacy interrupt/cancellation effects are retained, not repeated or relabeled v1"
+    },
+    {
+      "name": "shell_task_output_and_stop",
+      "status": "qualified_cloud",
+      "evidence": "Exact task bfmc0nyz1 and Bash tool-use ID; output TASK_OUTPUT_MARKER is 18 bytes; stopped notification 4f1c57df-f9df-419a-803d-3926b0b67447; post-stop output is 28 bytes including newline [killed] newline",
+      "limitation": "Shell task only, not an agent messaging fixture"
+    },
+    {
+      "name": "task_messaging",
+      "status": "unsupported_tested_cloud_surface",
+      "evidence": "request send_task_message-9300a1ea-cc3a-40ec-b7ea-a6896f9b9d3b, response event 320c26b4-c69f-4f10-a24b-491e73a9784b: ControlRejected, Unsupported control request subtype: send_task_message",
+      "limitation": "No message-delivery or other worker/bridge support claim; source handler rejects before an agent-task delivery path"
+    },
+    {
+      "name": "inflight_control_cancellation",
+      "status": "blocked_fixture_unqualified_cloud",
+      "evidence": "No accepted cancellable long-lived queue/task control fixture captured: task output settles immediately, host start_shell_task is source-gated out despite capability advertisement",
+      "limitation": "Other control owners were not probed; no cancellation HTTP ACK or bounded silence counted as an effect"
+    }
+  ],
+  "tests": {
+    "red_before_fix": "queue_receipts_test.py: 3 failed, 1 passed",
+    "focused_after_fix": "queue_receipts_test.py plus test_streaming.py: 48 passed before adding explicit-None regression",
+    "full_offline": "759 passed, 6 skipped, 3 existing legacy fire_routine deprecation warnings before adding explicit-None regression",
+    "final_offline_headless": "766 passed, 3 existing legacy fire_routine deprecation warnings",
+    "final_command": "uv run --extra test --extra web --extra cli --with playwright pytest -q",
+    "final_live": "Full queue-to-task continuation passed; tasks-only premise passed; exact cleanup asserted in all seven retained manifests",
+    "diff_check": "git diff --check passed"
+  },
+  "retained_failed_runs": [
+    {
+      "file": "claude_2026-10-29-protocol-queue-live.json",
+      "cause": "New harness used dictionary indexing on the typed Question object; corrected to existing answer_questions and Question.question contract"
+    },
+    {
+      "file": "claude_2026-10-29-protocol-queue-rerun.json",
+      "cause": "No task_started before collector completion; initial evidence did not retain result ownership, so not independently attributed"
+    },
+    {
+      "file": "claude_2026-10-29-protocol-queue-task-diagnosis.json",
+      "cause": "Reused polling fixture helper aborts when an earlier queued result arrives before its own-message receipt; switched task stage to production stream collector"
+    },
+    {
+      "file": "claude_2026-10-29-protocol-queue-streamed.json",
+      "cause": "Production collector returned preceding result after own transport processing began; explicit-result UUID regressions reproduce and fixed live run directly demonstrates the ordering"
+    }
+  ],
+  "safety": {
+    "owned_disposable_sessions": 7,
+    "owned_disposable_environments": 7,
+    "cleanup": "All seven session GETs returned 404 after deletion; all seven archived environments were excluded from listings. Exact shell tasks explicitly stopped on successful probes; failed fixtures terminated through deletion of their exact owned sessions.",
+    "shared_grants_refreshed": 0,
+    "shared_sessions_mutated": 0,
+    "shared_configuration_writes": 0,
+    "browser_tabs_or_workers_killed": 0,
+    "persistent_services_added": 0,
+    "public_posts_or_shares": 0,
+    "paid_api_keys": false,
+    "secrets_in_evidence": false
+  }
+}

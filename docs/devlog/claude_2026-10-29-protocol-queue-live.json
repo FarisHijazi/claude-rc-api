@@ -1,0 +1,67 @@
+{
+  "run": "queue-18e4f2bc9731",
+  "profile": "cloud",
+  "checks": [
+    {
+      "name": "initialize",
+      "capabilities": [
+        "start_shell_task_v1"
+      ],
+      "version": "2.1.312"
+    },
+    {
+      "name": "send_now",
+      "status": "not_advertised",
+      "required_capability": "interrupt_send_now_v1",
+      "attempted": false,
+      "reason": "No v1 claim from cloud relay receipts; an unsupported send-now can become plain Stop"
+    },
+    {
+      "name": "interrupt_v1_receipts",
+      "status": "not_advertised",
+      "required_capability": "interrupt_receipt_v1",
+      "attempted": false,
+      "reason": "No v1 claim from cloud relay receipts; an unsupported send-now can become plain Stop"
+    },
+    {
+      "name": "question_boundary",
+      "request_id": "f2890c5d-d625-4a3b-9394-24deaa252445",
+      "tool_use_id": "toolu_01FMJdVhcDauZ79eT4TLiHFG",
+      "queued": [
+        {
+          "priority": "later",
+          "marker": "LATER",
+          "message_uuid": "f2aabe6e-0e7e-498c-8adb-cd716bf8f299",
+          "event_id": "f2aabe6e-0e7e-498c-8adb-cd716bf8f299",
+          "stored_priority": "later",
+          "processing_before_release": null
+        },
+        {
+          "priority": "next",
+          "marker": "NEXT",
+          "message_uuid": "b079b853-27e7-4f06-a7d5-003b7dc31b12",
+          "event_id": "b079b853-27e7-4f06-a7d5-003b7dc31b12",
+          "stored_priority": "next",
+          "processing_before_release": null
+        }
+      ]
+    }
+  ],
+  "cleanup": [
+    {
+      "session_id": "cse_0154EsXRTJR7qXvgicQ5cdsm",
+      "get_status": 404
+    },
+    {
+      "environment_id": "env_01TKXkLgMz7ioHDU1BDsqfGv",
+      "absent_from_list": true
+    }
+  ],
+  "complete": false,
+  "environment_id": "env_01TKXkLgMz7ioHDU1BDsqfGv",
+  "session_id": "cse_0154EsXRTJR7qXvgicQ5cdsm",
+  "failure": {
+    "type": "TypeError",
+    "message": "'Question' object is not subscriptable"
+  }
+}

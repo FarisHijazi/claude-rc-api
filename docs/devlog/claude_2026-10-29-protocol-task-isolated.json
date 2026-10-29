@@ -1,0 +1,588 @@
+{
+  "run": "queue-9d12a79bcee1",
+  "profile": "cloud",
+  "checks": [
+    {
+      "name": "initialize",
+      "capabilities": [
+        "start_shell_task_v1"
+      ],
+      "version": "2.1.312"
+    },
+    {
+      "name": "send_now",
+      "status": "not_advertised",
+      "required_capability": "interrupt_send_now_v1",
+      "attempted": false,
+      "reason": "No v1 claim from cloud relay receipts; an unsupported send-now can become plain Stop"
+    },
+    {
+      "name": "interrupt_v1_receipts",
+      "status": "not_advertised",
+      "required_capability": "interrupt_receipt_v1",
+      "attempted": false,
+      "reason": "No v1 claim from cloud relay receipts; an unsupported send-now can become plain Stop"
+    },
+    {
+      "name": "task_creation_events",
+      "events": [
+        {
+          "type": "session_update",
+          "subtype": null,
+          "event_id": null,
+          "created_at": null,
+          "receipt": null,
+          "result": null,
+          "task_id": null,
+          "tool_uses": [],
+          "tool_results": []
+        },
+        {
+          "type": "user",
+          "subtype": null,
+          "event_id": "807d7cee-7beb-4085-a5ad-b22bd36713ae",
+          "created_at": "2026-10-29T02:06:16.602516Z",
+          "receipt": null,
+          "result": null,
+          "task_id": null,
+          "tool_uses": [],
+          "tool_results": []
+        },
+        {
+          "type": "delivery_update",
+          "subtype": null,
+          "event_id": null,
+          "created_at": null,
+          "receipt": {
+            "event_id": "807d7cee-7beb-4085-a5ad-b22bd36713ae",
+            "status": "DELIVERY_STATUS_RECEIVED",
+            "timestamp": "2026-10-29T02:06:16.651256150Z"
+          },
+          "result": null,
+          "task_id": null,
+          "tool_uses": [],
+          "tool_results": []
+        },
+        {
+          "type": "system",
+          "subtype": "commands_changed",
+          "event_id": null,
+          "created_at": null,
+          "receipt": null,
+          "result": null,
+          "task_id": null,
+          "tool_uses": [],
+          "tool_results": []
+        },
+        {
+          "type": "delivery_update",
+          "subtype": null,
+          "event_id": null,
+          "created_at": null,
+          "receipt": {
+            "event_id": "807d7cee-7beb-4085-a5ad-b22bd36713ae",
+            "status": "DELIVERY_STATUS_PROCESSING",
+            "timestamp": "2026-10-29T02:06:16.847264289Z"
+          },
+          "result": null,
+          "task_id": null,
+          "tool_uses": [],
+          "tool_results": []
+        },
+        {
+          "type": "control_request",
+          "subtype": null,
+          "event_id": "7d52d24f-1ab5-46b6-b301-46a2636a2640",
+          "created_at": "2026-10-29T02:06:16.925252Z",
+          "receipt": null,
+          "result": null,
+          "task_id": null,
+          "tool_uses": [],
+          "tool_results": []
+        },
+        {
+          "type": "delivery_update",
+          "subtype": null,
+          "event_id": null,
+          "created_at": null,
+          "receipt": {
+            "event_id": "7d52d24f-1ab5-46b6-b301-46a2636a2640",
+            "status": "DELIVERY_STATUS_RECEIVED",
+            "timestamp": "2026-10-29T02:06:16.983184713Z"
+          },
+          "result": null,
+          "task_id": null,
+          "tool_uses": [],
+          "tool_results": []
+        },
+        {
+          "type": "control_response",
+          "subtype": null,
+          "event_id": "04362be7-7e5b-40eb-b72c-250b772d68d1",
+          "created_at": "2026-10-29T02:06:17.010404Z",
+          "receipt": null,
+          "result": null,
+          "task_id": null,
+          "tool_uses": [],
+          "tool_results": []
+        },
+        {
+          "type": "delivery_update",
+          "subtype": null,
+          "event_id": null,
+          "created_at": null,
+          "receipt": {
+            "event_id": "7d52d24f-1ab5-46b6-b301-46a2636a2640",
+            "status": "DELIVERY_STATUS_PROCESSED",
+            "timestamp": "2026-10-29T02:06:17.090851716Z"
+          },
+          "result": null,
+          "task_id": null,
+          "tool_uses": [],
+          "tool_results": []
+        },
+        {
+          "type": "system",
+          "subtype": "init",
+          "event_id": "038f2f18-8504-422c-bfcf-c5ea62a0d7fd",
+          "created_at": "2026-10-29T02:06:17.197248Z",
+          "receipt": null,
+          "result": null,
+          "task_id": null,
+          "tool_uses": [],
+          "tool_results": []
+        },
+        {
+          "type": "assistant",
+          "subtype": null,
+          "event_id": "47135553-2126-457c-a0b0-032ed58b4e66",
+          "created_at": "2026-10-29T02:06:19.071566Z",
+          "receipt": null,
+          "result": null,
+          "task_id": null,
+          "tool_uses": [
+            {
+              "caller": {
+                "type": "direct"
+              },
+              "id": "toolu_016oL2PFYqYcANZVgCUUJkY5",
+              "input": {
+                "command": "printf TASK_OUTPUT_MARKER; sleep 90",
+                "description": "Print marker then sleep 90 seconds in background",
+                "run_in_background": true
+              },
+              "name": "Bash",
+              "type": "tool_use"
+            }
+          ],
+          "tool_results": []
+        },
+        {
+          "type": "rate_limit_event",
+          "subtype": null,
+          "event_id": "62540bb0-f105-4add-befa-cd7f14ef7c29",
+          "created_at": "2026-10-29T02:06:19.071566Z",
+          "receipt": null,
+          "result": null,
+          "task_id": null,
+          "tool_uses": [],
+          "tool_results": []
+        },
+        {
+          "type": "system",
+          "subtype": "task_summary",
+          "event_id": null,
+          "created_at": null,
+          "receipt": null,
+          "result": null,
+          "task_id": null,
+          "tool_uses": [],
+          "tool_results": []
+        },
+        {
+          "type": "system",
+          "subtype": "background_tasks_changed",
+          "event_id": "3791b978-656f-44a5-871e-bc8da3e8b647",
+          "created_at": "2026-10-29T02:06:19.184421Z",
+          "receipt": null,
+          "result": null,
+          "task_id": null,
+          "tool_uses": [],
+          "tool_results": []
+        },
+        {
+          "type": "system",
+          "subtype": "task_started",
+          "event_id": "c8efa988-90bf-4445-af5f-61bda93f127c",
+          "created_at": "2026-10-29T02:06:19.184421Z",
+          "receipt": null,
+          "result": null,
+          "task_id": "bnux7a3bh",
+          "tool_uses": [],
+          "tool_results": []
+        },
+        {
+          "type": "user",
+          "subtype": null,
+          "event_id": "61512225-ee6d-4a95-a7ce-0c9ed7bc4d0a",
+          "created_at": "2026-10-29T02:06:19.184421Z",
+          "receipt": null,
+          "result": null,
+          "task_id": null,
+          "tool_uses": [],
+          "tool_results": [
+            {
+              "content": "Command running in background with ID: bnux7a3bh. Output is being written to: /tmp/claude-0/-mnt-user-data-working/f556431b-efcf-534b-94d3-862c6ba52103/tasks/bnux7a3bh.output. You will be notified when it completes. To check interim output, use Read on that file path.",
+              "is_error": false,
+              "tool_use_id": "toolu_016oL2PFYqYcANZVgCUUJkY5",
+              "type": "tool_result"
+            }
+          ]
+        },
+        {
+          "type": "system",
+          "subtype": "thinking_tokens",
+          "event_id": null,
+          "created_at": null,
+          "receipt": null,
+          "result": null,
+          "task_id": null,
+          "tool_uses": [],
+          "tool_results": []
+        },
+        {
+          "type": "assistant",
+          "subtype": null,
+          "event_id": "bf8327b6-fdd0-4669-824a-4a2391af1029",
+          "created_at": "2026-10-29T02:06:20.859088Z",
+          "receipt": null,
+          "result": null,
+          "task_id": null,
+          "tool_uses": [],
+          "tool_results": []
+        },
+        {
+          "type": "assistant",
+          "subtype": null,
+          "event_id": "72f741b0-2a30-49aa-a1dc-f576a131314b",
+          "created_at": "2026-10-29T02:06:20.938253Z",
+          "receipt": null,
+          "result": null,
+          "task_id": null,
+          "tool_uses": [],
+          "tool_results": []
+        },
+        {
+          "type": "system",
+          "subtype": "post_turn_summary",
+          "event_id": null,
+          "created_at": null,
+          "receipt": null,
+          "result": null,
+          "task_id": null,
+          "tool_uses": [],
+          "tool_results": []
+        },
+        {
+          "type": "delivery_update",
+          "subtype": null,
+          "event_id": null,
+          "created_at": null,
+          "receipt": {
+            "event_id": "807d7cee-7beb-4085-a5ad-b22bd36713ae",
+            "status": "DELIVERY_STATUS_PROCESSED",
+            "timestamp": "2026-10-29T02:06:23.591051019Z"
+          },
+          "result": null,
+          "task_id": null,
+          "tool_uses": [],
+          "tool_results": []
+        },
+        {
+          "type": "system",
+          "subtype": "hook_started",
+          "event_id": "bc909ac8-2e32-4706-83a7-d9aafe250f5b",
+          "created_at": "2026-10-29T02:06:23.602135Z",
+          "receipt": null,
+          "result": null,
+          "task_id": null,
+          "tool_uses": [],
+          "tool_results": []
+        },
+        {
+          "type": "system",
+          "subtype": "hook_response",
+          "event_id": "84f2d3e6-b144-454b-b8df-8173cd453085",
+          "created_at": "2026-10-29T02:06:23.602135Z",
+          "receipt": null,
+          "result": null,
+          "task_id": null,
+          "tool_uses": [],
+          "tool_results": []
+        },
+        {
+          "type": "result",
+          "subtype": "success",
+          "event_id": "997e356e-8053-4c71-9b56-1f133347a7f6",
+          "created_at": "2026-10-29T02:06:23.602135Z",
+          "receipt": null,
+          "result": {
+            "api_error_status": null,
+            "duration_api_ms": 3501,
+            "duration_ms": 6729,
+            "fast_mode_disabled_reason": "sdk_opt_in_required",
+            "fast_mode_state": "off",
+            "first_content_frame_ms": 1696,
+            "first_request_input_tokens": 69480,
+            "flag_fetch_kick": "started_after_init_empty",
+            "frame_enqueued_wall_ms": 1793239576606,
+            "frame_intake_phases_ms": {
+              "attachments": 0,
+              "before_read": 2,
+              "dedup": 1,
+              "other": 4,
+              "receive_hook": 0
+            },
+            "frame_received_wall_ms": 1793239576599,
+            "input_attachments_detail": {
+              "cpu_ms": 50,
+              "major_faults": 4,
+              "slowest_producer": "queued_commands",
+              "slowest_producer_ms": 31
+            },
+            "is_error": false,
+            "main_stream_chunk_count": 15,
+            "main_stream_count": 2,
+            "main_stream_event_count": 31,
+            "modelUsage": {
+              "claude-haiku-5-5": {
+                "cacheCreationEphemeral1hInputTokens": 16172,
+                "cacheCreationEphemeral5mInputTokens": 0,
+                "cacheCreationInputTokens": 16172,
+                "cacheReadInputTokens": 124182,
+                "canonicalModel": "claude-haiku-5-5",
+                "contextWindow": 1000000,
+                "costBasis": "list",
+                "costUSD": 0.004581620000000001,
+                "inputTokens": 4,
+                "maxOutputTokens": 128000,
+                "outputTokens": 210,
+                "provider": "firstParty",
+                "thinkingTokens": 63,
+                "webSearchRequests": 0
+              }
+            },
+            "model_usage_since_last_result": {
+              "claude-haiku-5-5": {
+                "cacheCreationEphemeral1hInputTokens": 16172,
+                "cacheCreationEphemeral5mInputTokens": 0,
+                "cacheCreationInputTokens": 16172,
+                "cacheReadInputTokens": 124182,
+                "canonicalModel": "claude-haiku-5-5",
+                "contextWindow": 1000000,
+                "costBasis": "list",
+                "costUSD": 0.004581620000000001,
+                "inputTokens": 4,
+                "maxOutputTokens": 128000,
+                "outputTokens": 210,
+                "provider": "firstParty",
+                "thinkingTokens": 63,
+                "webSearchRequests": 0
+              }
+            },
+            "num_turns": 2,
+            "origin": {
+              "kind": "human"
+            },
+            "permission_denials": [],
+            "process_anon_mib_result": 168,
+            "process_anon_mib_turn_start": 152,
+            "process_cpu_ms_streaming": 73,
+            "process_cpu_ms_turn": 1123,
+            "process_peak_rss_mib": 272,
+            "process_rss_mib_result": 272,
+            "process_rss_mib_turn_start": 247,
+            "process_start_tuning": 7,
+            "process_turn_index": 0,
+            "process_wall_ms_streaming": 961,
+            "process_wall_ms_turn": 6728,
+            "queued_turn_count": 0,
+            "request_sent_wall_ms": 1793239577202,
+            "result": "Task ID: **bnux7a3bh**",
+            "result_index": 0,
+            "safety_stops": 0,
+            "session_id": "f556431b-efcf-534b-94d3-862c6ba52103",
+            "stop_reason": "end_turn",
+            "subagent_stats": {
+              "by_type": {},
+              "completed": 0,
+              "failed": 0,
+              "killed": {
+                "parent": 0,
+                "system": 0,
+                "user": 0
+              },
+              "max_depth": 0,
+              "refused": {
+                "budget": 0,
+                "concurrency_limit": 0,
+                "depth_limit": 0
+              },
+              "requested": {
+                "background": 0,
+                "foreground": 0,
+                "unset": 0
+              },
+              "spawned": 0,
+              "spawned_by_subagents": 0,
+              "started_in_background": 0
+            },
+            "subtype": "success",
+            "terminal_reason": "completed",
+            "time_origin_ms": 1793239506093.7834,
+            "time_to_request_cpu_ms": 500,
+            "time_to_request_from_spawn_ms": 3648,
+            "time_to_request_loop_lag_ms": 127,
+            "time_to_request_major_faults": 45,
+            "time_to_request_ms": 413,
+            "time_to_request_phases_ms": {
+              "autocompact": 3,
+              "client_creation": 8,
+              "engine_pickup": 2,
+              "init_message": 8,
+              "input_attachments": 44,
+              "input_hooks": 5,
+              "message_normalization": 6,
+              "message_prep": 2,
+              "model_config_wait": 1,
+              "model_gates": 1,
+              "other": 57,
+              "process_user_input": 6,
+              "query_setup": 2,
+              "request_build": 28,
+              "resume_other": 0,
+              "system_prompt": 164,
+              "tool_pool_refresh": 6,
+              "tool_schema_build": 52,
+              "transcript_persist": 18
+            },
+            "total_cost_usd": 0.004581620000000001,
+            "ttft_ms": 2152,
+            "ttft_stream_ms": 1696,
+            "turn_start_phases_ms": {
+              "after_arm": 24,
+              "commit": 3,
+              "engine_setup": 4,
+              "entry_joins": 135,
+              "idle": 1,
+              "mcp_prewait": 6,
+              "other": 0,
+              "sdk_mcp_update": 2,
+              "session_start_wait": 2,
+              "tool_reread": 1,
+              "turn_gate": 3,
+              "turn_joins": 1,
+              "turn_open": 1
+            },
+            "turn_start_resume_kind": "none",
+            "turn_started_wall_ms": 1793239576789,
+            "type": "result",
+            "usage": {
+              "cache_creation": {
+                "ephemeral_1h_input_tokens": 16172,
+                "ephemeral_5m_input_tokens": 0
+              },
+              "cache_creation_input_tokens": 16172,
+              "cache_read_input_tokens": 124182,
+              "fallback_credit": null,
+              "inference_geo": "global",
+              "input_tokens": 4,
+              "iterations": [
+                {
+                  "cache_creation": {
+                    "ephemeral_1h_input_tokens": 1398,
+                    "ephemeral_5m_input_tokens": 0
+                  },
+                  "cache_creation_input_tokens": 1398,
+                  "cache_read_input_tokens": 69478,
+                  "input_tokens": 2,
+                  "output_tokens": 80,
+                  "type": "message"
+                }
+              ],
+              "output_tokens": 210,
+              "output_tokens_details": {
+                "thinking_tokens": 63
+              },
+              "server_tool_use": {
+                "web_fetch_requests": 0,
+                "web_search_requests": 0
+              },
+              "service_tier": "standard",
+              "speed": "standard"
+            },
+            "user_message_server_received_wall_ms": 1793239576572,
+            "user_message_uuid": "807d7cee-7beb-4085-a5ad-b22bd36713ae",
+            "user_message_uuids": [
+              "807d7cee-7beb-4085-a5ad-b22bd36713ae"
+            ],
+            "uuid": "997e356e-8053-4c71-9b56-1f133347a7f6",
+            "warm_spare_claimed": true
+          },
+          "task_id": null,
+          "tool_uses": [],
+          "tool_results": []
+        }
+      ]
+    },
+    {
+      "name": "shell_task_output",
+      "status": "qualified",
+      "task_id": "bnux7a3bh",
+      "tool_use_id": "toolu_016oL2PFYqYcANZVgCUUJkY5",
+      "output": "TASK_OUTPUT_MARKER",
+      "total_bytes": 18,
+      "truncated": false
+    },
+    {
+      "name": "task_messaging",
+      "status": "unsupported",
+      "task_id": "bnux7a3bh",
+      "surface": "cloud controller send_task_message",
+      "error_type": "ControlRejected",
+      "verdict": "Unsupported control request subtype: send_task_message",
+      "limitation": "Admitted route has an unsupported source handler; shell output is not agent messaging"
+    },
+    {
+      "name": "shell_task_stop",
+      "status": "qualified",
+      "task_id": "bnux7a3bh",
+      "notification_id": "0d77be60-59d9-49b3-9a30-06d4e7420a32",
+      "output_after_stop": {
+        "output": "TASK_OUTPUT_MARKER\n[killed]\n",
+        "total_bytes": 28,
+        "truncated": false
+      }
+    },
+    {
+      "name": "inflight_control_cancel",
+      "status": "blocked_fixture",
+      "attempted": false,
+      "reason": "No accepted long-lived controller request fixture: start_shell_task is cloud-rejected, read-only task output settles immediately. No cancel ACK counted as effect."
+    }
+  ],
+  "cleanup": [
+    {
+      "session_id": "cse_0154EsXSCaffioRfG2xQyJDP",
+      "get_status": 404
+    },
+    {
+      "environment_id": "env_01C4BQ5VRdFNkAGY5eXvwqES",
+      "absent_from_list": true
+    }
+  ],
+  "complete": true,
+  "environment_id": "env_01C4BQ5VRdFNkAGY5eXvwqES",
+  "session_id": "cse_0154EsXSCaffioRfG2xQyJDP",
+  "task_id": "bnux7a3bh"
+}

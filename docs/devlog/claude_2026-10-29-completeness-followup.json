@@ -202,15 +202,15 @@
     },
     {
       "id": "queue_tasks",
-      "status": "exact_cancel_and_legacy_interrupt_live_qualified",
-      "evidence": "final-commands-summary and final-commands-qualified-rerun: exact UUID queued at genuine question, cancelled:true, absent generated response and fresh completed turn; legacy interrupt yields exact question error tool-result, prevents post-question write, and permits next inference. Only start_shell_task_v1 advertised; cloud admission rejects start_shell_task. Cancelled transport envelopes later gain processing timestamps without model execution.",
+      "status": "held_question_priorities_and_shell_tasks_live_qualified_messaging_rejected",
+      "evidence": "Prior exact cancellation/legacy interrupt qualification retained. claude_2026-10-29-protocol-queue-summary.json and protocol-queue-final.json: next-before-later execution at a genuine question boundary, exact message receipts/results and NEXT/LATER file bytes; shell-task marker output and stopped notification. Cloud send_task_message returns request-ID-correlated ControlRejected, matching the captured unsupported handler. Fixed collector result ownership: a previous result can arrive after the next message starts processing, so explicit result UUIDs must match. 766 offline/headless tests pass. All owned sessions GET 404 and environments excluded.",
       "remaining": [
-        "Send-now and priority race variants",
+        "Send-now, priority now and other in-flight priority race variants",
         "Capability-matched interrupt_receipt_v1 receipts",
-        "Advertised agent-task messaging fixture",
-        "In-flight control cancellation"
+        "Agent-task messaging is unsupported on the tested cloud surface; no delivery claim",
+        "In-flight control cancellation lacks an accepted long-lived controller fixture"
       ],
-      "next": "Use an actually advertised cloud variant before qualifying send-now/receipt/task-message effects; retain legacy outcome evidence without relabeling it v1 support.",
+      "next": "Require a changed supported cloud contract/capability before retrying send-now, v1 receipts or rejected task messaging. Retain the scoped next/later and shell output/stop proofs, not full race or bridge parity.",
       "estimate": "1-2 hours after a matching advertised fixture is available"
     },
     {
