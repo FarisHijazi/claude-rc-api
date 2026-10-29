@@ -27,6 +27,8 @@ Evidence files are deliberately plain paths, not force-loaded includes:
 | L | `claude_2026-10-28-group02-independent-verification.json` |
 | S | `claude_2026-10-28-streaming-independent-verification.json` |
 | Q | `claude_2026-10-28-group04-independent-verification.json` |
+| P2 | `claude_2026-10-29-core-permissions-qualified.json` (genuine cloud allow/deny/exact-rule reuse); `claude_2026-10-29-core-permissions-summary.json` (method, source provenance and retained failures) |
+| Q2 | `claude_2026-10-29-core-questions-qualified.json` (native cloud text/number/follow-up; hook registration explicitly not applied) |
 | W | `claude_2026-10-28-group05-independent-summary.json` and its linked task/rerun evidence |
 | E | `claude_2026-10-28-group06-independent-evidence.json`, `claude_2026-10-28-group06-contracts.json` |
 | F | `group07-independent-2026-10-28.json` |
@@ -110,15 +112,15 @@ responses; tests do not signal browser, worker or proxy processes.
 | Capability | Implementation | Verification / boundary |
 |---|---|---|
 | Pending reconciliation, complete history and initialized snapshot | Implemented | Live Q/I; stale/cancelled prompts disappear; default lookup remains read-only |
-| Authoritative permission allow-once | Implemented | Offline T; harmless live Bash ran without a prompt, so genuine allow execution remains unverified |
-| Deny/interrupt and permanent exact-rule reuse | Implemented | Offline T; no genuine live generator; no fabricated approval counted |
+| Authoritative permission allow-once | Implemented | Live P2: genuine cloud Bash prompt, exact file bytes `X`; the identical operation prompts again and its denial leaves `X` unchanged |
+| Deny and permanent exact-rule reuse | Implemented | Live P2: denied file remains absent (controller GET 404); exact session rule permits identical second call with no prompt (`X` → `XX`), a different path still prompts and denial prevents its write. Interrupt remains offline |
 | Single/multi-select, including one-item multi | Implemented | Live Q; single/multi also through panel answer HTTP adapter I |
 | Other alone and combined with selected labels | Implemented | Live Q/I; duplicate aliases rejected before posting. P confirms Other → single option clears stale text and the worker receives the selection; T tests both directions and preserves multi-select + Other |
 | One-to-four question cards | Implemented | Live Q four-card; I three-card |
 | Option previews, notes and answer-preview annotations | Implemented | Live Q/I tool-result assertions; panel fixtures T |
-| Native text/number/default/unit/follow-up forms | Implemented validators/renderers | Offline T; explicit skipped numeric fields bypass invalid-range validation. Cloud worker did not emit native kinds. Other text is not native-field proof |
+| Native text/number/default/unit/follow-up forms | Implemented validators/renderers | Live API Q2: dedicated environment with `CLAUDE_CODE_QUESTION_EXTENDED=1` emits actual text/number kinds, placeholder and min/max/step/defaultValue/unit; worker receives Ada/3. Extended choice `followUp:true` + response produces the real second text question and Confirmed continuation. Default rendering, all numeric boundaries and panel variants remain offline |
 | Partial/whole skip, dismiss and replied-in-chat | Implemented | Live Q distinct browser sentinels; panel/CLI encoding adapters offline T |
-| User dialogs, elicitation and hook callbacks | Implemented API | Offline; dedicated generators absent; panel does not claim these renderers |
+| User dialogs, elicitation and hook callbacks | Implemented API | Q2 cloud initialize explicitly returns `hooks_applied:false`; subsequent Bash runs without a callback, not hook-continuation proof. Dialog/elicitation still offline without a dedicated generator; panel does not claim these renderers |
 
 Answers preserve the original input, question text keys, tool name and tool-use
 ID. A multi-choice answer remains a list; worker display joins it. Unanswered
@@ -127,6 +129,27 @@ are distinct. Panel uses browser encoding; CLI defaults to worker and exposes
 `--encoding browser`. Replied-in-chat marks the prompt only; it sends no chat
 message. Native numeric constraints validate finite values and explicit wire
 min/max/step; no missing defaults are invented.
+
+**LIVE CHECK P2/Q2 (CLI/worker 2.1.312):** cloud `default` mode initially
+contains a blanket `Bash` allow from `cliArg`. The permission fixture first
+answers a genuine AskUserQuestion using the existing response owner and
+`updatedPermissions: removeRules(allow, cliArg, Bash)`. Readback proves the
+blanket allow disappeared before any permission acceptance. No fabricated
+worker prompt, shared settings edit, self-hosted worker or new transport is used.
+The exact permanent rule is session-only and has neither a wildcard nor a
+directory grant. Redirection-based exact rules were stored but still prompted
+on reuse in two earlier runs (with and without a scoped directory grant); their
+runtime cause is unresolved. P2 uses a literal Python file-append command instead,
+not a broader rule. The scoped proof does not qualify arbitrary shell syntax.
+
+Q2 sets the captured remote-worker startup flag only in a fresh environment.
+`kind=text/number` is a real gated worker schema, not inherently fixture-only;
+default cloud environments were not demonstrated to enable it. Follow-up uses
+`allow_once(updated_input={**request.input, answers, followUp: True, response})`;
+it does not rewrite the shown questions. Browser-click/rendering acceptance
+remains separate. Both scripts delete their exact sessions and assert GET 404;
+Q2 also archives its environment and verifies list exclusion.
+
 
 ### Controls, slash dispatch and MCP
 
@@ -272,7 +295,16 @@ uv run --extra web python scripts/claude-rc-integration-smoke --output ./integra
 uv run --extra web python scripts/claude-rc-stream-smoke --direct --timeout 90
 uv run --extra web --with playwright python scripts/claude-rc-panel-smoke --output ./panel-evidence.json
 uv run --extra web --with playwright python scripts/claude-rc-management-smoke --output ./management-evidence.json
+uv run --extra web python scripts/claude-rc-permission-smoke --output ./permission-evidence.json
+uv run --extra web python scripts/claude-rc-question-smoke --output ./question-evidence.json
 ```
+
+The permission smoke exits zero only after every permission/file assertion and
+verified cleanup. The question smoke currently exits **1**: native questions and
+follow-up pass, but hook registration is explicitly not applied. Its JSON keeps
+these independent outcomes. Proof-step collection is bounded to 120 seconds
+plus synchronous HTTP timeouts; every accepted worker result requires its own
+message processing timestamp, and tool results are correlated by tool-use ID.
 
 The integration smoke returns nonzero for **any** unqualified check, including
 known missing permission generators and routine execution. Its output stores
@@ -284,8 +316,10 @@ qualify a real worker.
 
 ## Remaining acceptance plan
 
-1. Supply a dedicated owned permission/MCP/dialog fixture (~1 day) and verify allow,
-   deny, permanent-rule reuse, elicitation and staged files against execution.
+1. Use P2/Q2's now-qualified cloud generators for rendered permission/native-form
+   acceptance (~1–2 hours); dedicated MCP/dialog/elicitation and actual hook
+   callback generators remain missing (~1 day). Cloud initialize refused the
+   tested SDK hook registration, so do not treat its acknowledgement as continuation.
 2. After routine quota is available, require an actual marker, cron firing and
    active cancellation (~30 min plus waiting for service quota). D already
    diagnosed Haiku + weekly-limit output + `is_error:true`; terminal `success`
@@ -300,8 +334,8 @@ qualify a real worker.
 6. Complete full environment/routine configuration forms, run-history paging,
    approved network-write forms and remaining local slash renderers (development
    backlog, ~1–2 days). M qualifies metadata/routine/read-only network screens
-   and binary CAS; genuine permissions, native dialogs and additional variants
-   still need separate acceptance.
+   and binary CAS; rendered permission/native-form acceptance, dialogs and additional
+   variants still need separate acceptance (P2/Q2 qualify their core API subset).
 7. Obtain explicit approval before public shares, support/debug exports (~2 hours after approval),
    feedback/log uploads, network bindings, tokens or webhook writes. Capture
    unsupported fork/grouping/SCM/integration-fire contracts before implementation.

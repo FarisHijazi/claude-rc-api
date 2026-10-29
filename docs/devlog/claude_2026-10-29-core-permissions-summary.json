@@ -1,0 +1,86 @@
+{
+  "date": "2026-10-29",
+  "base": "f8af7858fd0d9f6b0a2126814bec3c658b02e63b",
+  "branch": "feat/core-permissions",
+  "scope": "Core prompts, dedicated opt-in proof scripts, offline proof tests and qualification docs; no shared UI/auth changes or production-library edits were needed.",
+  "reuse": {
+    "upstream": "ThatCrispyToast/claude-rc-api upstream/main fac6d28; its examples cover list/watch, messages and managed agents, not deterministic permission/native-question qualification.",
+    "existing_owners": ["RemoteControlClient", "prompts.py permission/question responses", "events.py serializers", "streaming.py iter_history", "environments.py disposable cloud setup", "files.py controller GET"],
+    "prior_art": "Reused group04 source/evidence and existing integration smoke lifecycle patterns. No new transport, worker host, credential manager or persistent poller/service.",
+    "worker_protocol": {
+      "version": "2.1.312",
+      "source": "~/.local/share/claude/versions/2.1.312, embedded JavaScript, read-only",
+      "sha256": "4f4178ce41d83e23341ebfbaecdbcf8ea6bf7baea0690025abe49eeec3a5d01d",
+      "contracts": [
+        "Permission update schema $t: addRules/removeRules with behavior and destination; cliArg and session are supported destinations.",
+        "AskUserQuestion inputSchema selects extended schema via WIe(); startup enables it for a remote entrypoint with CLAUDE_CODE_QUESTION_EXTENDED set.",
+        "Extended question admission ce/de accepts response and followUp only with original shown fields preserved; followUp requires explicit question kinds.",
+        "initialize.hooks uses event -> matcher/hookCallbackIds/timeout; cloud live verdict was hooks_applied:false."
+      ]
+    }
+  },
+  "live": {
+    "permissions": {
+      "evidence": "claude_2026-10-29-core-permissions-qualified.json",
+      "script": "scripts/claude-rc-permission-smoke",
+      "exit_code": 0,
+      "platform": "Actual Anthropic cloud worker, cookie CDP auth; no self-hosted bridge substitution.",
+      "policy": "Default permission mode has a blanket Bash allow from cliArg. An actual AskUserQuestion response carries the restrictive removeRules(allow, cliArg, Bash); list_permission_rules proves removal before testing.",
+      "assertions": [
+        "Allow once: genuine Bash can_use_tool with matching tool-use ID; controller GET decodes X.",
+        "Identical allow-once repetition prompts again; denial leaves X unchanged.",
+        "Deny: actual error tool_result; previously absent target remains GET 404.",
+        "Always allow: installs exactly one literal Bash command rule in destination session, without wildcard or directory grant; readback shows the rule.",
+        "Identical repeated command executes without can_use_tool; controller GET changes X to XX.",
+        "Different filename still prompts; denial prevents that write (GET 404).",
+        "All turns require own-message processing timestamps preceding their worker result, successful result error flag, and tool-use-ID result correlation."
+      ],
+      "boundary": "This qualifies the exact non-redirection command and session lifetime, not arbitrary shell syntax, persisted user settings, restart reuse, interrupt or rendered panel choices."
+    },
+    "questions": {
+      "evidence": "claude_2026-10-29-core-questions-qualified.json",
+      "script": "scripts/claude-rc-question-smoke",
+      "exit_code": 1,
+      "exit_reason": "Native and follow-up checks pass; script deliberately remains nonzero because actual hook continuation is not qualified.",
+      "native_qualified": true,
+      "follow_up_qualified": true,
+      "setup": "Fresh disposable cloud environment, cwd /mnt/user-data/working, environment CLAUDE_CODE_QUESTION_EXTENDED=1.",
+      "assertions": [
+        "Actual worker can_use_tool contains kind:text and kind:number, not choice approximations; placeholder/min/max/step/defaultValue/unit are emitted.",
+        "Existing answer_questions(other={...}) preserves original input; worker tool_result and assistant report Ada and 3.",
+        "Extended choice answer via existing allow_once(updated_input=...) carries followUp:true and response; first actual tool_result requests more questions.",
+        "Worker emits the requested second native text question; second tool_result receives Confirmed and assistant finishes FOLLOW_UP_OK."
+      ],
+      "boundary": "API continuation qualified. Default-value rendering, every numeric boundary and rendered panel acceptance are not newly qualified. Default cloud environments are not proven to enable extended kinds."
+    },
+    "hooks_and_dialogs": {
+      "hooks_qualified": false,
+      "observed": "Captured initialize.hooks registration returned hooks_applied:false. Subsequent exact Bash produced HOOK_CONTINUED with zero hook_callback requests. Acknowledgement is not hook acceptance.",
+      "dialogs_and_elicitation": "No dedicated runtime generator exercised; existing API codecs remain offline. No unsupported supportedDialogKinds were advertised.",
+      "next": "Use the real worker's supported hook/device or dialog integration on a separate owned fixture; do not retry the same rejected initialize premise or label self-hosted proof cloud parity."
+    }
+  },
+  "retained_runs": [
+    {"evidence": "claude_2026-10-29-core-permissions-live.json", "result": "Allow and deny pass. Exact redirection rule stored but reuse prompts; denied safely. Runtime cause unresolved."},
+    {"evidence": "claude_2026-10-29-core-permissions-scoped-live.json", "result": "Adding the suggested exact directory grant does not fix redirection reuse. This refutes the initial directory-only explanation; no library workaround or broad grant shipped."},
+    {"evidence": "claude_2026-10-29-core-permissions-exact-live.json", "result": "Non-redirection exact command qualifies with an extra scoped directory grant. Final run removes that unnecessary grant and adds identical allow-once repetition plus own-receipt assertions."},
+    {"evidence": "claude_2026-10-29-core-questions-live.json", "result": "Initial native text/number continuation passes; no hook callback. Earlier script exited zero for native-only status; final script now reports nonzero for the remaining hook check and records explicit hooks_applied:false."}
+  ],
+  "tests": {
+    "targeted": "14 passed: tests/core_permission_proof_test.py",
+    "full": "724 passed, 3 existing fire_routine deprecation warnings, including isolated headless-browser tests",
+    "command": "uv run --extra test --extra web --extra cli --with playwright pytest -q tests",
+    "coverage": "Captured native schema preservation, followUp passthrough, real-404-only absence, byte decoding, own versus unrelated/late/missing receipts, failed result rejection, tool-use-ID correlation and evidence invariants.",
+    "runtime_library_changes": "None; existing owners handled all newly qualified wire contracts."
+  },
+  "safety": {
+    "shared_grant_refreshes": 0,
+    "shared_harness_or_auth_edits": 0,
+    "existing_session_mutations": 0,
+    "persistent_workers_or_daemons": 0,
+    "browser_input_or_tabs_created": 0,
+    "browser_access": "Read-only cookie discovery over existing localhost CDP; no browser interaction needed.",
+    "cleanup": "Every manifest session in all six retained live runs was deleted with GET 404. Both question environments were archived and excluded from listing. The separate policy preflight session was also deleted with GET 404.",
+    "public_shares_support_posts_network_writes": "Not performed. Evidence contains only generated prompts/results, exact test-owned resource IDs, paths and protocol metadata."
+  }
+}

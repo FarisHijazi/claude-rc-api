@@ -1,0 +1,295 @@
+{
+  "run": "core-permissions-caeb69934938",
+  "profile": "cloud",
+  "checks": [
+    {
+      "name": "worker_policy",
+      "version": "2.1.312",
+      "mode": "default",
+      "rules": [
+        {
+          "rule": "preset:default",
+          "behavior": "allow",
+          "source": "cliArg",
+          "editability": "session"
+        },
+        {
+          "rule": "Bash",
+          "behavior": "allow",
+          "source": "cliArg",
+          "editability": "session"
+        },
+        {
+          "rule": "BashOutput",
+          "behavior": "allow",
+          "source": "cliArg",
+          "editability": "session"
+        }
+      ]
+    },
+    {
+      "name": "baseline_bash",
+      "executed": true,
+      "prompt_count": 0
+    },
+    {
+      "name": "bootstrap_response",
+      "request_id": "8c63b9ab-78c2-4cc8-8ed8-0f47284f958c",
+      "permissions": [
+        {
+          "type": "removeRules",
+          "rules": [
+            {
+              "toolName": "Bash"
+            }
+          ],
+          "behavior": "allow",
+          "destination": "cliArg"
+        }
+      ]
+    },
+    {
+      "name": "after_tightening",
+      "rules": [
+        {
+          "rule": "preset:default",
+          "behavior": "allow",
+          "source": "cliArg",
+          "editability": "session"
+        },
+        {
+          "rule": "BashOutput",
+          "behavior": "allow",
+          "source": "cliArg",
+          "editability": "session"
+        }
+      ]
+    },
+    {
+      "name": "permission_prompt",
+      "case": "allow_once",
+      "request_id": "fb12a2ac-4b96-4002-b6a3-320d5b0cb3dd",
+      "tool_use_id": "toolu_015z55DTFXGAX1S87t91ND45",
+      "command": "printf X >> /mnt/user-data/working/core-permissions-caeb69934938/allow_once.txt",
+      "suggestions": [
+        {
+          "behavior": "allow",
+          "destination": "localSettings",
+          "rules": [
+            {
+              "ruleContent": "printf X >> /mnt/user-data/working/core-permissions-caeb69934938/allow_once.txt",
+              "toolName": "Bash"
+            }
+          ],
+          "type": "addRules"
+        },
+        {
+          "destination": "session",
+          "directories": [
+            "/mnt/user-data/working/core-permissions-caeb69934938"
+          ],
+          "type": "addDirectories"
+        }
+      ]
+    },
+    {
+      "name": "allow_once",
+      "status": "passed",
+      "prompts": 1,
+      "before": null,
+      "after": "X",
+      "tool_result": {
+        "content": "(Bash completed with no output)",
+        "is_error": false,
+        "tool_use_id": "toolu_015z55DTFXGAX1S87t91ND45",
+        "type": "tool_result"
+      },
+      "rules": [
+        {
+          "rule": "preset:default",
+          "behavior": "allow",
+          "source": "cliArg",
+          "editability": "session"
+        },
+        {
+          "rule": "BashOutput",
+          "behavior": "allow",
+          "source": "cliArg",
+          "editability": "session"
+        }
+      ]
+    },
+    {
+      "name": "permission_prompt",
+      "case": "deny",
+      "request_id": "80e76286-0cee-4458-90a8-5d08792512e6",
+      "tool_use_id": "toolu_01K4qN2ff7rKSE7BpRdEREd2",
+      "command": "printf X >> /mnt/user-data/working/core-permissions-caeb69934938/deny.txt",
+      "suggestions": [
+        {
+          "behavior": "allow",
+          "destination": "localSettings",
+          "rules": [
+            {
+              "ruleContent": "printf X >> /mnt/user-data/working/core-permissions-caeb69934938/deny.txt",
+              "toolName": "Bash"
+            }
+          ],
+          "type": "addRules"
+        },
+        {
+          "destination": "session",
+          "directories": [
+            "/mnt/user-data/working/core-permissions-caeb69934938"
+          ],
+          "type": "addDirectories"
+        }
+      ]
+    },
+    {
+      "name": "deny",
+      "status": "passed",
+      "prompts": 1,
+      "before": null,
+      "after": null,
+      "tool_result": {
+        "content": "Deny this fixture write. Do not retry or use another tool.",
+        "is_error": true,
+        "tool_use_id": "toolu_01K4qN2ff7rKSE7BpRdEREd2",
+        "type": "tool_result"
+      },
+      "rules": [
+        {
+          "rule": "preset:default",
+          "behavior": "allow",
+          "source": "cliArg",
+          "editability": "session"
+        },
+        {
+          "rule": "BashOutput",
+          "behavior": "allow",
+          "source": "cliArg",
+          "editability": "session"
+        }
+      ]
+    },
+    {
+      "name": "permission_prompt",
+      "case": "always_allow",
+      "request_id": "ae8043c6-49b1-44b3-aaa8-78ebb7e8f1a6",
+      "tool_use_id": "toolu_01NU1SVQkdXSszWKqF22CyNy",
+      "command": "printf X >> /mnt/user-data/working/core-permissions-caeb69934938/always.txt",
+      "suggestions": [
+        {
+          "behavior": "allow",
+          "destination": "localSettings",
+          "rules": [
+            {
+              "ruleContent": "printf X >> /mnt/user-data/working/core-permissions-caeb69934938/always.txt",
+              "toolName": "Bash"
+            }
+          ],
+          "type": "addRules"
+        },
+        {
+          "destination": "session",
+          "directories": [
+            "/mnt/user-data/working/core-permissions-caeb69934938"
+          ],
+          "type": "addDirectories"
+        }
+      ]
+    },
+    {
+      "name": "exact_rule",
+      "permissions": [
+        {
+          "type": "addRules",
+          "rules": [
+            {
+              "toolName": "Bash",
+              "ruleContent": "printf X >> /mnt/user-data/working/core-permissions-caeb69934938/always.txt"
+            }
+          ],
+          "behavior": "allow",
+          "destination": "session"
+        }
+      ]
+    },
+    {
+      "name": "always_allow",
+      "status": "passed",
+      "prompts": 1,
+      "before": null,
+      "after": "X",
+      "tool_result": {
+        "content": "(Bash completed with no output)",
+        "is_error": false,
+        "tool_use_id": "toolu_01NU1SVQkdXSszWKqF22CyNy",
+        "type": "tool_result"
+      },
+      "rules": [
+        {
+          "rule": "preset:default",
+          "behavior": "allow",
+          "source": "cliArg",
+          "editability": "session"
+        },
+        {
+          "rule": "BashOutput",
+          "behavior": "allow",
+          "source": "cliArg",
+          "editability": "session"
+        },
+        {
+          "rule": "Bash(printf X >> /mnt/user-data/working/core-permissions-caeb69934938/always.txt)",
+          "behavior": "allow",
+          "source": "session",
+          "editability": "session"
+        }
+      ]
+    },
+    {
+      "name": "permission_prompt",
+      "case": "reuse",
+      "request_id": "fdf69a60-2cea-43dc-9d66-25cb18453fd4",
+      "tool_use_id": "toolu_018aaeYsZ9X4kaeMAW8Q5T29",
+      "command": "printf X >> /mnt/user-data/working/core-permissions-caeb69934938/always.txt",
+      "suggestions": [
+        {
+          "behavior": "allow",
+          "destination": "localSettings",
+          "rules": [
+            {
+              "ruleContent": "printf X >> /mnt/user-data/working/core-permissions-caeb69934938/always.txt",
+              "toolName": "Bash"
+            }
+          ],
+          "type": "addRules"
+        },
+        {
+          "destination": "session",
+          "directories": [
+            "/mnt/user-data/working/core-permissions-caeb69934938"
+          ],
+          "type": "addDirectories"
+        }
+      ]
+    },
+    {
+      "name": "qualification",
+      "status": "unqualified",
+      "error_class": "AssertionError",
+      "http_status": null,
+      "reason": "wrong prompt count"
+    }
+  ],
+  "cleanup": [
+    {
+      "session_id": "cse_0154EsXQWKx1kmQ7K4PRppzr",
+      "get_404": true
+    }
+  ],
+  "complete": false,
+  "session_id": "cse_0154EsXQWKx1kmQ7K4PRppzr"
+}

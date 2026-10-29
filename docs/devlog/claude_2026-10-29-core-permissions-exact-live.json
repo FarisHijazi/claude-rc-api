@@ -1,0 +1,341 @@
+{
+  "run": "core-permissions-0f5cfe9807d4",
+  "profile": "cloud",
+  "checks": [
+    {
+      "name": "worker_policy",
+      "version": "2.1.312",
+      "mode": "default",
+      "rules": [
+        {
+          "rule": "preset:default",
+          "behavior": "allow",
+          "source": "cliArg",
+          "editability": "session"
+        },
+        {
+          "rule": "Bash",
+          "behavior": "allow",
+          "source": "cliArg",
+          "editability": "session"
+        },
+        {
+          "rule": "BashOutput",
+          "behavior": "allow",
+          "source": "cliArg",
+          "editability": "session"
+        }
+      ]
+    },
+    {
+      "name": "baseline_bash",
+      "executed": true,
+      "prompt_count": 0
+    },
+    {
+      "name": "bootstrap_response",
+      "request_id": "99838975-ad9a-4ef6-8a58-cb9999da5911",
+      "permissions": [
+        {
+          "type": "removeRules",
+          "rules": [
+            {
+              "toolName": "Bash"
+            }
+          ],
+          "behavior": "allow",
+          "destination": "cliArg"
+        }
+      ]
+    },
+    {
+      "name": "after_tightening",
+      "rules": [
+        {
+          "rule": "preset:default",
+          "behavior": "allow",
+          "source": "cliArg",
+          "editability": "session"
+        },
+        {
+          "rule": "BashOutput",
+          "behavior": "allow",
+          "source": "cliArg",
+          "editability": "session"
+        }
+      ]
+    },
+    {
+      "name": "permission_prompt",
+      "case": "allow_once",
+      "request_id": "d488a551-8641-42de-b250-c410967b454e",
+      "tool_use_id": "toolu_0143vGXNkZ4WvexwzS3PBu4A",
+      "command": "python3 -c \"open('/mnt/user-data/working/core-permissions-0f5cfe9807d4/allow_once.txt', 'a').write('X')\"",
+      "suggestions": [
+        {
+          "behavior": "allow",
+          "destination": "localSettings",
+          "rules": [
+            {
+              "ruleContent": "python3 -c \"open('/mnt/user-data/working/core-permissions-0f5cfe9807d4/allow_once.txt', 'a').write('X')\"",
+              "toolName": "Bash"
+            }
+          ],
+          "type": "addRules"
+        }
+      ],
+      "decision_reason": "This command requires approval",
+      "decision_reason_type": "other"
+    },
+    {
+      "name": "allow_once",
+      "status": "passed",
+      "prompts": 1,
+      "before": null,
+      "after": "X",
+      "tool_result": {
+        "content": "(Bash completed with no output)",
+        "is_error": false,
+        "tool_use_id": "toolu_0143vGXNkZ4WvexwzS3PBu4A",
+        "type": "tool_result"
+      },
+      "rules": [
+        {
+          "rule": "preset:default",
+          "behavior": "allow",
+          "source": "cliArg",
+          "editability": "session"
+        },
+        {
+          "rule": "BashOutput",
+          "behavior": "allow",
+          "source": "cliArg",
+          "editability": "session"
+        }
+      ]
+    },
+    {
+      "name": "permission_prompt",
+      "case": "deny",
+      "request_id": "faba5e73-69e8-43a5-a383-e27a09ddb5e4",
+      "tool_use_id": "toolu_01YDxZBFesy7PqEYgW7Auq7K",
+      "command": "python3 -c \"open('/mnt/user-data/working/core-permissions-0f5cfe9807d4/deny.txt', 'a').write('X')\"",
+      "suggestions": [
+        {
+          "behavior": "allow",
+          "destination": "localSettings",
+          "rules": [
+            {
+              "ruleContent": "python3 -c \"open('/mnt/user-data/working/core-permissions-0f5cfe9807d4/deny.txt', 'a').write('X')\"",
+              "toolName": "Bash"
+            }
+          ],
+          "type": "addRules"
+        }
+      ],
+      "decision_reason": "This command requires approval",
+      "decision_reason_type": "other"
+    },
+    {
+      "name": "deny",
+      "status": "passed",
+      "prompts": 1,
+      "before": null,
+      "after": null,
+      "tool_result": {
+        "content": "Deny this fixture write. Do not retry or use another tool.",
+        "is_error": true,
+        "tool_use_id": "toolu_01YDxZBFesy7PqEYgW7Auq7K",
+        "type": "tool_result"
+      },
+      "rules": [
+        {
+          "rule": "preset:default",
+          "behavior": "allow",
+          "source": "cliArg",
+          "editability": "session"
+        },
+        {
+          "rule": "BashOutput",
+          "behavior": "allow",
+          "source": "cliArg",
+          "editability": "session"
+        }
+      ]
+    },
+    {
+      "name": "permission_prompt",
+      "case": "always_allow",
+      "request_id": "12006a5c-b6a9-402f-8e9f-6c077d67d4aa",
+      "tool_use_id": "toolu_01VwzpLZtQs5FkX9W61YdGLd",
+      "command": "python3 -c \"open('/mnt/user-data/working/core-permissions-0f5cfe9807d4/always.txt', 'a').write('X')\"",
+      "suggestions": [
+        {
+          "behavior": "allow",
+          "destination": "localSettings",
+          "rules": [
+            {
+              "ruleContent": "python3 -c \"open('/mnt/user-data/working/core-permissions-0f5cfe9807d4/always.txt', 'a').write('X')\"",
+              "toolName": "Bash"
+            }
+          ],
+          "type": "addRules"
+        }
+      ],
+      "decision_reason": "This command requires approval",
+      "decision_reason_type": "other"
+    },
+    {
+      "name": "exact_rule",
+      "permissions": [
+        {
+          "type": "addRules",
+          "rules": [
+            {
+              "toolName": "Bash",
+              "ruleContent": "python3 -c \"open('/mnt/user-data/working/core-permissions-0f5cfe9807d4/always.txt', 'a').write('X')\""
+            }
+          ],
+          "behavior": "allow",
+          "destination": "session"
+        },
+        {
+          "type": "addDirectories",
+          "directories": [
+            "/mnt/user-data/working/core-permissions-0f5cfe9807d4"
+          ],
+          "destination": "session"
+        }
+      ]
+    },
+    {
+      "name": "always_allow",
+      "status": "passed",
+      "prompts": 1,
+      "before": null,
+      "after": "X",
+      "tool_result": {
+        "content": "(Bash completed with no output)",
+        "is_error": false,
+        "tool_use_id": "toolu_01VwzpLZtQs5FkX9W61YdGLd",
+        "type": "tool_result"
+      },
+      "rules": [
+        {
+          "rule": "preset:default",
+          "behavior": "allow",
+          "source": "cliArg",
+          "editability": "session"
+        },
+        {
+          "rule": "BashOutput",
+          "behavior": "allow",
+          "source": "cliArg",
+          "editability": "session"
+        },
+        {
+          "rule": "Bash(python3 -c \"open\\('/mnt/user-data/working/core-permissions-0f5cfe9807d4/always.txt', 'a'\\).write\\('X'\\)\")",
+          "behavior": "allow",
+          "source": "session",
+          "editability": "session"
+        }
+      ]
+    },
+    {
+      "name": "reuse",
+      "status": "passed",
+      "prompts": 0,
+      "before": "X",
+      "after": "XX",
+      "tool_result": {
+        "content": "(Bash completed with no output)",
+        "is_error": false,
+        "tool_use_id": "toolu_01VhtTjG1AFtnb1ML4S7hJXT",
+        "type": "tool_result"
+      },
+      "rules": [
+        {
+          "rule": "preset:default",
+          "behavior": "allow",
+          "source": "cliArg",
+          "editability": "session"
+        },
+        {
+          "rule": "BashOutput",
+          "behavior": "allow",
+          "source": "cliArg",
+          "editability": "session"
+        },
+        {
+          "rule": "Bash(python3 -c \"open\\('/mnt/user-data/working/core-permissions-0f5cfe9807d4/always.txt', 'a'\\).write\\('X'\\)\")",
+          "behavior": "allow",
+          "source": "session",
+          "editability": "session"
+        }
+      ]
+    },
+    {
+      "name": "permission_prompt",
+      "case": "out_of_scope",
+      "request_id": "4c089c4f-dfec-4076-9a86-fc218d885aea",
+      "tool_use_id": "toolu_019jR39enLWHLSzpeQTyPwD9",
+      "command": "python3 -c \"open('/mnt/user-data/working/core-permissions-0f5cfe9807d4/out_of_scope.txt', 'a').write('X')\"",
+      "suggestions": [
+        {
+          "behavior": "allow",
+          "destination": "localSettings",
+          "rules": [
+            {
+              "ruleContent": "python3 -c \"open('/mnt/user-data/working/core-permissions-0f5cfe9807d4/out_of_scope.txt', 'a').write('X')\"",
+              "toolName": "Bash"
+            }
+          ],
+          "type": "addRules"
+        }
+      ],
+      "decision_reason": "This command requires approval",
+      "decision_reason_type": "other"
+    },
+    {
+      "name": "out_of_scope",
+      "status": "passed",
+      "prompts": 1,
+      "before": null,
+      "after": null,
+      "tool_result": {
+        "content": "Deny this fixture write. Do not retry or use another tool.",
+        "is_error": true,
+        "tool_use_id": "toolu_019jR39enLWHLSzpeQTyPwD9",
+        "type": "tool_result"
+      },
+      "rules": [
+        {
+          "rule": "preset:default",
+          "behavior": "allow",
+          "source": "cliArg",
+          "editability": "session"
+        },
+        {
+          "rule": "BashOutput",
+          "behavior": "allow",
+          "source": "cliArg",
+          "editability": "session"
+        },
+        {
+          "rule": "Bash(python3 -c \"open\\('/mnt/user-data/working/core-permissions-0f5cfe9807d4/always.txt', 'a'\\).write\\('X'\\)\")",
+          "behavior": "allow",
+          "source": "session",
+          "editability": "session"
+        }
+      ]
+    }
+  ],
+  "cleanup": [
+    {
+      "session_id": "cse_0154EsXPv2xJiEUzSwg9kaib",
+      "get_404": true
+    }
+  ],
+  "complete": true,
+  "session_id": "cse_0154EsXPv2xJiEUzSwg9kaib"
+}

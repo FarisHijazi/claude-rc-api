@@ -1,0 +1,102 @@
+{
+  "run": "core-questions-38db5bff58f6",
+  "profile": "cloud",
+  "checks": [
+    {
+      "name": "worker",
+      "version": "2.1.312",
+      "mode": "default"
+    },
+    {
+      "name": "actual_question",
+      "schema": {
+        "questions": [
+          {
+            "header": "Name",
+            "kind": "text",
+            "multiSelect": false,
+            "options": [],
+            "placeholder": "Type a name",
+            "question": "Name?"
+          },
+          {
+            "defaultValue": 2,
+            "header": "Count",
+            "kind": "number",
+            "max": 5,
+            "min": 1,
+            "multiSelect": false,
+            "options": [],
+            "question": "Count?",
+            "step": 1,
+            "unit": "items"
+          }
+        ],
+        "title": "Isolated schema test"
+      }
+    },
+    {
+      "name": "native_continuation",
+      "native": true,
+      "tool_result": {
+        "content": "The user answered: \"Name?\"=\"Ada\", \"Count?\"=\"3\". Read the answers carefully \u2014 they may request clarification, changes, or that you not proceed \u2014 and follow what they actually say.",
+        "tool_use_id": "toolu_016toXaimQkGtnqL3xbGsQhA",
+        "type": "tool_result"
+      },
+      "assistant": "Name: \"Ada\"\nCount: \"3\""
+    },
+    {
+      "name": "hook_negotiation",
+      "response_keys": [
+        "account",
+        "agents",
+        "analytics_disabled",
+        "available_output_styles",
+        "capabilities",
+        "claude_code_version",
+        "commands",
+        "current_permission_mode",
+        "fast_mode_disabled_reason",
+        "fast_mode_state",
+        "feedback_mode",
+        "hooks_applied",
+        "ide_rc_auto_enable_gate",
+        "models",
+        "output_style",
+        "pid",
+        "remote_control_auto_connect_default",
+        "remote_control_auto_enable",
+        "remote_control_auto_on_by_default",
+        "remote_control_available",
+        "session_state",
+        "user_output_styles_dir"
+      ]
+    },
+    {
+      "name": "hook_continuation",
+      "callbacks": 0,
+      "actual_bash_result": [
+        {
+          "content": "HOOK_CONTINUED",
+          "is_error": false,
+          "tool_use_id": "toolu_012yHM9zvPuB9kQdrZ2Ud1kg",
+          "type": "tool_result"
+        }
+      ],
+      "qualified": false
+    }
+  ],
+  "cleanup": [
+    {
+      "session_id": "cse_0154EsXU9rmQ3drn82ztSTVn",
+      "get_404": true
+    },
+    {
+      "environment_id": "env_01MBPEW7yFmKJK4vx2KSceft",
+      "excluded_from_list": true
+    }
+  ],
+  "native_qualified": true,
+  "environment_id": "env_01MBPEW7yFmKJK4vx2KSceft",
+  "session_id": "cse_0154EsXU9rmQ3drn82ztSTVn"
+}

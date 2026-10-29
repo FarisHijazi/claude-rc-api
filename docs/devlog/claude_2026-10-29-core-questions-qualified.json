@@ -1,0 +1,161 @@
+{
+  "run": "core-questions-308909ad29c1",
+  "profile": "cloud",
+  "checks": [
+    {
+      "name": "worker",
+      "version": "2.1.312",
+      "mode": "default"
+    },
+    {
+      "name": "actual_question",
+      "schema": {
+        "questions": [
+          {
+            "header": "Name",
+            "kind": "text",
+            "multiSelect": false,
+            "options": [],
+            "placeholder": "Type a name",
+            "question": "Name?"
+          },
+          {
+            "defaultValue": 2,
+            "header": "Count",
+            "kind": "number",
+            "max": 5,
+            "min": 1,
+            "multiSelect": false,
+            "options": [],
+            "question": "Count?",
+            "step": 1,
+            "unit": "items"
+          }
+        ]
+      }
+    },
+    {
+      "name": "native_continuation",
+      "native": true,
+      "tool_result": {
+        "content": "The user answered: \"Name?\"=\"Ada\", \"Count?\"=\"3\". Read the answers carefully \u2014 they may request clarification, changes, or that you not proceed \u2014 and follow what they actually say.",
+        "tool_use_id": "toolu_0151XUzHEDQauCL4DRia8Pf4",
+        "type": "tool_result"
+      },
+      "assistant": "Name: Ada\nCount: 3"
+    },
+    {
+      "name": "follow_up_question",
+      "ordinal": 1,
+      "schema": {
+        "questions": [
+          {
+            "header": "Confirm",
+            "kind": "choice",
+            "multiSelect": false,
+            "options": [
+              {
+                "description": "Keep the current settings unchanged.",
+                "label": "Keep"
+              },
+              {
+                "description": "Change the current settings.",
+                "label": "Change"
+              }
+            ],
+            "question": "Keep current settings?"
+          }
+        ]
+      }
+    },
+    {
+      "name": "follow_up_question",
+      "ordinal": 2,
+      "schema": {
+        "questions": [
+          {
+            "header": "Proceed",
+            "kind": "text",
+            "multiSelect": false,
+            "options": [],
+            "placeholder": "Type your answer",
+            "question": "Proceed?"
+          }
+        ]
+      }
+    },
+    {
+      "name": "follow_up_continuation",
+      "qualified": true,
+      "actual_tool_results": [
+        {
+          "content": "The user asked for more questions before you proceed. So far they answered: \"Keep current settings?\"=\"Keep\". They also wrote: \"Ask exactly one further confirmation question before proceeding.\". Call AskUserQuestion again with follow-up questions that build on these answers (do not repeat these); do not start the task yet.",
+          "tool_use_id": "toolu_01MbFAhMquwWWGKpe8z7jbPe",
+          "type": "tool_result"
+        },
+        {
+          "content": "The user answered: \"Proceed?\"=\"Confirmed\". Read the answers carefully \u2014 they may request clarification, changes, or that you not proceed \u2014 and follow what they actually say.",
+          "tool_use_id": "toolu_01WbUPYf5xESwPs3K2iKeT74",
+          "type": "tool_result"
+        }
+      ],
+      "assistant": "FOLLOW_UP_OK"
+    },
+    {
+      "name": "hook_negotiation",
+      "response_keys": [
+        "account",
+        "agents",
+        "analytics_disabled",
+        "available_output_styles",
+        "capabilities",
+        "claude_code_version",
+        "commands",
+        "current_permission_mode",
+        "fast_mode_disabled_reason",
+        "fast_mode_state",
+        "feedback_mode",
+        "hooks_applied",
+        "ide_rc_auto_enable_gate",
+        "models",
+        "output_style",
+        "pid",
+        "remote_control_auto_connect_default",
+        "remote_control_auto_enable",
+        "remote_control_auto_on_by_default",
+        "remote_control_available",
+        "session_state",
+        "user_output_styles_dir"
+      ],
+      "hooks_applied": false
+    },
+    {
+      "name": "hook_continuation",
+      "callbacks": 0,
+      "actual_bash_result": [
+        {
+          "content": "HOOK_CONTINUED",
+          "is_error": false,
+          "tool_use_id": "toolu_01J4gERQnc3W643HakKsUwYy",
+          "type": "tool_result"
+        }
+      ],
+      "qualified": false
+    }
+  ],
+  "cleanup": [
+    {
+      "session_id": "cse_0154EsXQ8eyPTYzQ5zyDvzRU",
+      "get_404": true
+    },
+    {
+      "environment_id": "env_01Y11NVFQWkWnNW7wQe6fn9h",
+      "excluded_from_list": true
+    }
+  ],
+  "native_qualified": true,
+  "environment_id": "env_01Y11NVFQWkWnNW7wQe6fn9h",
+  "session_id": "cse_0154EsXQ8eyPTYzQ5zyDvzRU",
+  "follow_up_qualified": true,
+  "hook_qualified": false
+}
