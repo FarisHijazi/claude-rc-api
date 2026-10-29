@@ -65,14 +65,18 @@ def finish_login(login: PKCELogin, callback_url: str, *, client: httpx.Client | 
     expected = urlsplit(REDIRECT_URI)
     if (parsed.scheme, parsed.netloc, parsed.path) != (expected.scheme, expected.netloc, expected.path):
         raise CredentialsError("unexpected OAuth callback destination")
-    query = parse_qs(parsed.query)
+    query = parse_qs(parsed.query, keep_blank_values=True)
     states, codes = query.get("state", []), query.get("code", [])
-    if len(states) != 1 or not secrets.compare_digest(states[0], login.state) or len(codes) != 1:
+    if (parsed.fragment or "error" in query or len(states) != 1
+            or not secrets.compare_digest(states[0].encode(), login.state.encode())
+            or len(codes) != 1 or not codes[0]):
         raise CredentialsError("invalid OAuth callback state or code")
     creds = OAuthCredentials("", source_path=login.path, client_id=CLAUDE_CODE_CLIENT_ID)
     if shared_credentials(creds):
         raise CredentialsError("login destination is a shared credential store")
     with credential_lock(login.path):
+        if login.consumed or time.monotonic() - login.created_at > 600:
+            raise CredentialsError("PKCE login expired or was already consumed")
         if login.path.exists():
             raise CredentialsError("login destination already exists")
         login.consumed = True
@@ -89,14 +93,21 @@ def finish_login(login: PKCELogin, callback_url: str, *, client: httpx.Client | 
                 http.close()
         if resp.status_code != 200:
             raise CredentialsError(f"OAuth enrollment failed: HTTP {resp.status_code}")
-        body = resp.json()
-        account = (body.get("account") or {}).get("uuid")
-        if not account or not body.get("access_token") or not body.get("refresh_token"):
-            raise CredentialsError("OAuth enrollment did not return an identified refreshable grant")
-        creds.access_token = body["access_token"]
-        creds.refresh_token = body["refresh_token"]
-        creds.expires_at_ms = _now_ms() + int(body["expires_in"]) * 1000
-        creds.scopes = body.get("scope", " ".join(SCOPES)).split()
+        try:
+            body = resp.json()
+            account = body["account"]["uuid"]
+            access, refresh = body["access_token"], body["refresh_token"]
+            expiry = int(body["expires_in"])
+            scope = body.get("scope", " ".join(SCOPES))
+            if (not all(isinstance(value, str) and value for value in (account, access, refresh))
+                    or expiry <= 0 or not isinstance(scope, str)):
+                raise ValueError
+        except (ValueError, KeyError, TypeError):
+            raise CredentialsError("OAuth enrollment did not return an identified refreshable grant") from None
+        creds.access_token = access
+        creds.refresh_token = refresh
+        creds.expires_at_ms = _now_ms() + expiry * 1000
+        creds.scopes = scope.split()
         creds.account_uuid = account
         _write_document(creds, {"claudeAiOauth": creds.to_block(), "claudeRcAccountUuid": account})
         return creds

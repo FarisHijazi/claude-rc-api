@@ -42,6 +42,7 @@ Evidence files are deliberately plain paths, not force-loaded includes:
 | M | `claude_2026-10-29-management-rendered-create-rerun.json` (rendered metadata, disabled routine creation/edit/history, read-only network and binary CAS); `claude_2026-10-29-management-live.json` (initial pass), `claude_2026-10-29-management-rendered-create-live.json` (early unlocated assertion failure retained; cleanup verified) |
 | K | `claude_2026-10-29-core-integrated-live.json` (canonical merged 732-test suite and fresh upload/permission/native-continuation effects; scoped hook skip, exact cleanup and retained blob) |
 | A2 | `claude_2026-10-29-auth-source-live.json` (isolated env/state loading and real 401 recovery; browser-derived test cookies, temporary files removed) |
+| A3 | `claude_2026-10-29-final-auth-live.json` (on-demand recovery, authenticated read recovery and actual worker continuation; isolated OAuth inspection blocked at login) |
 | U | `claude_2026-10-29-core-upload-browser.json` (actual Code composer contract, ZIP read and worker hash); `claude_2026-10-29-core-upload-live.json` (client binary upload/download/worker hash and exact session cleanup) |
 
 Branch evidence records the feature branch at the time it ran; claims that those
@@ -72,7 +73,8 @@ suite nor these scoped checks proves every matrix row complete.
 | Explicit env/state/Chrome DB sources and source-pinned recovery | Implemented | Live A2 env/state with browser-derived cookies: each real 401 → account 200 → GET 200, exactly one reread, same account/org; temporary state mode 0600 and removed. Chrome DB extraction remains offline; no natural expiry/rotation claim |
 | Shared CLI/Keychain/cswap/proxy access-only credentials | Implemented | Live A: invalid bearer, zero refresh exchanges; 192 credential-file hashes unchanged; cswap reader never consumes backup grants |
 | Unidentified legacy bearer rotation | Fail-closed | Blocked: no reliable account lineage; a changed unidentified grant is not accepted silently |
-| Isolated PKCE login; owned refresh/restart/CAS locking | Implemented | Offline; no separately enrolled owned grant. Never borrow a shared refresh token |
+| Isolated PKCE login; owned refresh/restart/CAS locking | Implemented | Offline exchange/refresh/restart/CAS; live A3 authorization redirects to fresh login despite cookie account HTTP 200. No separate grant/code returned, no owned live rotation claim. Never borrow a shared refresh token |
+| On-demand original-source cookie recovery | Implemented | Live A3: `recover_browser_auth()` validates account without replaying any operation; fresh client and actual worker continuation/history passed; 190 shared credential-file hashes unchanged |
 | Trusted-device token reread / explicit owned enrollment | Implemented | Offline; new enrollment opt-in, not performed live; Windows/macOS locks untested |
 | Device/event attestation signing | Unsupported | Caller may supply attestation to file APIs; client cannot generate signatures |
 | Direct HTTP, bounded retries, multipart replay, safe errors | Implemented | Live direct HTTP I; retry/replay combinations offline. CLI/panel do not print raw API error bodies |
@@ -82,6 +84,54 @@ being reachable. The client cannot renew a revoked browser login without a new
 login; it does not promise an immortal credential or silently enroll an account.
 Explicit auth overrides still take precedence. `direct=True` / CLI `--direct`
 ignore proxy/CA environment only for that HTTP client, not the whole machine.
+
+**LIVE CHECK A3:** default authenticated reads recovered a deliberately invalid
+in-memory cookie through real HTTP 401 → account 200 → original GET 200, with
+one reread and unchanged account/org. `recover_browser_auth()` separately
+reacquired cookies and validated the same account without replaying an action;
+its boolean reports cookie changes, not authentication success. Exceptions
+indicate failure. A disposable worker then returned `AUTH_RECOVERED_OK`, with
+own-turn completion and independent durable-history readback. Its session was
+deleted (GET 404). This is fault-injected recovery, not natural month-scale expiry.
+
+**INDEPENDENT LIVE CHECK A3:** `docs/devlog/claude_2026-10-29-final-auth-independent.json`
+records a fresh 749-test offline/headless run and another real 401 → account 200 →
+GET 200 recovery. One owned session completed exact-marker turns both before and
+after recovery; a fresh CDP-authenticated client read both from paged durable
+history, and exact-ID cleanup returned GET 404. The recovery CLI also passed.
+No auth defect was confirmed; owned server rotation remains unverified without a
+newly enrolled grant. The verifier did not repeat enrollment or consume any grant.
+
+On-demand commands (run from this repository; neither starts a service):
+
+```sh
+uv run --extra web python scripts/claude-rc-auth recover --direct
+uv run --extra web --with playwright python scripts/claude-rc-auth enroll --direct
+```
+
+Recovery needs the existing signed-in cookie source. Enrollment opens/closes
+only its own tab in the CDP browser, waits up to 120 seconds for normal account
+authorization and delegates to `begin_login`/`finish_login`; it never approves
+consent automatically. Use `--credentials <new-owned-file>` for a non-default
+store, then pass that file as `RemoteControlClient(credentials_path=...)`.
+An existing/shared destination is refused, not replaced. `--cdp-url` selects the
+enrollment browser; recovery uses the ordinary `CLAUDE_AI_CDP_URL` auth setting.
+The default owned file is discovered after cookie sources.
+
+Live inspection followed the installed CLI 2.1.312 authorization URL to
+`claude.ai/oauth/authorize`, then `claude.ai/login` with “Continue with your
+Claude.ai account to authenticate connections”, even though the same browser's
+`/api/account` returned 200. Google continuation did not navigate within 30
+seconds. No consent screen, code or independent grant was reached. The bounded
+enrollment helper also timed out without a credential file. This is the observed
+gate, not proof that all consent-free enrollment is impossible. The existing
+account remained authenticated as the expected user afterward; all 190 compared
+shared credential files were unchanged. The browser changed its cookie snapshot
+while loading the auth pages; the client did not write cookies, and this run
+does not establish which browser cookie changed. Owned server-side token
+replacement, owned-grant restart and concurrent refresh remain unverified live.
+Revocation or a genuinely expired browser login can require interactive sign-in;
+neither cookie rereads nor isolated OAuth helpers can guarantee silent renewal.
 
 ### Session discovery and lifecycle
 
