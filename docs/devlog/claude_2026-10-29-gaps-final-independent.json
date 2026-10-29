@@ -1,0 +1,1034 @@
+{
+  "date": "2026-10-29",
+  "reviewed_sha": "14d7d82574600529713d7e83338bd2ca8a65b606",
+  "base": "7966dbcfde15477e18e75c78cb9f30523d46a12d",
+  "branch": "feat/gaps-final",
+  "verdict": "PASS after correcting the proven fixture-transfer defect; scoped qualification only",
+  "full_web_parity": false,
+  "tests": {
+    "reviewed_sha": "844 passed, zero skipped, three existing fire_routine warnings in 66.92s",
+    "regression_before_fix": "6 install-target tests failed before the deterministic-transfer helper existed",
+    "focused_after_fix": "10 passed (real local FastMCP child included)",
+    "full_after_fix": "849 passed, zero skipped, three existing fire_routine warnings in 66.84s",
+    "command": "PATH=<real-node-bin>:$PATH uv run --offline --extra test --extra web --extra cli --with playwright --with 'mcp==1.30.0' pytest -q",
+    "failure_cases": [
+      "sync write failure stops before collection",
+      "worker hash mismatch fails",
+      "Bash tool error fails",
+      "missing warm marker fails",
+      "exact source bytes are passed to file owner"
+    ]
+  },
+  "confirmed_defect": {
+    "location": "scripts/claude-rc-mcp-smoke fixture_install_prompt, shared by elicitation smoke",
+    "symptom": "Two unchanged elicitation runs failed the fixture digest assertion before MCP startup.",
+    "diagnostic_run": "elicit-7620e74ebf",
+    "expected_sha256": "9b3285913035dbc0f54673f41bc6d7b71b70484d9069a2eebaab87cf3fc0511d",
+    "observed_worker_sha256": "c263bbeffab0738c8a431f6ac6d7c30da42138f4075c40dcc15ef273aed0d9f0",
+    "diagnostic_tool_use_id": "toolu_01EF1wSLNj2LBvB8LQZdyEaB",
+    "diagnostic_tool_error": false,
+    "diagnostic_warm_seconds": 3,
+    "cause_boundary": "The model-mediated fixture copy produced different bytes. The exact transformation was not preserved; this is not evidence of an MCP connection timeout.",
+    "fix": "Shared install_fixture calls existing put_synced_file with exact source bytes; Bash only verifies the materialized file hash and warms pinned MCP. Offline MCP launch and ownership unchanged.",
+    "live_probe": "elicit-39457889db passed the whole flow when only the copy was replaced by synced-file transfer.",
+    "retained_failed_runs": [
+      {
+        "run": "elicit-27cf69ad7a",
+        "checks": [
+          {
+            "name": "worker",
+            "version": "2.1.312",
+            "pending_user_dialog_requests": 0
+          },
+          {
+            "name": "hook_registration",
+            "hooks_applied": false,
+            "cli_contract": "false = a joining client's hooks were ignored; the stdin owner configured the session"
+          },
+          {
+            "name": "aborted",
+            "error_class": "AssertionError",
+            "error": ""
+          }
+        ],
+        "cleanup": [
+          {
+            "session_id": "cse_0154EsXSWBaAbFk9ZAiJgsNp",
+            "get_status": 404
+          },
+          {
+            "environment_id": "env_014P1QZUEvMsWj5B3ZTY9XgV",
+            "excluded_from_list": true
+          }
+        ],
+        "complete": false,
+        "environment_id": "env_014P1QZUEvMsWj5B3ZTY9XgV",
+        "session_id": "cse_0154EsXSWBaAbFk9ZAiJgsNp"
+      },
+      {
+        "run": "elicit-7620e74ebf",
+        "checks": [
+          {
+            "name": "worker",
+            "version": "2.1.312",
+            "pending_user_dialog_requests": 0
+          },
+          {
+            "name": "hook_registration",
+            "hooks_applied": false,
+            "cli_contract": "false = a joining client's hooks were ignored; the stdin owner configured the session"
+          },
+          {
+            "name": "aborted",
+            "error_class": "AssertionError",
+            "error": ""
+          }
+        ],
+        "cleanup": [
+          {
+            "session_id": "cse_0154EsXU8d6BZso7tVh6atJD",
+            "get_status": 404
+          },
+          {
+            "environment_id": "env_01G82gG8DsZ1AsYwM8MH6m1C",
+            "excluded_from_list": true
+          }
+        ],
+        "complete": false,
+        "environment_id": "env_01G82gG8DsZ1AsYwM8MH6m1C",
+        "session_id": "cse_0154EsXU8d6BZso7tVh6atJD"
+      }
+    ],
+    "first_failure_boundary": "First failed run saved only its assertion class and exact cleanup; do not infer its precise byte mismatch.",
+    "historical_failure_boundary": "The earlier builder-reported install failure without preserved error remains unexplained; do not retroactively assign this cause."
+  },
+  "scm_live": {
+    "repo": "octocat/Hello-World",
+    "mutations": "none",
+    "checks": {
+      "file_content": {
+        "ok": true,
+        "size": 13,
+        "sha": "980a0d5f19a64b4b30a87d4206aade58726b60e3",
+        "local_blob_sha": "980a0d5f19a64b4b30a87d4206aade58726b60e3",
+        "matches_raw_github": true
+      },
+      "empty_ref_uses_default": {
+        "ok": true,
+        "default_sha": "980a0d5f19a64b4b30a87d4206aade58726b60e3",
+        "empty_sha": "980a0d5f19a64b4b30a87d4206aade58726b60e3",
+        "explicit_master_sha": "980a0d5f19a64b4b30a87d4206aade58726b60e3"
+      },
+      "compare_refs": {
+        "ok": true,
+        "ahead_by": 1,
+        "files": [
+          "CONTRIBUTING.md"
+        ],
+        "merge_base": "7fd1a60b01f91b314f59955a4e4d4e80d8edf11d"
+      },
+      "get_commit": {
+        "ok": true,
+        "parent": "553c2077f0edc3d5dc5d17262f6aa498e69d6f8e",
+        "files": [
+          "README"
+        ]
+      },
+      "compare_missing_ref_is_none": {
+        "ok": true
+      },
+      "missing_file_raises_404": {
+        "ok": true,
+        "status": 404
+      }
+    },
+    "passed": true
+  },
+  "capture_verification": {
+    "sources": [
+      {
+        "name": "shared-m-4-B_HJGpmt.js",
+        "sha256": "abf1959a8eb74ea02605439dc3bd4ce3fc5e63e03fb26724d4516bceeae74c0e",
+        "bytes": 366610,
+        "checks": {
+          "exact_scm_builder": true
+        }
+      },
+      {
+        "name": "shared-1-BLl3UQ0r.js",
+        "sha256": "d0b19f40ffe1eb0ba664504c5f0824d4d082e158a1327cb4e3dd846b5f7c8a71",
+        "bytes": 496034,
+        "checks": {
+          "url_mode_fields": true,
+          "token_route_already_owned": true
+        }
+      },
+      {
+        "name": "shared-2-DI03rGaY.js",
+        "sha256": "c46af690e9bd1d0361062331e4e54ecf86e4b0387076e227957f1aed1057602c",
+        "bytes": 431463,
+        "checks": {
+          "bare_elicitation_actions": true
+        }
+      },
+      {
+        "name": "c720e81f4-BHTS9utY.js",
+        "sha256": "6b45f8bf86a3fa6c99e3ce2d7087fcfe1e71a4ef4f6ab31650cfc4924f165dc5",
+        "bytes": 1707,
+        "checks": {
+          "fire_origin_label": true
+        }
+      },
+      {
+        "name": "c62b4c3e1-B7R4GKLO.js",
+        "sha256": "93a820f5a1c4d45fa65960395cc1995f8ceefcd2370db6d6da77f288ed42e13d",
+        "bytes": 5711,
+        "checks": {}
+      }
+    ],
+    "limit": "Five cited immutable public bundle chunks only; not an exhaustive fire-route discovery."
+  },
+  "fixed_elicitation_live": {
+    "run": "elicit-c121527b24",
+    "checks": [
+      {
+        "name": "worker",
+        "version": "2.1.312",
+        "pending_user_dialog_requests": 0
+      },
+      {
+        "name": "hook_registration",
+        "hooks_applied": false,
+        "cli_contract": "false = a joining client's hooks were ignored; the stdin owner configured the session"
+      },
+      {
+        "name": "fixture_bytes",
+        "sha256": "9b3285913035dbc0f54673f41bc6d7b71b70484d9069a2eebaab87cf3fc0511d",
+        "tool_use_id": "toolu_018m3Brd1ct2fXt4JQ2XB3ry",
+        "uv_warm_seconds": 13
+      },
+      {
+        "name": "mcp_set_servers",
+        "added": [
+          "elicit-c121527b24"
+        ],
+        "errors": {}
+      },
+      {
+        "name": "mcp_servers",
+        "server_count": 13,
+        "own_fixture_present": true,
+        "chrome_server_present": false
+      },
+      {
+        "name": "elicitation_continuation",
+        "action": "accept",
+        "request": {
+          "mcp_server_name": "elicit-c121527b24",
+          "message": "Generated elicitation ELICIT_ACCEPT",
+          "mode": "form",
+          "url": null,
+          "elicitation_id": null,
+          "requested_schema": {
+            "properties": {
+              "count": {
+                "title": "Count",
+                "type": "integer"
+              },
+              "name": {
+                "title": "Name",
+                "type": "string"
+              }
+            },
+            "required": [
+              "name",
+              "count"
+            ],
+            "title": "Reply",
+            "type": "object"
+          },
+          "request_id": "4bcab178-921e-4a4d-b9be-8aa1e14fd8cc"
+        },
+        "child_tool_result": {
+          "content": [
+            {
+              "text": "{\n  \"marker\": \"ELICIT_ACCEPT\",\n  \"action\": \"accept\",\n  \"content\": {\n    \"name\": \"Ada\",\n    \"count\": 3\n  }\n}",
+              "type": "text"
+            }
+          ],
+          "tool_use_id": "toolu_01MECM39HHVP6D9N2ym6ZTa3",
+          "type": "tool_result"
+        },
+        "ledger_rows": 1,
+        "ledger_exact": true
+      },
+      {
+        "name": "elicitation_continuation",
+        "action": "decline",
+        "request": {
+          "mcp_server_name": "elicit-c121527b24",
+          "message": "Generated elicitation ELICIT_DECLINE",
+          "mode": "form",
+          "url": null,
+          "elicitation_id": null,
+          "requested_schema": {
+            "properties": {
+              "count": {
+                "title": "Count",
+                "type": "integer"
+              },
+              "name": {
+                "title": "Name",
+                "type": "string"
+              }
+            },
+            "required": [
+              "name",
+              "count"
+            ],
+            "title": "Reply",
+            "type": "object"
+          },
+          "request_id": "dc815241-6151-42b0-b03f-cc53e7ff332b"
+        },
+        "child_tool_result": {
+          "content": [
+            {
+              "text": "{\n  \"marker\": \"ELICIT_DECLINE\",\n  \"action\": \"decline\",\n  \"content\": null\n}",
+              "type": "text"
+            }
+          ],
+          "tool_use_id": "toolu_01HqGbhUUJK9ETtfq1L5oUhL",
+          "type": "tool_result"
+        },
+        "ledger_rows": 2,
+        "ledger_exact": true
+      },
+      {
+        "name": "elicitation_continuation",
+        "action": "cancel",
+        "request": {
+          "mcp_server_name": "elicit-c121527b24",
+          "message": "Generated elicitation ELICIT_CANCEL",
+          "mode": "form",
+          "url": null,
+          "elicitation_id": null,
+          "requested_schema": {
+            "properties": {
+              "count": {
+                "title": "Count",
+                "type": "integer"
+              },
+              "name": {
+                "title": "Name",
+                "type": "string"
+              }
+            },
+            "required": [
+              "name",
+              "count"
+            ],
+            "title": "Reply",
+            "type": "object"
+          },
+          "request_id": "eed7977f-8a1f-43ff-abc2-dc73c197ecaf"
+        },
+        "child_tool_result": {
+          "content": [
+            {
+              "text": "{\n  \"marker\": \"ELICIT_CANCEL\",\n  \"action\": \"cancel\",\n  \"content\": null\n}",
+              "type": "text"
+            }
+          ],
+          "tool_use_id": "toolu_01CLhV5VaSmwRndx4RSVuZdb",
+          "type": "tool_result"
+        },
+        "ledger_rows": 3,
+        "ledger_exact": true
+      },
+      {
+        "name": "url_elicitation_continuation",
+        "action": "accept",
+        "request": {
+          "mcp_server_name": "elicit-c121527b24",
+          "message": "Generated URL elicitation URL_ACCEPT",
+          "mode": "url",
+          "url": "https://example.com/claude-rc/URL_ACCEPT",
+          "elicitation_id": "URL_ACCEPT",
+          "requested_schema": null,
+          "request_id": "9bb17455-226c-47b2-935c-b6c3356c3de8"
+        },
+        "answer": {
+          "action": "accept"
+        },
+        "child_tool_result": {
+          "content": [
+            {
+              "text": "{\n  \"marker\": \"URL_ACCEPT\",\n  \"mode\": \"url\",\n  \"action\": \"accept\"\n}",
+              "type": "text"
+            }
+          ],
+          "tool_use_id": "toolu_01TUn16qgHUBYxi1jTfBXsd9",
+          "type": "tool_result"
+        },
+        "ledger_exact": true
+      },
+      {
+        "name": "url_elicitation_continuation",
+        "action": "decline",
+        "request": {
+          "mcp_server_name": "elicit-c121527b24",
+          "message": "Generated URL elicitation URL_DECLINE",
+          "mode": "url",
+          "url": "https://example.com/claude-rc/URL_DECLINE",
+          "elicitation_id": "URL_DECLINE",
+          "requested_schema": null,
+          "request_id": "5c356402-0ef1-43cc-b779-d1b18dd4c8c0"
+        },
+        "answer": {
+          "action": "decline"
+        },
+        "child_tool_result": {
+          "content": [
+            {
+              "text": "{\n  \"marker\": \"URL_DECLINE\",\n  \"mode\": \"url\",\n  \"action\": \"decline\"\n}",
+              "type": "text"
+            }
+          ],
+          "tool_use_id": "toolu_015PZf5yKSPjgm4douPYBFP2",
+          "type": "tool_result"
+        },
+        "ledger_exact": true
+      },
+      {
+        "name": "url_elicitation_continuation",
+        "action": "cancel",
+        "request": {
+          "mcp_server_name": "elicit-c121527b24",
+          "message": "Generated URL elicitation URL_CANCEL",
+          "mode": "url",
+          "url": "https://example.com/claude-rc/URL_CANCEL",
+          "elicitation_id": "URL_CANCEL",
+          "requested_schema": null,
+          "request_id": "55aaa0d5-dc54-4848-aabf-d0fb4bedd6ae"
+        },
+        "answer": {
+          "action": "cancel"
+        },
+        "child_tool_result": {
+          "content": [
+            {
+              "text": "{\n  \"marker\": \"URL_CANCEL\",\n  \"mode\": \"url\",\n  \"action\": \"cancel\"\n}",
+              "type": "text"
+            }
+          ],
+          "tool_use_id": "toolu_018yYm3U81Jx1GwcfPuA1zaP",
+          "type": "tool_result"
+        },
+        "ledger_exact": true
+      },
+      {
+        "name": "elicitation_timeout",
+        "request": {
+          "mcp_server_name": "elicit-c121527b24",
+          "message": "Generated elicitation ELICIT_TIMEOUT",
+          "mode": "form",
+          "url": null,
+          "elicitation_id": null,
+          "requested_schema": {
+            "properties": {
+              "count": {
+                "title": "Count",
+                "type": "integer"
+              },
+              "name": {
+                "title": "Name",
+                "type": "string"
+              }
+            },
+            "required": [
+              "name",
+              "count"
+            ],
+            "title": "Reply",
+            "type": "object"
+          },
+          "request_id": "b5f46dc3-c7aa-4470-a7dc-5939a4d6575b"
+        },
+        "host_answered": false,
+        "child_tool_result": {
+          "content": [
+            {
+              "text": "{\n  \"marker\": \"ELICIT_TIMEOUT\",\n  \"action\": \"timeout\",\n  \"code\": 408\n}",
+              "type": "text"
+            }
+          ],
+          "tool_use_id": "toolu_015puK4wbiuYGkznHAbLXVLH",
+          "type": "tool_result"
+        },
+        "worker_cancel_events": [
+          {
+            "request_id": "b5f46dc3-c7aa-4470-a7dc-5939a4d6575b",
+            "type": "control_cancel_request",
+            "uuid": "d6f21f85-4f08-4ac7-9836-37a0cacf74e8"
+          }
+        ],
+        "still_pending": [],
+        "ledger_exact": true
+      },
+      {
+        "name": "elicitation_abort",
+        "request": {
+          "mcp_server_name": "elicit-c121527b24",
+          "message": "Generated elicitation ELICIT_ABORT",
+          "mode": "form",
+          "url": null,
+          "elicitation_id": null,
+          "requested_schema": {
+            "properties": {
+              "count": {
+                "title": "Count",
+                "type": "integer"
+              },
+              "name": {
+                "title": "Name",
+                "type": "string"
+              }
+            },
+            "required": [
+              "name",
+              "count"
+            ],
+            "title": "Reply",
+            "type": "object"
+          },
+          "request_id": "d4a003bf-5cfd-42df-8304-c3b922a296a6"
+        },
+        "host_action": "interrupt",
+        "child_ledger_row": {
+          "marker": "ELICIT_ABORT",
+          "action": "tool_cancelled",
+          "content": null
+        },
+        "child_tool_results": [
+          {
+            "content": "The user doesn't want to proceed with this tool use. The tool use was rejected (eg. if it was a file edit, the new_string was NOT written to the file). STOP what you are doing and wait for the user to tell you how to proceed.",
+            "is_error": true,
+            "tool_use_id": "toolu_0158MhU1p95RS9Hao6oV3S68",
+            "type": "tool_result"
+          }
+        ],
+        "worker_cancel_events": [
+          {
+            "request_id": "d4a003bf-5cfd-42df-8304-c3b922a296a6",
+            "type": "control_cancel_request",
+            "uuid": "5d42da1c-bdd1-4fdb-a522-a5ae28a2d8c9"
+          }
+        ],
+        "still_pending": [],
+        "turn_end": {
+          "subtype": "error_during_execution",
+          "is_error": true
+        }
+      }
+    ],
+    "cleanup": [
+      {
+        "session_id": "cse_0154EsXTTYcZU1z95w18gvv3",
+        "get_status": 404
+      },
+      {
+        "environment_id": "env_01XXNzFTaDvui8gBwVTtuuik",
+        "excluded_from_list": true
+      }
+    ],
+    "complete": true,
+    "environment_id": "env_01XXNzFTaDvui8gBwVTtuuik",
+    "session_id": "cse_0154EsXTTYcZU1z95w18gvv3"
+  },
+  "fixed_mcp_live": {
+    "run": "mcp-29154f16f9",
+    "checks": [
+      {
+        "name": "worker",
+        "version": "2.1.312",
+        "base_url": "https://claude.ai",
+        "capabilities": [
+          "start_shell_task_v1"
+        ],
+        "environment_kind": "anthropic_cloud"
+      },
+      {
+        "name": "fixture_bytes",
+        "sha256": "4dd173f9b05e5559e35204b9590df7f87b5e46b1a292215a72e5478c27f4cee1",
+        "tool_use_id": "toolu_01WeKwju7FxyAUDCrnRvEMXr",
+        "uv_warm_seconds": 13
+      },
+      {
+        "name": "dynamic_server_set",
+        "added": [
+          "mcp-29154f16f9"
+        ],
+        "errors": {},
+        "removed_count": 8,
+        "scope": "owned session only"
+      },
+      {
+        "name": "connected_status",
+        "fixture": {
+          "config": {
+            "args": [
+              "run",
+              "--offline",
+              "--with",
+              "mcp==1.30.0",
+              "python",
+              "/mnt/user-data/working/mcp-29154f16f9.py"
+            ],
+            "command": "uv",
+            "type": "stdio"
+          },
+          "name": "mcp-29154f16f9",
+          "scope": "dynamic",
+          "serverInfo": {
+            "name": "generated-fixture",
+            "version": "1.30.0"
+          },
+          "source": "dynamic",
+          "status": "connected",
+          "tools": [
+            {
+              "annotations": {},
+              "name": "echo"
+            },
+            {
+              "annotations": {},
+              "name": "copy_bytes"
+            }
+          ],
+          "transport": "stdio"
+        }
+      },
+      {
+        "name": "direct_tool_reply",
+        "marker": "MCP_ECHO_OK",
+        "result": {
+          "content": "{\"result\":\"MCP_ECHO_OK\"}",
+          "structuredContent": {
+            "result": "MCP_ECHO_OK"
+          }
+        }
+      },
+      {
+        "name": "disable",
+        "reply": {},
+        "fixture": {
+          "config": {
+            "args": [
+              "run",
+              "--offline",
+              "--with",
+              "mcp==1.30.0",
+              "python",
+              "/mnt/user-data/working/mcp-29154f16f9.py"
+            ],
+            "command": "uv",
+            "type": "stdio"
+          },
+          "name": "mcp-29154f16f9",
+          "scope": "dynamic",
+          "source": "dynamic",
+          "status": "disabled",
+          "transport": "stdio"
+        }
+      },
+      {
+        "name": "disabled_call_rejected",
+        "error": "MCP server not connected: mcp-29154f16f9"
+      },
+      {
+        "name": "direct_tool_reply",
+        "marker": "MCP_ENABLED_OK",
+        "result": {
+          "content": "{\"result\":\"MCP_ENABLED_OK\"}",
+          "structuredContent": {
+            "result": "MCP_ENABLED_OK"
+          }
+        }
+      },
+      {
+        "name": "direct_tool_reply",
+        "marker": "MCP_RECONNECTED_OK",
+        "result": {
+          "content": "{\"result\":\"MCP_RECONNECTED_OK\"}",
+          "structuredContent": {
+            "result": "MCP_RECONNECTED_OK"
+          }
+        }
+      },
+      {
+        "name": "reconnect",
+        "reply": {}
+      },
+      {
+        "name": "override",
+        "mode": "default",
+        "ask_for_tools": [
+          "echo"
+        ],
+        "reply": {},
+        "fixture": {
+          "config": {
+            "args": [
+              "run",
+              "--offline",
+              "--with",
+              "mcp==1.30.0",
+              "python",
+              "/mnt/user-data/working/mcp-29154f16f9.py"
+            ],
+            "command": "uv",
+            "type": "stdio"
+          },
+          "name": "mcp-29154f16f9",
+          "scope": "dynamic",
+          "serverInfo": {
+            "name": "generated-fixture",
+            "version": "1.30.0"
+          },
+          "source": "dynamic",
+          "status": "connected",
+          "tools": [
+            {
+              "annotations": {},
+              "name": "echo"
+            },
+            {
+              "annotations": {},
+              "name": "copy_bytes"
+            }
+          ],
+          "transport": "stdio"
+        }
+      },
+      {
+        "name": "override",
+        "mode": "auto",
+        "ask_for_tools": null,
+        "reply": {},
+        "fixture": {
+          "config": {
+            "args": [
+              "run",
+              "--offline",
+              "--with",
+              "mcp==1.30.0",
+              "python",
+              "/mnt/user-data/working/mcp-29154f16f9.py"
+            ],
+            "command": "uv",
+            "type": "stdio"
+          },
+          "name": "mcp-29154f16f9",
+          "scope": "dynamic",
+          "serverInfo": {
+            "name": "generated-fixture",
+            "version": "1.30.0"
+          },
+          "source": "dynamic",
+          "status": "connected",
+          "tools": [
+            {
+              "annotations": {},
+              "name": "echo"
+            },
+            {
+              "annotations": {},
+              "name": "copy_bytes"
+            }
+          ],
+          "transport": "stdio"
+        }
+      },
+      {
+        "name": "override",
+        "mode": null,
+        "ask_for_tools": null,
+        "reply": {},
+        "fixture": {
+          "config": {
+            "args": [
+              "run",
+              "--offline",
+              "--with",
+              "mcp==1.30.0",
+              "python",
+              "/mnt/user-data/working/mcp-29154f16f9.py"
+            ],
+            "command": "uv",
+            "type": "stdio"
+          },
+          "name": "mcp-29154f16f9",
+          "scope": "dynamic",
+          "serverInfo": {
+            "name": "generated-fixture",
+            "version": "1.30.0"
+          },
+          "source": "dynamic",
+          "status": "connected",
+          "tools": [
+            {
+              "annotations": {},
+              "name": "echo"
+            },
+            {
+              "annotations": {},
+              "name": "copy_bytes"
+            }
+          ],
+          "transport": "stdio"
+        }
+      },
+      {
+        "name": "permission_policy",
+        "bypass_allowed": true
+      },
+      {
+        "name": "override_effect_blocked",
+        "error": "Cannot set permission mode to bypassPermissions because the session was not launched with --dangerously-skip-permissions",
+        "limitation": "Account policy allows bypass, but this worker lacks the startup flag; default pin enforcement remains unqualified"
+      },
+      {
+        "name": "genuine_tool_permission",
+        "tool": "mcp__mcp-29154f16f9__echo",
+        "request_id": "2d196244-4611-448e-bb29-9126d181e0cb"
+      },
+      {
+        "name": "model_tool_reply",
+        "marker": "MCP_MODEL_FIRST",
+        "tool_result": {
+          "content": "{\"result\":\"MCP_MODEL_FIRST\"}",
+          "tool_use_id": "toolu_01P9bzPVeN3jC6anyE8S2kNa",
+          "type": "tool_result"
+        },
+        "prompt_count": 1,
+        "limitation": "askForTools forced-ask is Chrome-safe-tool-specific, not proven by generic SDK echo"
+      },
+      {
+        "name": "model_tool_reply",
+        "marker": "MCP_MODEL_REUSE",
+        "tool_result": {
+          "content": "{\"result\":\"MCP_MODEL_REUSE\"}",
+          "tool_use_id": "toolu_01T1z8L7r1eAsN7cXh3k4Gno",
+          "type": "tool_result"
+        },
+        "prompt_count": 0,
+        "limitation": "askForTools forced-ask is Chrome-safe-tool-specific, not proven by generic SDK echo"
+      },
+      {
+        "name": "staged_call",
+        "result": {
+          "content": [
+            {
+              "text": "{\n  \"size\": 271,\n  \"sha256\": \"4196d22a856ac6081b0361a29cdb527087e69839ed956f1e1212a5ed4f995483\",\n  \"pid\": 354\n}",
+              "type": "text"
+            }
+          ],
+          "staging": {
+            "inputs_used": [
+              {
+                "etag": "5b595422208e3e94f96a9f9acd1037363aebb2e0eb0352afc1f7e323b51c2bc1",
+                "lane_path": "/working/mcp-29154f16f9.input"
+              }
+            ],
+            "ok": true,
+            "outputs": [
+              {
+                "bytes": 271,
+                "etag": "5b595422208e3e94f96a9f9acd1037363aebb2e0eb0352afc1f7e323b51c2bc1",
+                "lane_path": "/working/mcp-29154f16f9.output"
+              }
+            ]
+          }
+        },
+        "input_etag": "5b595422208e3e94f96a9f9acd1037363aebb2e0eb0352afc1f7e323b51c2bc1",
+        "input_sha256": "4196d22a856ac6081b0361a29cdb527087e69839ed956f1e1212a5ed4f995483",
+        "input_size": 271
+      },
+      {
+        "name": "staged_output_bytes",
+        "exact_match": true,
+        "size": 271,
+        "fixture_pid": 354
+      },
+      {
+        "name": "staged_cas_conflict",
+        "result": {
+          "staging": {
+            "detail": "output write failed for /working/mcp-29154f16f9.output: lane row changed since if_match",
+            "error_code": "output_conflict",
+            "ok": false,
+            "retryable": false
+          }
+        },
+        "newer_bytes_preserved": true
+      },
+      {
+        "name": "expired",
+        "result": {
+          "staging": {
+            "detail": "request expired at 2000-01-01T00:00:00Z",
+            "error_code": "expired",
+            "ok": false
+          }
+        },
+        "call_ledger_unchanged": true,
+        "output_status": 404
+      },
+      {
+        "name": "remote_result_exclusion",
+        "status": "unsupported",
+        "error": "result_not_for_model is honored only on worker-owned local pipes, not this remote transport"
+      },
+      {
+        "name": "stdio_rest",
+        "status": 400
+      },
+      {
+        "name": "fixture_disconnected",
+        "server_removed": true
+      },
+      {
+        "name": "fixture_child_exited",
+        "pid": 354,
+        "proc_absent": true,
+        "tool_use_id": "toolu_01XtyPK4Ui6MetvDGYcz4rGb",
+        "signals_sent": 0
+      }
+    ],
+    "cleanup": [
+      {
+        "session_id": "cse_0154EsXR8LeH1dv9FyXiNCCo",
+        "get_status": 404
+      },
+      {
+        "environment_id": "env_01RGPmnzDD1bQAewJfXUSZBD",
+        "excluded_from_list": true
+      }
+    ],
+    "complete": true,
+    "full_mcp_parity": false,
+    "transport": "Code durable events to cloud worker",
+    "environment_id": "env_01RGPmnzDD1bQAewJfXUSZBD",
+    "session_id": "cse_0154EsXR8LeH1dv9FyXiNCCo"
+  },
+  "fresh_client_verifier_cleanup": [
+    {
+      "evidence": "elicitation-live.json",
+      "run": "elicit-27cf69ad7a",
+      "session_id": "cse_0154EsXSWBaAbFk9ZAiJgsNp",
+      "get_status": 404,
+      "environment_id": "env_014P1QZUEvMsWj5B3ZTY9XgV",
+      "environment_excluded": true
+    },
+    {
+      "evidence": "elicitation-diagnostic-live.json",
+      "run": "elicit-7620e74ebf",
+      "session_id": "cse_0154EsXU8d6BZso7tVh6atJD",
+      "get_status": 404,
+      "environment_id": "env_01G82gG8DsZ1AsYwM8MH6m1C",
+      "environment_excluded": true
+    },
+    {
+      "evidence": "elicitation-sync-probe.json",
+      "run": "elicit-39457889db",
+      "session_id": "cse_0154EsXQ1zcowj8BMkEzSiDJ",
+      "get_status": 404,
+      "environment_id": "env_01F1C6bifnh4BSc44pytonQN",
+      "environment_excluded": true
+    },
+    {
+      "evidence": "elicitation-fixed-live.json",
+      "run": "elicit-c121527b24",
+      "session_id": "cse_0154EsXTTYcZU1z95w18gvv3",
+      "get_status": 404,
+      "environment_id": "env_01XXNzFTaDvui8gBwVTtuuik",
+      "environment_excluded": true
+    },
+    {
+      "evidence": "mcp-live.json",
+      "run": "mcp-98d12b4d7f",
+      "session_id": "cse_0154EsXQaGqmVaq9LbqRM8az",
+      "get_status": 404,
+      "environment_id": "env_01VkHYudrVgavrj89Uywti7g",
+      "environment_excluded": true
+    },
+    {
+      "evidence": "mcp-fixed-live.json",
+      "run": "mcp-29154f16f9",
+      "session_id": "cse_0154EsXR8LeH1dv9FyXiNCCo",
+      "get_status": 404,
+      "environment_id": "env_01RGPmnzDD1bQAewJfXUSZBD",
+      "environment_excluded": true
+    }
+  ],
+  "fresh_client_builder_cleanup": [
+    {
+      "session_id": "cse_0154EsXPW351ZvRFzzB3TmCN",
+      "session_status": 404,
+      "environment_id": "env_01WmQUGErhu42Agzaos8x14C",
+      "environment_excluded": true
+    },
+    {
+      "session_id": "cse_0154EsXSNWDMNKRWEGb9e6m3",
+      "session_status": 404,
+      "environment_id": "env_01RQ9gLYLpbSy5mxXhPvjvu9",
+      "environment_excluded": true
+    },
+    {
+      "session_id": "cse_0154EsXQwwLFrh5DrzGc6vnZ",
+      "session_status": 404,
+      "environment_id": "env_01X1K2ViDZX7X1eviufVhSAP",
+      "environment_excluded": true
+    },
+    {
+      "session_id": "cse_0154EsXQhQDDY1WDhAgUWJKH",
+      "session_status": 404,
+      "environment_id": "env_01NYSUsdh1swc8Hbf98UdRgN",
+      "environment_excluded": true
+    },
+    {
+      "session_id": "cse_0154EsXQd3XKtUe9Ygq7UT6S",
+      "session_status": 404,
+      "environment_id": "env_01SzuQUtLRfuCMZaFbNvFUs4",
+      "environment_excluded": true
+    }
+  ],
+  "environment_issue_resolved": {
+    "scm_initial_attempt": "GitHub public HTTP check hit certificate verification failure under proxy CA env, after the direct Claude read worked.",
+    "resolution": "Reran with the project-documented system-plus-proxy CA bundle scoped to this subprocess; SCM passed. No package or persistent trust change."
+  },
+  "boundaries": [
+    "Five cited public bundle chunks matched recorded hashes. The 1075-chunk census was not independently repeated.",
+    "No new HTTP route was added. SCM bodies and URL accept/decline response builder were independently matched to captured sources.",
+    "URL cancel is CLI-protocol plus real child proof, not a captured web cancel-button action; docs wording corrected.",
+    "Timeout is a 15-second explicit child deadline, not a natural service TTL.",
+    "No URL was opened and no out-of-band connector/auth completion was attempted.",
+    "Integration-fire remains uncaptured; no token/fire write was submitted.",
+    "Remaining broader API gaps retain the canonical matrix and completeness-followup status."
+  ],
+  "safety": {
+    "existing_sessions_mutated": 0,
+    "shared_oauth_refreshes": 0,
+    "account_connector_writes": 0,
+    "tokens_issued": 0,
+    "shares_feedback_exports": 0,
+    "network_config_writes": 0,
+    "persistent_services": 0,
+    "signals_sent": 0,
+    "browser_tabs_opened_by_verifier": 0,
+    "owned_runs_created": 6,
+    "owned_sessions_confirmed_404": 6,
+    "owned_environments_confirmed_excluded": 6
+  }
+}

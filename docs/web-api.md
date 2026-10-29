@@ -65,7 +65,7 @@ Evidence files are deliberately plain paths, not force-loaded includes:
 | Q | `claude_2026-10-28-group04-independent-verification.json` |
 | P2 | `claude_2026-10-29-core-permissions-qualified.json` (genuine cloud allow/deny/exact-rule reuse); `claude_2026-10-29-core-permissions-summary.json` (method, source provenance and retained failures) |
 | EL | `claude_2026-10-29-elicitation-live.json` (cloud MCP elicitation accept/decline/cancel continuations, repeated `hooks_applied:false`, no Chrome server, exact cleanup); `claude_2026-10-29-elicitation-summary.json` (CLI/web bundle evidence for the dialog, hook and Chrome forced-ask boundaries); `claude_2026-10-29-elicitation-independent.json` (independent rerun: one pass, one fixture-install failure, exact cleanup) |
-| GF | `claude_2026-10-29-gaps-final.json` (index: get-file-content empty ref, URL-mode web contract, timeout/abort, fixture-install fix, integration-fire capture); `claude_2026-10-29-gaps-final-elicitation-live.json`, `claude_2026-10-29-gaps-final-elicitation-rerun.json`, `claude_2026-10-29-gaps-final-mcp-live.json` (fresh owned runs, exact cleanup) |
+| GF | `claude_2026-10-29-gaps-final.json` (index: get-file-content empty ref, URL-mode web contract, timeout/abort, fixture-install fix, integration-fire capture); `claude_2026-10-29-gaps-final-elicitation-live.json`, `claude_2026-10-29-gaps-final-elicitation-rerun.json`, `claude_2026-10-29-gaps-final-mcp-live.json` (fresh owned runs, exact cleanup); `claude_2026-10-29-gaps-final-independent.json` (independent byte-transfer fix, 849 tests, fresh live effects and cleanup) |
 | I11 | `claude_2026-10-29-capture-integration.json` (0.11.0 canonical 839-test suite and fresh merged-main FK/S1/EL reruns, exact cleanup) |
 | FK | `claude_2026-10-29-capture-lifecycle-live.json` and `claude_2026-10-29-capture-lifecycle.md` (fork/templates/spaces/groupings capture, cloud fork decline, exact cleanup, independent verification) |
 | S1 | `claude_2026-10-29-capture-scm.json` (SCM read contracts, GitHub cross-check, captured-but-unsent PR write contracts) |
@@ -94,6 +94,21 @@ Branch evidence records the feature branch at the time it ran; claims that those
 branches were not yet integrated are historical, not the current main state.
 
 ## Canonical core integration
+
+**INDEPENDENT LIVE CHECK GF:** at `14d7d82574600529713d7e83338bd2ca8a65b606`,
+844 tests and the SCM/MCP live smokes passed, but two elicitation runs failed
+the fixture-byte check before MCP startup (one saved worker hash differed from
+the local source). The shared installer now transfers exact source bytes through
+`put_synced_file`, leaving Bash only to hash the worker file and warm uv; offline
+MCP launch is unchanged. The corrected tree passes 849 tests, fresh SCM readback,
+all six form/URL actions with exact child ledgers, explicit child timeout and
+host abort, plus the complete MCP smoke including exact child PID absence.
+A fresh client verified GET 404 and environment exclusion for all six verifier
+runs, including failures, and rechecked the builder's five cleanup pairs. Five
+cited immutable bundle hashes and the SCM/URL response builders matched independent
+public downloads. The 1075-chunk census was not repeated; integration fire remains
+uncaptured, not newly qualified. Evidence and retained failure details:
+`docs/devlog/claude_2026-10-29-gaps-final-independent.json` (plain path).
 
 **LIVE CHECK FK (capture-lifecycle):** `scripts/claude-rc-lifecycle-smoke --output PATH`
 (cookie CDP auth, cloud profile) read templates (200, empty), spaces (400
@@ -291,7 +306,7 @@ responses; tests do not signal browser, worker or proxy processes.
 | Option previews, notes and answer-preview annotations | Implemented | Live Q/I tool-result assertions; panel fixtures T |
 | Native text/number/default/unit/follow-up forms | Implemented validators/renderers | Live API Q2: dedicated environment with `CLAUDE_CODE_QUESTION_EXTENDED=1` emits actual text/number kinds, placeholder and min/max/step/defaultValue/unit; worker receives Ada/3. Extended choice `followUp:true` + response produces the real second text question and Confirmed continuation. Default rendering, all numeric boundaries and panel variants remain offline |
 | Partial/whole skip, dismiss and replied-in-chat | Implemented | Live Q distinct browser sentinels; panel/CLI encoding adapters offline T |
-| MCP elicitation | Implemented API, live-qualified | LIVE CHECK EL: a FastMCP 1.30.0 stdio child calls `ctx.elicit`; the cloud worker relays `control_request{subtype:"elicitation", mcp_server_name, message, mode:"form", requested_schema, property_order}`. `answer_elicitation` accept `{name:"Ada",count:3}` / decline / cancel each reached the child: exact tool_result JSON and a 1/2/3-row child ledger read via worker `read_file`. LIVE CHECK GF: URL mode relays `{mode:"url", url, elicitation_id, message}` with no schema; the web answers it with bare `{action:"accept"}` (after the user opened the URL) or `{action:"decline"}` and an aborted wait with `{action:"cancel"}`; `answer_elicitation` sends exactly those and rejects URL-mode content. All three reached a FastMCP `ctx.elicit_url` child. Timeout: an unanswered request the child gives up on (MCP `notifications/cancelled`) makes the worker emit `control_cancel_request` for that request id and drop it from pending; the child returns 408. Abort: `interrupt` while an elicitation is open emits `control_cancel_request`, cancels the child's tool call (ledger `tool_cancelled`), and ends the turn `error_during_execution`. The panel renderer is unqualified; the web app renders elicitations inside its ToolApproval card (`isElicitation`, `hub_mcp_elicitation`) |
+| MCP elicitation | Implemented API, live-qualified | LIVE CHECK EL: a FastMCP 1.30.0 stdio child calls `ctx.elicit`; the cloud worker relays `control_request{subtype:"elicitation", mcp_server_name, message, mode:"form", requested_schema, property_order}`. `answer_elicitation` accept `{name:"Ada",count:3}` / decline / cancel each reached the child: exact tool_result JSON and a 1/2/3-row child ledger read via worker `read_file`. LIVE CHECK GF: URL mode relays `{mode:"url", url, elicitation_id, message}` with no schema; the web answers it with bare `{action:"accept"}` (after the user opened the URL) or `{action:"decline"}`. The CLI protocol also permits `{action:"cancel"}`; this was sent programmatically, not by clicking a web cancel button. `answer_elicitation` sends exactly those and rejects URL-mode content. All three reached a FastMCP `ctx.elicit_url` child. Timeout: an unanswered request the child gives up on (MCP `notifications/cancelled`) makes the worker emit `control_cancel_request` for that request id and drop it from pending; the child returns 408. Abort: `interrupt` while an elicitation is open emits `control_cancel_request`, cancels the child's tool call (ledger `tool_cancelled`), and ends the turn `error_during_execution`. The panel renderer is unqualified; the web app renders elicitations inside its ToolApproval card (`isElicitation`, `hub_mcp_elicitation`) |
 | User dialogs and hook callbacks | Implemented API, unsupported for joining clients | EL: CLI 2.1.312 only sends `request_user_dialog` for kinds in the first attached client's `supportedDialogKinds` ("later initializes do not change it"); on cloud the host attaches first. Hooks register only from the stdin owner; a joining `initialize` with hooks returned `hooks_applied:false` again. No genuine generator exists for an API client |
 
 Answers preserve the original input, question text keys, tool name and tool-use

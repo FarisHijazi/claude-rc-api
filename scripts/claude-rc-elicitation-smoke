@@ -14,7 +14,6 @@ tab on the owned session and scans the loaded web bundle, without any input.
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import runpy
 import sys
@@ -27,8 +26,8 @@ from claude_rc import RemoteControlClient
 helpers = runpy.run_path(str(Path(__file__).with_name("claude-rc-permission-smoke")))
 collect, tool_results = helpers["collect"], helpers["tool_results"]
 mcp_smoke = runpy.run_path(str(Path(__file__).with_name("claude-rc-mcp-smoke")))
-cleanup_resources, fixture_install_prompt = mcp_smoke["cleanup_resources"], mcp_smoke["fixture_install_prompt"]
-warm_seconds, fixture_server = mcp_smoke["warm_seconds"], mcp_smoke["fixture_server"]
+cleanup_resources, install_fixture = mcp_smoke["cleanup_resources"], mcp_smoke["install_fixture"]
+fixture_server = mcp_smoke["fixture_server"]
 
 WEB_PATTERNS = ["can_use_tool", "request_user_dialog", "supportedDialogKinds", "dialog_kind",
                 "requested_schema", "elicitation_id", "mcp_server_name", "hook_callback", "askForTools"]
@@ -110,12 +109,7 @@ def main():
 
             source = (Path(__file__).resolve().parent.parent / "tests/fixtures/mcp_elicitation.py").read_bytes()
             path = "/mnt/user-data/working/" + proof["run"] + ".py"
-            events, _ = collect(client, sid, fixture_install_prompt(source, path), reject)
-            digest = hashlib.sha256(source).hexdigest()
-            results = tool_results(events, "Bash")
-            assert len(results) == 1 and digest in results[0]["content"]
-            record("fixture_bytes", sha256=digest, tool_use_id=results[0]["tool_use_id"],
-                   uv_warm_seconds=warm_seconds(results[0]["content"]))
+            record("fixture_bytes", **install_fixture(client, sid, source, path, reject))
             server = proof["run"]
             tool = f"mcp__{server}__ask"
             added = client.set_worker_mcp_servers(sid, {server: fixture_server(path)}, confirm=True, timeout=90)

@@ -80,7 +80,7 @@ lacks; do not retry those premises. Evidence:
 `docs/devlog/claude_2026-10-29-elicitation-summary.json` (plain path).
 Independent rerun: `docs/devlog/claude_2026-10-29-elicitation-independent.json`
 (plain path); one of two historical live installs failed without saving its
-error. The harness now prewarms `mcp==1.30.0` during its existing fixture-copy
+error. The harness now prewarms `mcp==1.30.0` during its existing fixture-check
 Bash turn and uses `uv run --offline` for MCP startup. This removes the cold
 package-install work from the CLI's 30 s MCP connect deadline (one fresh import
 took 38 s). Require the warm marker; do not paper over startup errors by retrying.
@@ -91,6 +91,12 @@ are also live-qualified by this fixture. Evidence and limits:
 `answer_elicitation` rejects form content on a parsed `mode:url` request; raw
 request-id calls retain the protocol escape hatch. Timeout qualification is an
 explicit child-side 15 s deadline, not a natural service TTL.
+Independent verification reproduced a different install fault: model-copied
+fixture bytes differed from the local SHA-256 before MCP startup. The shared
+`install_fixture` helper now transfers bytes through `put_synced_file`; Bash
+only checks the worker hash and prewarms uv. Both live harnesses pass, as do
+849 offline/headless tests. Evidence, retained failures and fresh-client cleanup:
+`docs/devlog/claude_2026-10-29-gaps-final-independent.json` (plain path).
 
 Lifecycle integration contracts and per-capability live evidence are in
 `docs/devlog/claude_2026-10-28-group02-lifecycle.json` (deliberately a plain

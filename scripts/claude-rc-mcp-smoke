@@ -25,12 +25,23 @@ helpers = runpy.run_path(str(Path(__file__).with_name("claude-rc-permission-smok
 collect, tool_results = helpers["collect"], helpers["tool_results"]
 
 
-def fixture_install_prompt(source, path):
-    """Write the fixture and warm uv's cache in the same Bash call: a cold
-    ``uv run --with mcp`` download can outlast the CLI's 30 s MCP_TIMEOUT."""
-    return (f"Use Bash exactly once: printf %s {base64.b64encode(source).decode()} | base64 -d > {path}; "
-            f"sha256sum {path}; s=$(date +%s); uv run --with mcp==1.30.0 python -c 'import mcp.server.fastmcp' "
+def fixture_install_prompt(path):
+    """Check the synced fixture and warm uv before the 30 s MCP connect deadline."""
+    return (f"Use Bash exactly once: sha256sum {path}; "
+            "s=$(date +%s); uv run --with mcp==1.30.0 python -c 'import mcp.server.fastmcp' "
             "&& echo MCP_WARM_SECONDS=$(( $(date +%s) - s )). No other tools.")
+
+
+def install_fixture(client, sid, source, path, reject):
+    """Transfer exact bytes through the file owner, not a model-copied payload."""
+    client.put_synced_file(sid, "/working/" + Path(path).name, source)
+    events, _ = collect(client, sid, fixture_install_prompt(path), reject)
+    results = tool_results(events, "Bash")
+    digest = hashlib.sha256(source).hexdigest()
+    assert len(results) == 1 and not results[0].get("is_error"), "fixture check Bash failed"
+    assert digest in results[0]["content"], f"fixture bytes differ; expected SHA-256 {digest}"
+    return {"sha256": digest, "tool_use_id": results[0]["tool_use_id"],
+            "uv_warm_seconds": warm_seconds(results[0]["content"])}
 
 
 def warm_seconds(content):
@@ -115,12 +126,7 @@ def main():
                 client.deny_permission(sid, request, "Unexpected fixture operation; stop.", interrupt=True)
                 raise AssertionError("unexpected permission")
 
-            events, _ = collect(client, sid, fixture_install_prompt(source, worker_path), reject)
-            results = tool_results(events, "Bash")
-            digest = hashlib.sha256(source).hexdigest()
-            assert len(results) == 1 and not results[0].get("is_error") and digest in results[0]["content"]
-            record("fixture_bytes", sha256=digest, tool_use_id=results[0]["tool_use_id"],
-                   uv_warm_seconds=warm_seconds(results[0]["content"]))
+            record("fixture_bytes", **install_fixture(client, sid, source, worker_path, reject))
             server = proof["run"]
             tool = "mcp__" + server + "__echo"
             config = {server: fixture_server(worker_path)}

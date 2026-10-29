@@ -113,7 +113,8 @@ def test_timeout_child_gives_up_and_cancels_unanswered_request(tmp_path):
 def test_fixture_install_prewarms_then_offline_startup():
     import runpy
     smoke = runpy.run_path(str(Path(__file__).parents[1] / "scripts/claude-rc-mcp-smoke"))
-    prompt = smoke["fixture_install_prompt"](b"print('hi')", "/working/fixture.py")
+    prompt = smoke["fixture_install_prompt"]("/working/fixture.py")
+    assert "base64" not in prompt and "printf" not in prompt
     assert "uv run --with mcp==1.30.0 python -c 'import mcp.server.fastmcp'" in prompt
     assert "MCP_WARM_SECONDS=" in prompt and "sha256sum /working/fixture.py" in prompt
     config = smoke["fixture_server"]("/working/fixture.py")
@@ -123,3 +124,44 @@ def test_fixture_install_prewarms_then_offline_startup():
     assert smoke["warm_seconds"]([{"type": "text", "text": "MCP_WARM_SECONDS=0"}]) == 0
     with pytest.raises(AssertionError, match="did not finish"):
         smoke["warm_seconds"]("download failed")
+
+
+@pytest.mark.parametrize("failure", [None, "write", "hash", "tool_error", "warm"])
+def test_install_fixture_transfers_exact_bytes_and_fails_closed(monkeypatch, failure):
+    import hashlib
+    import runpy
+    from types import SimpleNamespace
+
+    smoke = runpy.run_path(str(Path(__file__).parents[1] / "scripts/claude-rc-mcp-smoke"))
+    calls = []
+    source = b"# exact fixture\r\nprint('generated')\n"
+    digest = hashlib.sha256(source).hexdigest()
+
+    def write(sid, path, data):
+        calls.append(("write", sid, path, data))
+        if failure == "write":
+            raise RuntimeError("write failed")
+        return {"content_sha256": "f" * 64}
+
+    def collect(client, sid, prompt, respond):
+        calls.append(("collect", sid, prompt))
+        return [], []
+
+    content = ("wrong hash" if failure == "hash" else digest) + " /mnt/user-data/working/fixture.py\n"
+    if failure != "warm":
+        content += "MCP_WARM_SECONDS=3\n"
+    result = {"content": content, "tool_use_id": "t1", "is_error": failure == "tool_error"}
+    install = smoke["install_fixture"]
+    monkeypatch.setitem(install.__globals__, "collect", collect)
+    monkeypatch.setitem(install.__globals__, "tool_results", lambda events, name: [result])
+    args = (SimpleNamespace(put_synced_file=write), "owned", source,
+            "/mnt/user-data/working/fixture.py", lambda request: None)
+    if failure:
+        with pytest.raises((RuntimeError, AssertionError)):
+            install(*args)
+    else:
+        assert install(*args) == {"sha256": digest, "tool_use_id": "t1", "uv_warm_seconds": 3}
+    assert calls[0] == ("write", "owned", "/working/fixture.py", source)
+    assert len(calls) == (1 if failure == "write" else 2)
+    if failure != "write":
+        assert "base64" not in calls[1][2] and "print('generated')" not in calls[1][2]
