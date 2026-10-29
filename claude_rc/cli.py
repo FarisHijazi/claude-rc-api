@@ -922,7 +922,9 @@ def build_parser() -> argparse.ArgumentParser:
     from .commands import register_command_cli
     from .streaming import register_stream_commands
     from .media_cli import register_media_commands
+    from .lifecycle import register_lifecycle_cli
     register_account_commands(sub, parents=[creds])
+    register_lifecycle_cli(sub, _rc, parents=[creds])
     register_command_cli(sub, parents=[creds])
     register_stream_commands(sub, _rc, parents=[creds])
     register_media_commands(cmd, _rc)

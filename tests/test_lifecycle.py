@@ -464,3 +464,97 @@ def test_captured_support_share_and_debug_export_bodies():
     assert [r.method for r in seen] == ["POST", "DELETE", "POST", "POST"]
     assert [r.url.path.rsplit("/", 1)[1] for r in seen] == ["support-share", "support-share", "debug-export", "debug-export"]
     assert [_body(r) for r in seen] == [{}, {}, {"caption": "owned test"}, {}]
+
+
+# -- fork / templates / spaces (claude.ai/code bundle 2026-10-29) --------------
+from claude_rc.commands import UnsupportedControl  # noqa: E402
+from claude_rc.lifecycle import dispatch_lifecycle_cli, fork_result  # noqa: E402
+
+
+@pytest.mark.parametrize("response, expected", [
+    ({"forked": True, "sessionId": "cse_NEW", "cliSessionId": "c1", "prefillText": None,
+      "targetMessageUuid": "m1"},
+     {"status": "forked", "session_id": "session_NEW", "cli_session_id": "c1", "target_message_uuid": "m1"}),
+    ({"forked": False, "reason": "requires_remote_control_server"},
+     {"status": "requires_server", "reason": "requires_remote_control_server"}),
+    ({"forked": False, "reason": "background_sessions_unavailable"},
+     {"status": "background_unavailable", "reason": "background_sessions_unavailable"}),
+    ({"forked": False, "reason": "other"}, {"status": "declined", "reason": "other"}),
+    ({"forked": True}, {"status": "invalid"}),
+    ({"forked": True, "sessionId": "bad id"}, {"status": "invalid"}),
+    ({"forked": True, "sessionId": "cse_SRC"}, {"status": "invalid"}),
+    ({}, {"status": "unsupported"}),
+    (None, {"status": "unsupported"}),
+])
+def test_fork_result_matches_web_normalization(response, expected):
+    assert fork_result(response, "session_SRC") == expected
+
+
+def test_fork_session_sends_fork_conversation_on_bridge(monkeypatch):
+    seen, handler = _recorder([(200, {})])
+    c = RemoteControlClient(token="tok", org_uuid="org-1", control_profile="bridge",
+                            transport=httpx.MockTransport(handler))
+    calls = []
+
+    def fake(session_id, subtype, *, timeout, **fields):
+        calls.append((session_id, subtype, timeout, fields))
+        return {"forked": True, "sessionId": "cse_CHILD"}
+
+    monkeypatch.setattr(c, "request_control", fake)
+    out = c.fork_session("session_SRC", target_message_uuid="m1", title="Fork", timeout=5)
+    assert calls == [("session_SRC", "fork_conversation", 5, {"target_message_uuid": "m1", "title": "Fork"})]
+    assert out == {"status": "forked", "session_id": "session_CHILD"}
+    c.fork_session("session_SRC")
+    assert calls[-1][3] == {}
+
+
+def test_fork_session_cloud_rejected_before_http():
+    seen, handler = _recorder([(200, {})])
+    c = RemoteControlClient(token="tok", org_uuid="org-1", control_profile="cloud",
+                            transport=httpx.MockTransport(handler))
+    with pytest.raises(UnsupportedControl):
+        c.fork_session("session_SRC")
+    assert seen == []
+
+
+def test_list_project_templates_route():
+    seen, handler = _recorder([(200, {"templates": [], "setup_templates": []})])
+    assert _client(handler).list_project_templates() == {"templates": [], "setup_templates": []}
+    assert seen[0].method == "GET" and seen[0].url.path == "/v1/code/project-templates"
+
+
+def test_list_spaces_params_and_disabled_error():
+    seen, handler = _recorder([(200, {"data": []}), (400, {"error": {
+        "message": "spaces are not available for this organization", "reason": "spaces_disabled",
+        "type": "invalid_request_error"}})])
+    c = _client(handler)
+    assert c.list_spaces(limit=1, cursor="k", scope="mine", include_capabilities=True) == {"data": []}
+    assert seen[0].url.path == "/v1/code/spaces"
+    assert dict(seen[0].url.params) == {"include_capabilities": "true", "limit": "1", "cursor": "k", "scope": "mine"}
+    with pytest.raises(APIError) as err:
+        c.list_spaces()
+    assert err.value.status == 400 and "spaces_disabled" in err.value.body
+    assert "include_capabilities" not in seen[1].url.params
+
+
+def test_lifecycle_cli_registration(monkeypatch, capsys):
+    from claude_rc import cli
+
+    args = cli.build_parser().parse_args(["fork", "session_SRC", "--message", "m1", "--profile", "bridge"])
+    assert args.lifecycle_command == "fork" and args.target_message_uuid == "m1"
+
+    class Fake:
+        control_profile = "cloud"
+
+        def fork_session(self, sid, **kw):
+            assert self.control_profile == "bridge" and kw["target_message_uuid"] == "m1"
+            return {"status": "requires_server"}
+
+        def list_project_templates(self):
+            return {"templates": []}
+
+    assert dispatch_lifecycle_cli(Fake(), args) == 1
+    assert '"requires_server"' in capsys.readouterr().out
+    targs = cli.build_parser().parse_args(["templates"])
+    assert dispatch_lifecycle_cli(Fake(), targs) == 0
+    assert cli.build_parser().parse_args(["spaces", "--capabilities"]).capabilities is True
