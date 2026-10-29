@@ -1,0 +1,176 @@
+{
+  "run": "queue-1ff11f61a571",
+  "profile": "cloud",
+  "checks": [
+    {
+      "name": "initialize",
+      "capabilities": [
+        "start_shell_task_v1"
+      ],
+      "version": "2.1.312"
+    },
+    {
+      "name": "send_now",
+      "status": "not_advertised",
+      "required_capability": "interrupt_send_now_v1",
+      "attempted": false,
+      "reason": "No v1 claim from cloud relay receipts; an unsupported send-now can become plain Stop"
+    },
+    {
+      "name": "interrupt_v1_receipts",
+      "status": "not_advertised",
+      "required_capability": "interrupt_receipt_v1",
+      "attempted": false,
+      "reason": "No v1 claim from cloud relay receipts; an unsupported send-now can become plain Stop"
+    },
+    {
+      "name": "question_boundary",
+      "request_id": "7a218e0b-95fa-4280-99ae-c23da15f265e",
+      "tool_use_id": "toolu_019baQyScRAYYQ3A6CnSPzSZ",
+      "queued": [
+        {
+          "priority": "later",
+          "marker": "LATER",
+          "message_uuid": "d787d4a2-3983-4741-a2d0-fb383eddb736",
+          "event_id": "d787d4a2-3983-4741-a2d0-fb383eddb736",
+          "stored_priority": "later",
+          "processing_before_release": null
+        },
+        {
+          "priority": "next",
+          "marker": "NEXT",
+          "message_uuid": "9c047291-1a24-4e2d-b717-724565c4cd02",
+          "event_id": "9c047291-1a24-4e2d-b717-724565c4cd02",
+          "stored_priority": "next",
+          "processing_before_release": null
+        }
+      ]
+    },
+    {
+      "name": "priority_boundary_effect",
+      "status": "qualified_observation",
+      "receipts": [
+        {
+          "priority": "later",
+          "marker": "LATER",
+          "message_uuid": "d787d4a2-3983-4741-a2d0-fb383eddb736",
+          "event_id": "d787d4a2-3983-4741-a2d0-fb383eddb736",
+          "stored_priority": "later",
+          "processing_before_release": null,
+          "processing_at": "2026-10-29T02:05:27.116022Z",
+          "processed_at": null
+        },
+        {
+          "priority": "next",
+          "marker": "NEXT",
+          "message_uuid": "9c047291-1a24-4e2d-b717-724565c4cd02",
+          "event_id": "9c047291-1a24-4e2d-b717-724565c4cd02",
+          "stored_priority": "next",
+          "processing_before_release": null,
+          "processing_at": "2026-10-29T02:05:19.685825Z",
+          "processed_at": "2026-10-29T02:05:27.101091Z"
+        }
+      ],
+      "file_contents": "NEXT\nLATER\n",
+      "execution_order": [
+        "NEXT",
+        "LATER"
+      ],
+      "limitation": "One held-question ordering observation, not a guarantee across in-flight races"
+    },
+    {
+      "name": "task_creation_events",
+      "events": [
+        {
+          "type": "session_update",
+          "subtype": null,
+          "event_id": null,
+          "task_id": null,
+          "tool_uses": [],
+          "tool_results": []
+        },
+        {
+          "type": "user",
+          "subtype": null,
+          "event_id": "d2b41908-b2e0-4b6f-af17-6a6965c491da",
+          "task_id": null,
+          "tool_uses": [],
+          "tool_results": []
+        },
+        {
+          "type": "delivery_update",
+          "subtype": null,
+          "event_id": null,
+          "task_id": null,
+          "tool_uses": [],
+          "tool_results": []
+        },
+        {
+          "type": "system",
+          "subtype": "post_turn_summary",
+          "event_id": null,
+          "task_id": null,
+          "tool_uses": [],
+          "tool_results": []
+        },
+        {
+          "type": "delivery_update",
+          "subtype": null,
+          "event_id": null,
+          "task_id": null,
+          "tool_uses": [],
+          "tool_results": []
+        },
+        {
+          "type": "delivery_update",
+          "subtype": null,
+          "event_id": null,
+          "task_id": null,
+          "tool_uses": [],
+          "tool_results": []
+        },
+        {
+          "type": "system",
+          "subtype": "hook_started",
+          "event_id": "9897dab2-b497-4085-a71e-5fdd43079abd",
+          "task_id": null,
+          "tool_uses": [],
+          "tool_results": []
+        },
+        {
+          "type": "system",
+          "subtype": "hook_response",
+          "event_id": "d5a11837-889a-4b91-a9b8-c38379ef4728",
+          "task_id": null,
+          "tool_uses": [],
+          "tool_results": []
+        },
+        {
+          "type": "result",
+          "subtype": "success",
+          "event_id": "652ebeb1-d131-49c8-8c60-b9df75d1ebc3",
+          "task_id": null,
+          "tool_uses": [],
+          "tool_results": []
+        }
+      ]
+    }
+  ],
+  "cleanup": [
+    {
+      "session_id": "cse_0154EsXQrZs6B12VM1dVgwzP",
+      "get_status": 404
+    },
+    {
+      "environment_id": "env_01FHwJDbLxi9CMbnCsAEZMth",
+      "absent_from_list": true
+    }
+  ],
+  "complete": false,
+  "environment_id": "env_01FHwJDbLxi9CMbnCsAEZMth",
+  "session_id": "cse_0154EsXQrZs6B12VM1dVgwzP",
+  "failure": {
+    "type": "AssertionError",
+    "message": "no task_started event"
+  }
+}

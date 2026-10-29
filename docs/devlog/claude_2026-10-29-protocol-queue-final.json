@@ -1,0 +1,459 @@
+{
+  "run": "queue-864bc59fdeb3",
+  "profile": "cloud",
+  "checks": [
+    {
+      "name": "initialize",
+      "capabilities": [
+        "start_shell_task_v1"
+      ],
+      "version": "2.1.312"
+    },
+    {
+      "name": "send_now",
+      "status": "not_advertised",
+      "required_capability": "interrupt_send_now_v1",
+      "attempted": false,
+      "reason": "No v1 claim from cloud relay receipts; an unsupported send-now can become plain Stop"
+    },
+    {
+      "name": "interrupt_v1_receipts",
+      "status": "not_advertised",
+      "required_capability": "interrupt_receipt_v1",
+      "attempted": false,
+      "reason": "No v1 claim from cloud relay receipts; an unsupported send-now can become plain Stop"
+    },
+    {
+      "name": "question_boundary",
+      "request_id": "0e2d8877-6079-4f87-bb4e-285447f88823",
+      "tool_use_id": "toolu_012pXSR35MSiFKNDYQMB8QH8",
+      "queued": [
+        {
+          "priority": "later",
+          "marker": "LATER",
+          "message_uuid": "70e2547f-11e6-4d51-9d22-2001a08f838e",
+          "event_id": "70e2547f-11e6-4d51-9d22-2001a08f838e",
+          "stored_priority": "later",
+          "processing_before_release": null
+        },
+        {
+          "priority": "next",
+          "marker": "NEXT",
+          "message_uuid": "0ea20eb3-2bac-42b5-bf64-2d9cffc274f0",
+          "event_id": "0ea20eb3-2bac-42b5-bf64-2d9cffc274f0",
+          "stored_priority": "next",
+          "processing_before_release": null
+        }
+      ]
+    },
+    {
+      "name": "priority_boundary_effect",
+      "status": "qualified_observation",
+      "receipts": [
+        {
+          "priority": "later",
+          "marker": "LATER",
+          "message_uuid": "70e2547f-11e6-4d51-9d22-2001a08f838e",
+          "event_id": "70e2547f-11e6-4d51-9d22-2001a08f838e",
+          "stored_priority": "later",
+          "processing_before_release": null,
+          "processing_at": "2026-10-29T02:12:19.508405Z",
+          "processed_at": null
+        },
+        {
+          "priority": "next",
+          "marker": "NEXT",
+          "message_uuid": "0ea20eb3-2bac-42b5-bf64-2d9cffc274f0",
+          "event_id": "0ea20eb3-2bac-42b5-bf64-2d9cffc274f0",
+          "stored_priority": "next",
+          "processing_before_release": null,
+          "processing_at": "2026-10-29T02:12:12.663051Z",
+          "processed_at": "2026-10-29T02:12:19.508229Z"
+        }
+      ],
+      "file_contents": "NEXT\nLATER\n",
+      "execution_order": [
+        "NEXT",
+        "LATER"
+      ],
+      "limitation": "One held-question ordering observation, not a guarantee across in-flight races"
+    },
+    {
+      "name": "own_result_correlation",
+      "message_uuid": "03dcb150-bdaf-418c-a23e-8e9896dfe277",
+      "result_event_id": "77667108-caac-4b51-9dd1-455792c30f2a",
+      "skipped_result_ids": [
+        "50e39788-4149-4a8c-a9d8-b4e40cc4aee2"
+      ],
+      "matched_result_uuids": [
+        "03dcb150-bdaf-418c-a23e-8e9896dfe277"
+      ]
+    },
+    {
+      "name": "queue_final_results",
+      "results": [
+        {
+          "message_uuid": "70e2547f-11e6-4d51-9d22-2001a08f838e",
+          "event_id": "50e39788-4149-4a8c-a9d8-b4e40cc4aee2",
+          "result": "LATER_DONE"
+        },
+        {
+          "message_uuid": "0ea20eb3-2bac-42b5-bf64-2d9cffc274f0",
+          "event_id": "b347e65b-7ee7-4356-9a6f-7aeeb0acfcbe",
+          "result": "NEXT_DONE"
+        }
+      ]
+    },
+    {
+      "name": "task_creation_events",
+      "events": [
+        {
+          "type": "session_update",
+          "subtype": null,
+          "event_id": null,
+          "created_at": null,
+          "receipt": null,
+          "result": null,
+          "task_id": null,
+          "tool_uses": [],
+          "tool_results": []
+        },
+        {
+          "type": "system",
+          "subtype": "post_turn_summary",
+          "event_id": null,
+          "created_at": null,
+          "receipt": null,
+          "result": null,
+          "task_id": null,
+          "tool_uses": [],
+          "tool_results": []
+        },
+        {
+          "type": "delivery_update",
+          "subtype": null,
+          "event_id": null,
+          "created_at": null,
+          "receipt": {
+            "event_id": "70e2547f-11e6-4d51-9d22-2001a08f838e",
+            "status": "DELIVERY_STATUS_PROCESSED",
+            "timestamp": "2026-10-29T02:12:23.938536141Z"
+          },
+          "result": null,
+          "task_id": null,
+          "tool_uses": [],
+          "tool_results": []
+        },
+        {
+          "type": "user",
+          "subtype": null,
+          "event_id": "03dcb150-bdaf-418c-a23e-8e9896dfe277",
+          "created_at": "2026-10-29T02:12:23.934457Z",
+          "receipt": null,
+          "result": null,
+          "task_id": null,
+          "tool_uses": [],
+          "tool_results": []
+        },
+        {
+          "type": "system",
+          "subtype": "hook_started",
+          "event_id": "6ec6ba02-8999-4a8c-8125-30b990fe78e7",
+          "created_at": "2026-10-29T02:12:23.975218Z",
+          "receipt": null,
+          "result": null,
+          "task_id": null,
+          "tool_uses": [],
+          "tool_results": []
+        },
+        {
+          "type": "system",
+          "subtype": "hook_response",
+          "event_id": "9f6db294-f6cb-4c95-abd3-b632f247322f",
+          "created_at": "2026-10-29T02:12:23.975218Z",
+          "receipt": null,
+          "result": null,
+          "task_id": null,
+          "tool_uses": [],
+          "tool_results": []
+        },
+        {
+          "type": "result",
+          "subtype": "success",
+          "event_id": "50e39788-4149-4a8c-a9d8-b4e40cc4aee2",
+          "created_at": "2026-10-29T02:12:23.975218Z",
+          "receipt": null,
+          "result": {
+            "user_message_uuid": "70e2547f-11e6-4d51-9d22-2001a08f838e",
+            "user_message_uuids": [
+              "70e2547f-11e6-4d51-9d22-2001a08f838e"
+            ],
+            "num_turns": 2,
+            "is_error": false,
+            "result": "LATER_DONE"
+          },
+          "task_id": null,
+          "tool_uses": [],
+          "tool_results": []
+        },
+        {
+          "type": "delivery_update",
+          "subtype": null,
+          "event_id": null,
+          "created_at": null,
+          "receipt": {
+            "event_id": "03dcb150-bdaf-418c-a23e-8e9896dfe277",
+            "status": "DELIVERY_STATUS_RECEIVED",
+            "timestamp": "2026-10-29T02:12:23.994516885Z"
+          },
+          "result": null,
+          "task_id": null,
+          "tool_uses": [],
+          "tool_results": []
+        },
+        {
+          "type": "delivery_update",
+          "subtype": null,
+          "event_id": null,
+          "created_at": null,
+          "receipt": {
+            "event_id": "03dcb150-bdaf-418c-a23e-8e9896dfe277",
+            "status": "DELIVERY_STATUS_PROCESSING",
+            "timestamp": "2026-10-29T02:12:24.003508103Z"
+          },
+          "result": null,
+          "task_id": null,
+          "tool_uses": [],
+          "tool_results": []
+        },
+        {
+          "type": "system",
+          "subtype": "task_summary",
+          "event_id": null,
+          "created_at": null,
+          "receipt": null,
+          "result": null,
+          "task_id": null,
+          "tool_uses": [],
+          "tool_results": []
+        },
+        {
+          "type": "system",
+          "subtype": "init",
+          "event_id": "103d5ed6-8f76-46d1-a3ec-e68c202560dc",
+          "created_at": "2026-10-29T02:12:24.068366Z",
+          "receipt": null,
+          "result": null,
+          "task_id": null,
+          "tool_uses": [],
+          "tool_results": []
+        },
+        {
+          "type": "system",
+          "subtype": "task_summary",
+          "event_id": null,
+          "created_at": null,
+          "receipt": null,
+          "result": null,
+          "task_id": null,
+          "tool_uses": [],
+          "tool_results": []
+        },
+        {
+          "type": "assistant",
+          "subtype": null,
+          "event_id": "18eca67f-a1c8-43ea-97df-5a37cd9207e7",
+          "created_at": "2026-10-29T02:12:25.564516Z",
+          "receipt": null,
+          "result": null,
+          "task_id": null,
+          "tool_uses": [
+            {
+              "caller": {
+                "type": "direct"
+              },
+              "id": "toolu_01JbwDthC6hsKoUEZQZjRvWx",
+              "input": {
+                "command": "printf TASK_OUTPUT_MARKER; sleep 90",
+                "description": "Print marker then sleep 90 seconds in background",
+                "run_in_background": true
+              },
+              "name": "Bash",
+              "type": "tool_use"
+            }
+          ],
+          "tool_results": []
+        },
+        {
+          "type": "system",
+          "subtype": "background_tasks_changed",
+          "event_id": "8f7cf883-01fd-46fb-ab3c-e808c20666be",
+          "created_at": "2026-10-29T02:12:25.564516Z",
+          "receipt": null,
+          "result": null,
+          "task_id": null,
+          "tool_uses": [],
+          "tool_results": []
+        },
+        {
+          "type": "system",
+          "subtype": "task_started",
+          "event_id": "5074b8f5-a632-407d-96b9-65c24f6d1965",
+          "created_at": "2026-10-29T02:12:25.564516Z",
+          "receipt": null,
+          "result": null,
+          "task_id": "bfmc0nyz1",
+          "tool_uses": [],
+          "tool_results": []
+        },
+        {
+          "type": "user",
+          "subtype": null,
+          "event_id": "26c6c95c-4e2c-4643-b8c7-bc070bfbe9bb",
+          "created_at": "2026-10-29T02:12:25.564516Z",
+          "receipt": null,
+          "result": null,
+          "task_id": null,
+          "tool_uses": [],
+          "tool_results": [
+            {
+              "content": "Command running in background with ID: bfmc0nyz1. Output is being written to: /tmp/claude-0/-mnt-user-data-working/bb6c97af-493c-5cb3-b63c-c2275052c7db/tasks/bfmc0nyz1.output. You will be notified when it completes. To check interim output, use Read on that file path.",
+              "is_error": false,
+              "tool_use_id": "toolu_01JbwDthC6hsKoUEZQZjRvWx",
+              "type": "tool_result"
+            }
+          ]
+        },
+        {
+          "type": "assistant",
+          "subtype": null,
+          "event_id": "10040998-1bf8-47be-876d-a7fad3a359d3",
+          "created_at": "2026-10-29T02:12:26.546180Z",
+          "receipt": null,
+          "result": null,
+          "task_id": null,
+          "tool_uses": [],
+          "tool_results": []
+        },
+        {
+          "type": "system",
+          "subtype": "post_turn_summary",
+          "event_id": null,
+          "created_at": null,
+          "receipt": null,
+          "result": null,
+          "task_id": null,
+          "tool_uses": [],
+          "tool_results": []
+        },
+        {
+          "type": "delivery_update",
+          "subtype": null,
+          "event_id": null,
+          "created_at": null,
+          "receipt": {
+            "event_id": "03dcb150-bdaf-418c-a23e-8e9896dfe277",
+            "status": "DELIVERY_STATUS_PROCESSED",
+            "timestamp": "2026-10-29T02:12:28.849106125Z"
+          },
+          "result": null,
+          "task_id": null,
+          "tool_uses": [],
+          "tool_results": []
+        },
+        {
+          "type": "system",
+          "subtype": "hook_started",
+          "event_id": "8b15248c-68a3-4d1a-a3fa-ba9136561483",
+          "created_at": "2026-10-29T02:12:28.915771Z",
+          "receipt": null,
+          "result": null,
+          "task_id": null,
+          "tool_uses": [],
+          "tool_results": []
+        },
+        {
+          "type": "system",
+          "subtype": "hook_response",
+          "event_id": "396694c3-f355-4dae-8404-bed037fc7f25",
+          "created_at": "2026-10-29T02:12:28.915771Z",
+          "receipt": null,
+          "result": null,
+          "task_id": null,
+          "tool_uses": [],
+          "tool_results": []
+        },
+        {
+          "type": "result",
+          "subtype": "success",
+          "event_id": "77667108-caac-4b51-9dd1-455792c30f2a",
+          "created_at": "2026-10-29T02:12:28.915771Z",
+          "receipt": null,
+          "result": {
+            "user_message_uuid": "03dcb150-bdaf-418c-a23e-8e9896dfe277",
+            "user_message_uuids": [
+              "03dcb150-bdaf-418c-a23e-8e9896dfe277"
+            ],
+            "num_turns": 2,
+            "is_error": false,
+            "result": "Task id: bfmc0nyz1"
+          },
+          "task_id": null,
+          "tool_uses": [],
+          "tool_results": []
+        }
+      ]
+    },
+    {
+      "name": "shell_task_output",
+      "status": "qualified",
+      "task_id": "bfmc0nyz1",
+      "tool_use_id": "toolu_01JbwDthC6hsKoUEZQZjRvWx",
+      "output": "TASK_OUTPUT_MARKER",
+      "total_bytes": 18,
+      "truncated": false
+    },
+    {
+      "name": "task_messaging",
+      "status": "unsupported",
+      "task_id": "bfmc0nyz1",
+      "request_id": "send_task_message-9300a1ea-cc3a-40ec-b7ea-a6896f9b9d3b",
+      "response_event_id": "320c26b4-c69f-4f10-a24b-491e73a9784b",
+      "surface": "cloud controller send_task_message",
+      "error_type": "ControlRejected",
+      "verdict": "Unsupported control request subtype: send_task_message",
+      "limitation": "Admitted route has an unsupported source handler; shell output is not agent messaging"
+    },
+    {
+      "name": "shell_task_stop",
+      "status": "qualified",
+      "task_id": "bfmc0nyz1",
+      "notification_id": "4f1c57df-f9df-419a-803d-3926b0b67447",
+      "output_after_stop": {
+        "output": "TASK_OUTPUT_MARKER\n[killed]\n",
+        "total_bytes": 28,
+        "truncated": false
+      }
+    },
+    {
+      "name": "inflight_control_cancel",
+      "status": "blocked_fixture",
+      "attempted": false,
+      "reason": "No accepted long-lived controller request fixture: start_shell_task is cloud-rejected, read-only task output settles immediately. No cancel ACK counted as effect."
+    }
+  ],
+  "cleanup": [
+    {
+      "session_id": "cse_0154EsXReKT5apj884ftRpAu",
+      "get_status": 404
+    },
+    {
+      "environment_id": "env_01G1BLgsQD8bWoZoPwg3DMy6",
+      "absent_from_list": true
+    }
+  ],
+  "complete": true,
+  "environment_id": "env_01G1BLgsQD8bWoZoPwg3DMy6",
+  "session_id": "cse_0154EsXReKT5apj884ftRpAu",
+  "task_id": "bfmc0nyz1"
+}

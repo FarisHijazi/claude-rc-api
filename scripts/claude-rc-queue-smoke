@@ -1,0 +1,218 @@
+#!/usr/bin/env python3
+"""Opt-in queue/task qualification on one exact disposable cloud fixture.
+
+Uses existing client writers and prompt collection. Missing interrupt capabilities
+are recorded without sending an interrupt that could silently fall back to Stop.
+Shell output/stop is not agent messaging. Never changes shared configuration.
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import runpy
+import sys
+import time
+import uuid
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from claude_rc import APIError, RemoteControlClient
+from claude_rc.client import ControlRejected
+
+helpers = runpy.run_path(str(Path(__file__).with_name("claude-rc-permission-smoke")))
+collect = helpers["collect"]
+tool_results = helpers["tool_results"]
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--tasks-only", action="store_true")
+    args = parser.parse_args()
+    proof = {"run": "queue-" + uuid.uuid4().hex[:12], "profile": "cloud",
+             "checks": [], "cleanup": [], "complete": False}
+    sid = eid = task_id = None
+
+    def save():
+        args.output.write_text(json.dumps(proof, indent=2) + "\n")
+
+    def record(name, **details):
+        proof["checks"].append({"name": name, **details})
+        save()
+        print(json.dumps(proof["checks"][-1]), flush=True)
+
+    with RemoteControlClient(direct=True, timeout=25) as client:
+        try:
+            client.list_sessions(limit=1)
+            client.list_environments()
+            env = client.create_cloud_environment(proof["run"], cwd="/mnt/user-data/working",
+                                                  description="Disposable queue and task proof")
+            eid = env["environment_id"]
+            proof["environment_id"] = eid
+            save()
+            sid = client.create_session(eid, title=proof["run"], model="claude-haiku-5-5",
+                                        permission_mode="default")["id"]
+            proof["session_id"] = sid
+            save()
+            initialized = client.initialize(sid, timeout=60)
+            capabilities = initialized.get("capabilities", [])
+            record("initialize", capabilities=capabilities,
+                   version=initialized.get("claude_code_version"))
+            for name, capability in (("send_now", "interrupt_send_now_v1"),
+                                     ("interrupt_v1_receipts", "interrupt_receipt_v1")):
+                record(name, status="not_advertised" if capability not in capabilities else "unqualified",
+                       required_capability=capability, attempted=False,
+                       reason="No v1 claim from cloud relay receipts; an unsupported send-now can become plain Stop")
+
+            if not args.tasks_only:
+                queued = []
+                path = "/mnt/user-data/working/" + proof["run"] + ".order"
+                def boundary(request):
+                    assert request.tool_name == "AskUserQuestion"
+                    assert request.request_id and request.tool_use_id
+                    for priority, marker in (("later", "LATER"), ("next", "NEXT")):
+                        message_uuid = str(uuid.uuid4())
+                        ack = client.send_prompt(sid, f"Use Bash once: printf '{marker}\\n' >> {path}. Then reply exactly {marker}_DONE.",
+                                                 priority=priority, message_uuid=message_uuid)
+                        event_id = ack["results"][0]["event_id"]
+                        queued.append({"priority": priority, "marker": marker, "message_uuid": message_uuid,
+                                       "event_id": event_id})
+                    history = list(client.iter_history(sid))
+                    for row in queued:
+                        event = next(e for e in history if e.event_id == row["event_id"])
+                        row["stored_priority"] = event.payload.get("priority")
+                        row["processing_before_release"] = event.raw.get("processing_at")
+                    record("question_boundary", request_id=request.request_id, tool_use_id=request.tool_use_id,
+                           queued=queued)
+                    client.answer_questions(sid, request, {request.questions[0].question: "Continue"})
+
+                events, pending = collect(client, sid,
+                    'Call AskUserQuestion once, question "Release queue fixture?", header "Fixture", '
+                    'options Continue and Stop with descriptions, multiSelect false. After the answer reply BOUNDARY_DONE. No other tools.',
+                    boundary)
+                assert len(pending) == 1 and tool_results(events, "AskUserQuestion")
+                deadline = time.monotonic() + 120
+                while time.monotonic() < deadline:
+                    history = list(client.iter_history(sid))
+                    replies = [e.text() for e in history if e.role == "assistant"]
+                    if all(any(row["marker"] + "_DONE" in text for text in replies) for row in queued):
+                        break
+                    time.sleep(1)
+                else:
+                    raise TimeoutError("queued turns did not produce both markers")
+                output = client.read_file(sid, path)["contents"]
+                assert output == "NEXT\nLATER\n"
+                receipts = []
+                for row in queued:
+                    event = next(e for e in history if e.event_id == row["event_id"])
+                    assert event.payload.get("uuid") == row["message_uuid"]
+                    stamp = event.raw.get("processing_at") or event.raw.get("processed_at")
+                    assert stamp, "missing exact queue message processing receipt"
+                    receipts.append({**row, "processing_at": stamp, "processed_at": event.raw.get("processed_at")})
+                record("priority_boundary_effect", status="qualified_observation", receipts=receipts,
+                       file_contents=output, execution_order=output.splitlines(),
+                       limitation="One held-question ordering observation, not a guarantee across in-flight races")
+
+            task_message_uuid = str(uuid.uuid4())
+            events = client.send_and_collect(sid,
+                'Use Bash exactly once with command "printf TASK_OUTPUT_MARKER; sleep 90" and run_in_background true. '
+                'Reply with the task id. No other tools.', timeout=120, message_uuid=task_message_uuid)
+            assert not events[-1].is_blocking_control and not events[-1].payload.get("is_error")
+            assert task_message_uuid in events[-1].payload.get("user_message_uuids", [])
+            record("own_result_correlation", message_uuid=task_message_uuid,
+                   result_event_id=events[-1].event_id,
+                   skipped_result_ids=[e.event_id for e in events[:-1] if e.type == "result"],
+                   matched_result_uuids=events[-1].payload.get("user_message_uuids"))
+            if not args.tasks_only:
+                history = list(client.iter_history(sid))
+                results = []
+                for row in queued:
+                    own_results = [e for e in history if e.type == "result"
+                                   and row["message_uuid"] in e.payload.get("user_message_uuids", [])]
+                    assert len(own_results) == 1 and not own_results[0].payload.get("is_error")
+                    assert own_results[0].payload.get("result") == row["marker"] + "_DONE"
+                    results.append({"message_uuid": row["message_uuid"], "event_id": own_results[0].event_id,
+                                    "result": own_results[0].payload["result"]})
+                record("queue_final_results", results=results)
+            record("task_creation_events", events=[{"type": e.type, "subtype": e.subtype,
+                   "event_id": e.event_id, "created_at": e.raw.get("created_at"),
+                   "receipt": e.raw.get("data") if e.type == "delivery_update" else None,
+                   "result": {k: e.payload.get(k) for k in (
+                       "user_message_uuid", "user_message_uuids", "num_turns", "is_error", "result")}
+                       if e.type == "result" else None,
+                   "task_id": e.payload.get("task_id"),
+                   "tool_uses": e.tool_uses(), "tool_results": [b for b in e._content_blocks()
+                       if isinstance(b, dict) and b.get("type") == "tool_result"]} for e in events])
+            started = [e for e in events if e.type == "system" and e.subtype == "task_started"]
+            assert started, "no task_started event"
+            task_id = started[-1].payload["task_id"]
+            proof["task_id"] = task_id
+            save()
+            output = client.get_task_output(sid, task_id)
+            assert "TASK_OUTPUT_MARKER" in output["output"]
+            assert output["total_bytes"] >= len("TASK_OUTPUT_MARKER")
+            record("shell_task_output", status="qualified", task_id=task_id,
+                   tool_use_id=started[-1].payload.get("tool_use_id"), **output)
+            try:
+                response = client.send_task_message(sid, task_id, "OWNED_TASK_MESSAGE_MARKER")
+            except ControlRejected as error:
+                history = list(client.iter_history(sid))
+                request = next(e for e in reversed(history) if e.type == "control_request"
+                               and e.payload.get("request", {}).get("subtype") == "send_task_message"
+                               and e.payload["request"].get("task_id") == task_id)
+                response = next(e for e in history if e.type == "control_response"
+                                and e.request_id == request.request_id)
+                assert response.payload["response"]["subtype"] == "error"
+                record("task_messaging", status="unsupported", task_id=task_id,
+                       request_id=request.request_id, response_event_id=response.event_id,
+                       surface="cloud controller send_task_message", error_type=type(error).__name__,
+                       verdict=str(error), limitation="Admitted route has an unsupported source handler; shell output is not agent messaging")
+            else:
+                record("task_messaging", status="unqualified", task_id=task_id, response=response,
+                       limitation="Acknowledgement alone does not prove delivery to an agent task")
+            client.stop_task(sid, task_id)
+            deadline = time.monotonic() + 30
+            while time.monotonic() < deadline:
+                notifications = [e for e in client.iter_history(sid)
+                                 if e.type == "system" and e.subtype == "task_notification"
+                                 and e.payload.get("task_id") == task_id and e.payload.get("status") == "stopped"]
+                if notifications:
+                    break
+                time.sleep(1)
+            else:
+                raise TimeoutError("no exact stopped task notification")
+            record("shell_task_stop", status="qualified", task_id=task_id,
+                   notification_id=notifications[-1].event_id, output_after_stop=client.get_task_output(sid, task_id))
+            task_id = None
+            record("inflight_control_cancel", status="blocked_fixture", attempted=False,
+                   reason="No accepted long-lived queue/task controller fixture captured: start_shell_task is cloud-rejected and task output settles immediately. Other control surfaces were not probed; no cancel ACK counted as effect.")
+            proof["complete"] = True
+        except Exception as error:
+            proof["failure"] = {"type": type(error).__name__, "message": str(error)}
+            raise
+        finally:
+            if task_id:
+                try:
+                    client.stop_task(sid, task_id)
+                    proof["cleanup"].append({"task_id": task_id, "stop_requested": True})
+                except Exception as error:
+                    proof["cleanup"].append({"task_id": task_id, "error_type": type(error).__name__})
+            if sid:
+                client.archive_session(sid)
+                client.delete_session(sid)
+                try:
+                    client.get_session(sid)
+                    raise AssertionError("owned session still readable")
+                except APIError as error:
+                    assert error.status == 404
+                    proof["cleanup"].append({"session_id": sid, "get_status": 404})
+            if eid:
+                client.archive_environment(eid)
+                rows = client.list_environments()
+                assert not any(e.get("environment_id", e.get("id")) == eid for e in rows)
+                proof["cleanup"].append({"environment_id": eid, "absent_from_list": True})
+            save()
+
+
+if __name__ == "__main__":
+    main()

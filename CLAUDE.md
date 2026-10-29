@@ -119,6 +119,15 @@ On dev, uv needs the proxy CA plus the system bundle:
   not. Cancelled events can later have transport processing timestamps without
   model execution. Collection gates blocking prompts on its own message receipt,
   just like results, so an earlier queued turn's question cannot end collection.
+- Queue/task follow-up: `docs/devlog/claude_2026-10-29-protocol-queue-summary.json`
+  and `scripts/claude-rc-queue-smoke` qualify next-before-later execution at a real
+  question boundary, exact shell-task output/stop, and a typed cloud rejection of
+  `send_task_message`. Send-now/v1 receipts remain unadvertised; in-flight control
+  cancellation has no accepted long-lived fixture. Result `user_message_uuid` /
+  `user_message_uuids`, when present, must match the collected message even after
+  its processing receipt: cloud can begin the next message before emitting the
+  preceding result. Legacy results without these fields retain receipt/time gates.
+  These evidence paths are deliberately plain, not includes.
 - Group05 live evidence, per-capability limitations and integration contracts
   are in `docs/devlog/claude_2026-10-28-group05-live.json` (deliberately a plain
   path, not an include). Ephemeral MCP replies remain unverified live; the

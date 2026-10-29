@@ -1,0 +1,99 @@
+{
+  "run": "queue-24569aa3d0f7",
+  "profile": "cloud",
+  "checks": [
+    {
+      "name": "initialize",
+      "capabilities": [
+        "start_shell_task_v1"
+      ],
+      "version": "2.1.312"
+    },
+    {
+      "name": "send_now",
+      "status": "not_advertised",
+      "required_capability": "interrupt_send_now_v1",
+      "attempted": false,
+      "reason": "No v1 claim from cloud relay receipts; an unsupported send-now can become plain Stop"
+    },
+    {
+      "name": "interrupt_v1_receipts",
+      "status": "not_advertised",
+      "required_capability": "interrupt_receipt_v1",
+      "attempted": false,
+      "reason": "No v1 claim from cloud relay receipts; an unsupported send-now can become plain Stop"
+    },
+    {
+      "name": "question_boundary",
+      "request_id": "1c490bf7-6633-4c47-a668-064709b38616",
+      "tool_use_id": "toolu_01KW9JPfeW7EMJUHLaTQdLvq",
+      "queued": [
+        {
+          "priority": "later",
+          "marker": "LATER",
+          "message_uuid": "5c150021-41bd-483c-95a5-59c7389cd5d3",
+          "event_id": "5c150021-41bd-483c-95a5-59c7389cd5d3",
+          "stored_priority": "later",
+          "processing_before_release": null
+        },
+        {
+          "priority": "next",
+          "marker": "NEXT",
+          "message_uuid": "2ddb2f9a-d595-4f39-9d6e-c6afbabc5ee8",
+          "event_id": "2ddb2f9a-d595-4f39-9d6e-c6afbabc5ee8",
+          "stored_priority": "next",
+          "processing_before_release": null
+        }
+      ]
+    },
+    {
+      "name": "priority_boundary_effect",
+      "status": "qualified_observation",
+      "receipts": [
+        {
+          "priority": "later",
+          "marker": "LATER",
+          "message_uuid": "5c150021-41bd-483c-95a5-59c7389cd5d3",
+          "event_id": "5c150021-41bd-483c-95a5-59c7389cd5d3",
+          "stored_priority": "later",
+          "processing_before_release": null,
+          "processing_at": "2026-10-29T02:04:32.576736Z",
+          "processed_at": null
+        },
+        {
+          "priority": "next",
+          "marker": "NEXT",
+          "message_uuid": "2ddb2f9a-d595-4f39-9d6e-c6afbabc5ee8",
+          "event_id": "2ddb2f9a-d595-4f39-9d6e-c6afbabc5ee8",
+          "stored_priority": "next",
+          "processing_before_release": null,
+          "processing_at": "2026-10-29T02:04:26.380833Z",
+          "processed_at": "2026-10-29T02:04:32.576311Z"
+        }
+      ],
+      "file_contents": "NEXT\nLATER\n",
+      "execution_order": [
+        "NEXT",
+        "LATER"
+      ],
+      "limitation": "One held-question ordering observation, not a guarantee across in-flight races"
+    }
+  ],
+  "cleanup": [
+    {
+      "session_id": "cse_0154EsXU37hZ8WQgqBudKvJV",
+      "get_status": 404
+    },
+    {
+      "environment_id": "env_01BzPm7vTcd4h1FK1j29fH1y",
+      "absent_from_list": true
+    }
+  ],
+  "complete": false,
+  "environment_id": "env_01BzPm7vTcd4h1FK1j29fH1y",
+  "session_id": "cse_0154EsXU37hZ8WQgqBudKvJV",
+  "failure": {
+    "type": "AssertionError",
+    "message": "no own-message processing receipt before worker result"
+  }
+}
