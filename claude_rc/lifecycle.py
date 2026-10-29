@@ -129,6 +129,7 @@ FORK_REASONS = {
     "background_sessions_unavailable": "background_unavailable",
 }
 _FORK_ID = re.compile(r"^(session|cse)_[A-Za-z0-9_-]+$")
+_FORK_STRINGS = ("sessionId", "cliSessionId", "targetMessageUuid", "error")
 PROJECT_TEMPLATES_PATH = "/v1/code/project-templates"
 SPACES_PATH = "/v1/code/spaces"
 
@@ -138,12 +139,14 @@ def fork_result(response: Any, source_session_id: str) -> dict:
     ``status`` is ``forked`` (with the new ``session_X`` ``session_id``),
     ``requires_server``, ``background_unavailable``, ``declined``, ``invalid``
     (no/odd id, or the source itself) or ``unsupported`` (unparseable)."""
-    if not isinstance(response, Mapping) or not isinstance(response.get("forked"), bool):
+    if (not isinstance(response, Mapping) or not isinstance(response.get("forked"), bool)
+            or any(k in response and not isinstance(response[k], str) for k in _FORK_STRINGS)
+            or not isinstance(response.get("prefillText"), (str, type(None)))):
         return {"status": "unsupported"}
     if not response["forked"]:
         return {"status": FORK_REASONS.get(response.get("reason"), "declined"), "reason": response.get("reason")}
     new_id = response.get("sessionId")
-    if not isinstance(new_id, str) or not _FORK_ID.match(new_id):
+    if new_id is None or not _FORK_ID.match(new_id):
         return {"status": "invalid"}
     new_id = to_session_id(new_id)
     if new_id == to_session_id(source_session_id):

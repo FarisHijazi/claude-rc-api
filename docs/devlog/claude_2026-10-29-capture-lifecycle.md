@@ -62,3 +62,19 @@ wired in `cli.build_parser` through `_rc`). 14 new offline tests; full suite 818
 - Spaces writes and session-grouping settings/coordinator: the server rejects or
   does not route them for this org, so they are documented only.
 - Template writes: no web route exists.
+
+## Independent verification (2026-10-29)
+
+- Re-read the saved bundle: `fork_conversation` body, `zO` reply schema, the `VO`
+  status mapping and `BO` id regex, `/v1/code/project-templates`, `/v1/code/spaces`
+  query, and the four `/v1/code/session_groupings` paths all match. No guessed routes.
+- Defect fixed: the web's zod schema returns `unsupported` when `sessionId`,
+  `cliSessionId`, `targetMessageUuid` or `error` is not a string, or `prefillText` is
+  neither a string nor null. `fork_result` returned `invalid` or passed those through.
+  Four regression cases fail on `15e7416` and pass with the fix.
+- Live rerun of `scripts/claude-rc-lifecycle-smoke` (session `session_0154EsXQ3gpKggWWYXAMSNWn`)
+  repeated every result: cloud gate rejected locally; raw control got success
+  `{forked:false, reason:"unsupported"}`; continuation turn completed; no child;
+  deleted, GET 404. Fresh reads: templates 200 empty, spaces 400 `spaces_disabled`,
+  grouping root/id/settings return the same plain `404 page not found` as a made-up
+  `/v1/code/...` path (unrouted). Both builder sessions return GET 404.

@@ -485,6 +485,10 @@ from claude_rc.lifecycle import dispatch_lifecycle_cli, fork_result  # noqa: E40
     ({"forked": True, "sessionId": "cse_SRC"}, {"status": "invalid"}),
     ({}, {"status": "unsupported"}),
     (None, {"status": "unsupported"}),
+    ({"forked": True, "sessionId": 7}, {"status": "unsupported"}),
+    ({"forked": True, "sessionId": None}, {"status": "unsupported"}),
+    ({"forked": False, "error": 1}, {"status": "unsupported"}),
+    ({"forked": True, "sessionId": "cse_NEW", "prefillText": 3}, {"status": "unsupported"}),
 ])
 def test_fork_result_matches_web_normalization(response, expected):
     assert fork_result(response, "session_SRC") == expected
