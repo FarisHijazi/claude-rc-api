@@ -154,6 +154,12 @@ On dev, uv needs the proxy CA plus the system bundle:
   (deliberately plain path, not an include). Browser auth-page cookie changes are
   not a promise of natural renewal; all 190 compared shared credential files
   were unchanged. PKCE single-use is checked again inside the enrollment lock.
+- Independent auth qualification: `docs/devlog/claude_2026-10-29-final-auth-independent.json`
+  (deliberately plain path, not an include) reruns 749 offline/headless tests,
+  real invalid-memory-cookie recovery and two completed turns on the same session,
+  fresh-client paged readback and exact deletion (GET 404). No auth defect was
+  confirmed. Owned server rotation remains blocked without an independently
+  enrolled grant; simulated refresh tests do not establish natural expiry.
 - Never print, log, commit or put in fixtures any token or cookie value
   (`repr`s show names only).
 

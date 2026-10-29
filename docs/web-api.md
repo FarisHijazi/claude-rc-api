@@ -94,6 +94,14 @@ indicate failure. A disposable worker then returned `AUTH_RECOVERED_OK`, with
 own-turn completion and independent durable-history readback. Its session was
 deleted (GET 404). This is fault-injected recovery, not natural month-scale expiry.
 
+**INDEPENDENT LIVE CHECK A3:** `docs/devlog/claude_2026-10-29-final-auth-independent.json`
+records a fresh 749-test offline/headless run and another real 401 → account 200 →
+GET 200 recovery. One owned session completed exact-marker turns both before and
+after recovery; a fresh CDP-authenticated client read both from paged durable
+history, and exact-ID cleanup returned GET 404. The recovery CLI also passed.
+No auth defect was confirmed; owned server rotation remains unverified without a
+newly enrolled grant. The verifier did not repeat enrollment or consume any grant.
+
 On-demand commands (run from this repository; neither starts a service):
 
 ```sh

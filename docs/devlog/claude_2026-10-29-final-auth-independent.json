@@ -1,0 +1,87 @@
+{
+  "scope": "Independent verification of auth recovery and isolated enrollment claims",
+  "tested_sha": "2862b42bfc80f9521306e7b6834ea1fd4cac29a3",
+  "branch": "feat/final-auth-verify",
+  "verdict": "PASS for scoped cookie recovery; BLOCKED for live owned OAuth qualification",
+  "code_defects_confirmed": [],
+  "implementation_changes": "None: no proven auth defect required a fix. This commit adds independent qualification evidence only.",
+  "offline": {
+    "focused_command": "uv --directory <worktree> run --extra test --extra web --extra cli pytest -q tests/auth_recovery_test.py tests/test_auth.py",
+    "focused_passed": 56,
+    "full_command": "uv --directory <worktree> run --extra test --extra web --extra cli --with playwright pytest -q",
+    "full_passed": 749,
+    "full_seconds": 70.05,
+    "warnings": "3 pre-existing fire_routine deprecation warnings",
+    "environment": "Initial playwright resolution failed with UnknownIssuer; rerun used the documented combined system/proxy CA bundle in session scratch space. No global settings changed.",
+    "proof_boundary": "MockTransport tests cover malformed callbacks/grants, PKCE single-use, account/source pinning, rollback, policy/Cloudflare classification, shared-store guards and owned rotation/restart/thread/POSIX-process locking. These are not real OAuth server refresh evidence."
+  },
+  "live": {
+    "auth_source": "cookies:cdp",
+    "method": "Existing CDP cookie reader and client auth/stream/history/lifecycle owners; direct HTTP. No browser tab opened or changed, no new enrollment attempt, no shared grant read or exchange.",
+    "readonly_preflight": {
+      "account_pinned": true,
+      "session_list_succeeded": true,
+      "environment_count": 5
+    },
+    "created_sessions": ["cse_0154EsXT8hHShgF8HXsL9vN8"],
+    "model": "claude-haiku-5-5",
+    "initial_turn": {
+      "exact_assistant_marker": "AUTH_VERIFY_BEFORE",
+      "own_processing_receipt": true,
+      "turn_completed": true,
+      "result_is_error": false,
+      "frames": 35
+    },
+    "automatic_recovery": {
+      "fault": "Deliberately invalid sessionKey/sessionKeyV3 in client memory only, not browser expiry",
+      "http": [
+        {"method": "GET", "path": "/v1/code/sessions", "status": 401},
+        {"method": "GET", "path": "/api/account", "status": 200},
+        {"method": "GET", "path": "/v1/code/sessions", "status": 200}
+      ],
+      "same_account_org": true
+    },
+    "explicit_recovery": {
+      "fault": "Invalidated only this client's in-memory cookies again",
+      "cookies_changed": true,
+      "http": [{"method": "GET", "path": "/api/account", "status": 200}],
+      "same_account_org": true,
+      "no_operation_replayed": true
+    },
+    "same_session_continuation": {
+      "exact_assistant_marker": "AUTH_VERIFY_AFTER",
+      "own_processing_receipt": true,
+      "turn_completed": true,
+      "result_is_error": false,
+      "frames": 11
+    },
+    "independent_readback": {
+      "fresh_client": true,
+      "same_account_org": true,
+      "history_page_size": 2,
+      "both_exact_assistant_markers": true,
+      "completed_turns": 2,
+      "result_errors": 0
+    },
+    "cli_recovery": {
+      "command": "uv --directory <worktree> run --extra web python <worktree>/scripts/claude-rc-auth recover --direct",
+      "exit_status": 0,
+      "account_verified": true,
+      "cookies_changed": false,
+      "session_read": true,
+      "auth_source": "cookies:cdp"
+    },
+    "cleanup": [{"session_id": "cse_0154EsXT8hHShgF8HXsL9vN8", "archived": true, "deleted": true, "get_status": 404}],
+    "grant_reads_or_exchanges": 0,
+    "client_browser_writes": 0,
+    "credential_values_logged": false,
+    "natural_expiry_observed": false
+  },
+  "limitations": [
+    "No builder-owned OAuth grant exists: builder evidence records enrollment stopping at fresh login. No new enrollment/account action was attempted by this verifier, per task scope.",
+    "Owned server token rotation, restart and concurrent refresh remain BLOCKED live, not silently replaced by shared credentials. Their passing tests are simulated transport evidence only.",
+    "Natural month-scale expiry, revocation recovery, Chrome DB extraction, trusted-device enrollment and macOS/Windows lock execution were not qualified.",
+    "The builder's 190 unchanged shared-file hashes and fresh-login observations were inspected as prior evidence, not independently remeasured or reenacted.",
+    "No claim of full auth parity or indefinite unattended browser authentication follows from these results. Chrome must remain signed in and its CDP source reachable."
+  ]
+}
