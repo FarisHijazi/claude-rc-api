@@ -1,0 +1,275 @@
+#!/usr/bin/env python3
+"""Opt-in generated-only MCP qualification on an owned disposable cloud worker.
+
+Reuses SDK FastMCP and the existing permission-smoke collector. Replaces only
+this session's dynamic server set; no account connector or credential writes.
+"""
+from __future__ import annotations
+
+import argparse
+import base64
+import hashlib
+import json
+import runpy
+import sys
+import uuid
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from claude_rc import APIError, RemoteControlClient
+from claude_rc.client import ControlRejected
+
+helpers = runpy.run_path(str(Path(__file__).with_name("claude-rc-permission-smoke")))
+collect, tool_results = helpers["collect"], helpers["tool_results"]
+
+
+def cleanup_resources(client, sid, eid, proof, save):
+    failures = []
+    if sid:
+        try:
+            client.archive_session(sid)
+        except Exception as error:
+            proof["cleanup"].append({"session_id": sid, "archive_error_class": type(error).__name__})
+        try:
+            client.delete_session(sid)
+            try:
+                client.get_session(sid)
+                raise AssertionError("deleted session remains readable")
+            except APIError as error:
+                assert error.status == 404
+            proof["cleanup"].append({"session_id": sid, "get_status": 404})
+        except Exception as error:
+            failures.append({"session_id": sid, "error_class": type(error).__name__})
+    if eid:
+        try:
+            client.archive_environment(eid)
+            assert not any(e.get("environment_id", e.get("id")) == eid for e in client.list_environments())
+            proof["cleanup"].append({"environment_id": eid, "excluded_from_list": True})
+        except Exception as error:
+            failures.append({"environment_id": eid, "error_class": type(error).__name__})
+    proof["cleanup"].extend(failures)
+    if failures:
+        proof["complete"] = False
+    save()
+    if failures:
+        raise RuntimeError("owned resource cleanup failed; see evidence")
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--output", type=Path, required=True)
+    args = parser.parse_args()
+    proof = {"run": "mcp-" + uuid.uuid4().hex[:10], "checks": [], "cleanup": [],
+             "complete": False, "full_mcp_parity": False, "transport": "Code durable events to cloud worker"}
+    sid = eid = None
+
+    def record(name, **details):
+        proof["checks"].append({"name": name, **details})
+        save()
+        print(json.dumps(proof["checks"][-1]), flush=True)
+
+    def save():
+        args.output.write_text(json.dumps(proof, indent=2) + "\n")
+
+    with RemoteControlClient(direct=True, timeout=25) as client:
+        try:
+            client.list_sessions(limit=1)
+            client.list_environments()
+            eid = client.create_cloud_environment(proof["run"], cwd="/mnt/user-data/working",
+                description="Disposable generated-only SDK FastMCP qualification")["environment_id"]
+            proof["environment_id"] = eid
+            save()
+            sid = client.create_session(eid, title=proof["run"], model="claude-haiku-5-5",
+                                        permission_mode="default")["id"]
+            proof["session_id"] = sid
+            save()
+            init = client.initialize(sid, timeout=60)
+            record("worker", version=init.get("claude_code_version"), base_url=client.base_url,
+                   capabilities=init.get("capabilities"), environment_kind="anthropic_cloud")
+            fixture = Path(__file__).resolve().parent.parent / "tests/fixtures/mcp_generated.py"
+            source = fixture.read_bytes()
+            encoded = base64.b64encode(source).decode()
+            worker_path = "/mnt/user-data/working/" + proof["run"] + ".py"
+
+            def reject(request):
+                client.deny_permission(sid, request, "Unexpected fixture operation; stop.", interrupt=True)
+                raise AssertionError("unexpected permission")
+
+            events, _ = collect(client, sid,
+                f"Use Bash exactly once: printf %s {encoded} | base64 -d > {worker_path}; "
+                f"sha256sum {worker_path}. No other tools.", reject)
+            results = tool_results(events, "Bash")
+            digest = hashlib.sha256(source).hexdigest()
+            assert len(results) == 1 and not results[0].get("is_error") and digest in results[0]["content"]
+            record("fixture_bytes", sha256=digest, tool_use_id=results[0]["tool_use_id"])
+            server = proof["run"]
+            tool = "mcp__" + server + "__echo"
+            config = {server: {"type": "stdio", "command": "uv",
+                      "args": ["run", "--with", "mcp==1.30.0", "python", worker_path]}}
+            reply = client.set_worker_mcp_servers(sid, config, confirm=True, timeout=90)
+            record("dynamic_server_set", added=reply.get("added"), errors=reply.get("errors"),
+                   removed_count=len(reply.get("removed", [])), scope="owned session only")
+            assert server in reply.get("added", []) and not reply.get("errors")
+
+            def status():
+                rows = client.mcp_status(sid, live_reply=True, timeout=40)
+                return next(row for row in rows if row.get("name") == server)
+
+            row = status()
+            assert row["status"] == "connected"
+            assert {t["name"] for t in row["tools"]} == {"echo", "copy_bytes"}
+            record("connected_status", fixture=row)
+
+            def echo(marker):
+                result = client.mcp_call(sid, tool, {"value": marker}, timeout=60)
+                assert result.get("structuredContent") == {"result": marker}
+                record("direct_tool_reply", marker=marker, result=result)
+
+            echo("MCP_ECHO_OK")
+            toggle = client.mcp_toggle(sid, server, False)
+            row = status()
+            record("disable", reply=toggle, fixture=row)
+            assert row["status"] == "disabled"
+            try:
+                client.mcp_call(sid, tool, {"value": "MUST_NOT_RUN"}, timeout=40)
+                raise AssertionError("disabled tool ran")
+            except ControlRejected as error:
+                record("disabled_call_rejected", error=str(error))
+            client.mcp_toggle(sid, server, True)
+            assert status()["status"] == "connected"
+            echo("MCP_ENABLED_OK")
+            reconnect = client.mcp_reconnect(sid, server, timeout=60)
+            assert status()["status"] == "connected"
+            echo("MCP_RECONNECTED_OK")
+            record("reconnect", reply=reconnect)
+            for mode, names in (("default", ["echo"]), ("auto", None), (None, None)):
+                result = client.set_mcp_permission_mode_override(sid, server, mode, ask_for_tools=names)
+                record("override", mode=mode, ask_for_tools=names, reply=result, fixture=status())
+            policy = client.permission_mode_policy()
+            record("permission_policy", bypass_allowed=policy.get("bypass_permissions", {}).get("allowed"))
+            bypass_available = False
+            if policy.get("bypass_permissions", {}).get("allowed"):
+                client.set_mcp_permission_mode_override(sid, server, None)
+                try:
+                    client.request_control(sid, "set_permission_mode", mode="bypassPermissions")
+                    bypass_available = True
+                except ControlRejected as error:
+                    record("override_effect_blocked", error=str(error),
+                           limitation="Account policy allows bypass, but this worker lacks the startup flag; default pin enforcement remains unqualified")
+            if bypass_available:
+                assert client.initialize(sid)["current_permission_mode"] == "bypassPermissions"
+
+                def allow_once(request):
+                    assert request.kind == "permission" and request.tool_name == tool
+                    client.allow_once(sid, request)
+
+                for pin, marker, expected_prompts in ((False, "MCP_BYPASS", 0),
+                        (True, "MCP_PIN_FIRST", 1), (True, "MCP_PIN_REUSE", 1),
+                        (False, "MCP_PIN_CLEARED", 0)):
+                    if marker != "MCP_PIN_REUSE":
+                        client.set_mcp_permission_mode_override(sid, server, "default" if pin else None,
+                                                               ask_for_tools=["echo"] if pin else None)
+                    events, pending = collect(client, sid,
+                        f"Call {tool} exactly once with value {marker}. No other tools. Then reply DONE.", allow_once)
+                    replies = tool_results(events, tool)
+                    assert len(replies) == 1 and marker in str(replies[0]["content"])
+                    assert len(pending) == expected_prompts
+                    record("override_permission_effect", pin=pin, marker=marker, prompt_count=len(pending),
+                           tool_result=replies[0], session_mode="bypassPermissions")
+                client.request_control(sid, "set_permission_mode", mode="default")
+                assert client.initialize(sid)["current_permission_mode"] == "default"
+            client.set_mcp_permission_mode_override(sid, server, "default", ask_for_tools=["echo"])
+
+            def allow(request):
+                assert request.kind == "permission" and request.tool_name == tool
+                client.always_allow(sid, request, permissions=[{"type": "addRules", "rules": [{"toolName": tool}],
+                    "behavior": "allow", "destination": "session"}])
+                record("genuine_tool_permission", tool=request.tool_name, request_id=request.request_id)
+
+            for marker in ("MCP_MODEL_FIRST", "MCP_MODEL_REUSE"):
+                events, pending = collect(client, sid,
+                    f"Call {tool} exactly once with value {marker}. No other tools. Then reply DONE.", allow)
+                replies = tool_results(events, tool)
+                assert len(replies) == 1 and not replies[0].get("is_error") and marker in str(replies[0]["content"])
+                assert len(pending) == (1 if marker == "MCP_MODEL_FIRST" else 0)
+                record("model_tool_reply", marker=marker, tool_result=replies[0], prompt_count=len(pending),
+                       limitation="askForTools forced-ask is Chrome-safe-tool-specific, not proven by generic SDK echo")
+
+            data = bytes(range(256)) + b"\x00MCP_GENERATED\xff"
+            lane = "/working/" + proof["run"]
+            read = "/mnt/user-data/working/" + proof["run"]
+            original = client.put_synced_file(sid, lane + ".input", data)
+            assert base64.b64decode(client.get_session_file(sid, read + ".input")["content"]) == data
+            expires = (datetime.now(timezone.utc) + timedelta(minutes=3)).isoformat()
+            staged = client.mcp_call(sid, "mcp__" + server + "__copy_bytes",
+                {"input_path": "{{in:source}}", "output_path": "{{out:target}}"},
+                input_files=[{"name": "source", "lane_path": lane + ".input"}],
+                output_files=[{"name": "target", "lane_path": lane + ".output"}], expires_at=expires)
+            record("staged_call", result=staged, input_etag=original["content_sha256"],
+                   input_sha256=hashlib.sha256(data).hexdigest(), input_size=len(data))
+            assert staged.get("staging", {}).get("ok") is True
+            output = client.get_session_file(sid, read + ".output")
+            assert base64.b64decode(output["content"]) == data
+            tool_data = json.loads(staged["content"][0]["text"])
+            fixture_pid = tool_data["pid"]
+            assert isinstance(fixture_pid, int) and fixture_pid > 1
+            assert tool_data["sha256"] == hashlib.sha256(data).hexdigest()
+            record("staged_output_bytes", exact_match=True, size=len(data), fixture_pid=fixture_pid)
+            client.put_synced_file(sid, lane + ".output", b"KEEP_NEWER_BYTES",
+                                   if_match_sha256=output["content_sha256"])
+            conflict = client.mcp_call(sid, "mcp__" + server + "__copy_bytes",
+                {"input_path": "{{in:source}}", "output_path": "{{out:target}}"},
+                input_files=[{"name": "source", "lane_path": lane + ".input"}],
+                output_files=[{"name": "target", "lane_path": lane + ".output",
+                               "if_match": output["content_sha256"]}], expires_at=expires)
+            assert conflict.get("staging", {}).get("error_code") == "output_conflict"
+            assert base64.b64decode(client.get_session_file(sid, read + ".output")["content"]) == b"KEEP_NEWER_BYTES"
+            record("staged_cas_conflict", result=conflict, newer_bytes_preserved=True)
+            ledger = client.read_file(sid, read + ".calls")["contents"]
+            assert ledger == "2"
+            expired = client.mcp_call(sid, "mcp__" + server + "__copy_bytes",
+                {"input_path": "{{in:source}}", "output_path": "{{out:target}}"},
+                input_files=[{"name": "source", "lane_path": lane + ".input"}],
+                output_files=[{"name": "target", "lane_path": lane + ".expired"}],
+                expires_at="2000-01-01T00:00:00Z")
+            assert expired.get("staging", {}).get("error_code") == "expired"
+            assert client.read_file(sid, read + ".calls")["contents"] == ledger
+            try:
+                client.get_session_file(sid, read + ".expired")
+                raise AssertionError("expired output exists")
+            except APIError as error:
+                assert error.status == 404
+            record("expired", result=expired, call_ledger_unchanged=True, output_status=404)
+            try:
+                client.mcp_call(sid, tool, {}, result_not_for_model=True)
+                raise AssertionError("remote result exclusion allowed")
+            except ValueError as error:
+                record("remote_result_exclusion", status="unsupported", error=str(error))
+            try:
+                client.set_session_mcp_servers(sid, config)
+                record("stdio_rest", status="unexpectedly admitted; not qualified")
+            except APIError as error:
+                record("stdio_rest", status=error.status)
+                assert error.status == 400
+            cleared = client.set_worker_mcp_servers(sid, {}, confirm=True)
+            assert server in cleared.get("removed", [])
+            assert not any(row.get("name") == server for row in client.mcp_status(sid, live_reply=True))
+            record("fixture_disconnected", server_removed=True)
+            events, _ = collect(client, sid,
+                f"Use Bash exactly once: if test -e /proc/{fixture_pid}; then printf STILL_RUNNING; "
+                "else printf MCP_CHILD_EXITED; fi. No other tools.", reject)
+            results = tool_results(events, "Bash")
+            assert len(results) == 1 and results[0]["content"].strip() == "MCP_CHILD_EXITED"
+            record("fixture_child_exited", pid=fixture_pid, proc_absent=True,
+                   tool_use_id=results[0]["tool_use_id"], signals_sent=0)
+            proof["complete"] = True
+        except Exception as error:
+            record("aborted", error_class=type(error).__name__)
+            raise
+        finally:
+            cleanup_resources(client, sid, eid, proof, save)
+
+
+if __name__ == "__main__":
+    main()

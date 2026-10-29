@@ -1,0 +1,63 @@
+{
+  "date": "2026-10-29",
+  "branch": "feat/protocol-mcp",
+  "base_sha": "75a0f37a70e8890fc556c4793a6b3d65034fadaa",
+  "recovery": "Recovered the existing worktree without duplicate workers, resets, stashes or worktree recreation. The empty summary was a crash artifact, not evidence.",
+  "implementation": {
+    "owner": "claude_rc/commands.py; existing request_control and streaming correlation transport",
+    "method": "set_worker_mcp_servers(session_id, servers, confirm=True, timeout=60)",
+    "scope": "Replace only a session worker's dynamic MCP servers. Replacement can remove inherited servers from that session; explicit confirmation is required. No account connector writes.",
+    "fixture": "tests/fixtures/mcp_generated.py uses upstream mcp==1.30.0 FastMCP. The SDK owns MCP protocol handling; local code defines only generated echo and byte-copy tools.",
+    "delivery": "Actual Code durable events reach the cloud worker despite the separate native cloud-host admission switch. This does not qualify every cloud-host delivery channel."
+  },
+  "current_live_evidence": "claude_2026-10-29-protocol-mcp-recovery-qualified.json",
+  "prior_qualified_evidence": "claude_2026-10-29-protocol-mcp-qualified.json",
+  "live_assertions": [
+    "Cloud CLI 2.1.312; actual SDK child connected with two advertised tools",
+    "Dynamic server replacement and direct echo reply; disabled calls rejected; exact echo replies after enable and reconnect",
+    "Actual model echo tool results correlated to tool-use IDs and own-message processing receipts; first turn requires one genuine permission, exact session-rule reuse requires zero",
+    "271 generated binary bytes staged through synced-file lane and independently decoded exactly; SHA-256 4196d22a856ac6081b0361a29cdb527087e69839ed956f1e1212a5ed4f995483",
+    "Stale output CAS returns output_conflict and preserves newer bytes",
+    "Expired request leaves actual worker call ledger at 2 and creates no output (GET 404)",
+    "Empty dynamic replacement disconnects child; exact PID 330 absent through a correlated Bash result, no signals sent",
+    "Owned session cse_0154EsXQgj2yWrAHVSqVPX6F deleted (GET 404); environment env_01SUcyKouBDGSCeLXsiGSSZB archived and excluded from lists"
+  ],
+  "recovery_fixes": [
+    "Read the fixture call ledger via existing worker read_file control, not a potentially absent/stale synced-file snapshot. First recovery live run reproduced HTTP 404 after otherwise successful staging/CAS; retained unchanged as failed evidence.",
+    "Assert first-use and reused-rule prompt counts rather than merely recording them.",
+    "Cleanup attempts exact session deletion even if archive fails, still attempts environment archive if session cleanup fails, saves failures, marks complete false and exits nonzero on incomplete cleanup. Six injected-path regressions cover success and cleanup failures."
+  ],
+  "tests": {
+    "focused_command": "uv run --extra test --extra web --extra cli --with mcp==1.30.0 --with playwright pytest -q tests/mcp_worker_test.py tests/test_interaction.py tests/command_capabilities_test.py",
+    "focused_result": "83 passed",
+    "full_command": "PATH=/usr/bin:$PATH uv run --extra test --extra web --extra cli --with mcp==1.30.0 --with playwright pytest -q",
+    "full_result": "781 passed, 3 existing legacy-routine deprecation warnings, 63.17 seconds; includes actual local SDK child and isolated headless browser tests",
+    "initial_full_failure": "780 passed, 1 failed: panel JS parse check timed out while the mise Node shim downloaded Node. Rerun used already-installed /usr/bin/node without changing shared config.",
+    "certificate_environment": "Process-scoped SSL_CERT_FILE combining system roots with the existing proxy CA; no global network/configuration writes.",
+    "historical_775_claim": "No persisted test log was found for the prior claim. Replaced it with the independently observed 781-test recovery result."
+  },
+  "retained_runs": [
+    {"file": "claude_2026-10-29-protocol-mcp-live.json", "complete": true, "boundary": "Earlier fixture; lacks exact child-PID, CAS-conflict and ledger-based expiry assertions"},
+    {"file": "claude_2026-10-29-protocol-mcp-effects.json", "complete": false, "boundary": "ControlRejected after bypass-policy inspection; not full qualification"},
+    {"file": "claude_2026-10-29-protocol-mcp-effects-rerun.json", "complete": false, "boundary": "AssertionError after fixture byte setup; exact cause not recorded, do not invent one"},
+    {"file": "claude_2026-10-29-protocol-mcp-effects-final.json", "complete": false, "boundary": "APIError after staged-output proof; prior traceback absent, exact failure location not independently established"},
+    {"file": "claude_2026-10-29-protocol-mcp-qualified.json", "complete": true, "boundary": "Prior complete scoped qualification, not full MCP parity"},
+    {"file": "claude_2026-10-29-protocol-mcp-recovery-live.json", "complete": false, "boundary": "Recovery reproduced unsynced call-ledger HTTP 404; cleanup verified"},
+    {"file": "claude_2026-10-29-protocol-mcp-recovery-qualified.json", "complete": true, "boundary": "Current full scoped fixture after live-read and cleanup fixes"}
+  ],
+  "cleanup": {
+    "fresh_client_recheck": "All seven exact session IDs in retained evidence return GET 404; all seven exact environment IDs are excluded from the active environment list. Historical resources were read-only rechecked, not recreated or signaled.",
+    "current_child": {"pid": 330, "proc_absent": true, "signals_sent": 0},
+    "environment_deletion": "Archive/list exclusion only; permanent environment deletion is unsupported.",
+    "local_process_check": "No surviving MCP-smoke, generated-fixture or pytest processes were observed; process query matched only its own inspection shell."
+  },
+  "limitations": [
+    "No full MCP parity claim. Default/auto/clear override acknowledgements do not prove behavioral enforcement; current cloud worker rejects bypass transition without a startup flag.",
+    "Chrome-safe-tool-specific askForTools forced-ask behavior remains unqualified by this generic SDK fixture.",
+    "Session MCP REST stdio PUT is rejected with HTTP 400. Supported remote-server REST config/approval effects remain unqualified; account connectors were not mutated.",
+    "Remote result_not_for_model is explicitly unsupported; worker-owned local-pipe behavior was not qualified.",
+    "Expiry is an intentionally expired request, not natural elapsed expiry/recovery; large-file and platform variants remain unqualified.",
+    "Failed recovery run was cleaned via session deletion/environment archive, without a separate exact child-PID exit assertion; only the successful run independently proves that assertion."
+  ],
+  "safety": "No shared OAuth refresh, printed secrets, persistent services, system/browser restarts, upstream posts, public sharing, or shared network/account connector configuration writes. Existing package __init__.py was not changed."
+}

@@ -1,0 +1,38 @@
+{
+  "run": "mcp-6026726c63",
+  "checks": [
+    {
+      "name": "worker",
+      "version": "2.1.312",
+      "base_url": "https://claude.ai",
+      "capabilities": [
+        "start_shell_task_v1"
+      ],
+      "environment_kind": "anthropic_cloud"
+    },
+    {
+      "name": "fixture_bytes",
+      "sha256": "4dd173f9b05e5559e35204b9590df7f87b5e46b1a292215a72e5478c27f4cee1",
+      "tool_use_id": "toolu_01WRUKRtZYKiooTZHR1AEAYw"
+    },
+    {
+      "name": "aborted",
+      "error_class": "AssertionError"
+    }
+  ],
+  "cleanup": [
+    {
+      "session_id": "cse_0154EsXSecLZ61Ripto8rRT6",
+      "get_status": 404
+    },
+    {
+      "environment_id": "env_01QDDeyJReBt8gutrhvugRGT",
+      "excluded_from_list": true
+    }
+  ],
+  "complete": false,
+  "full_mcp_parity": false,
+  "transport": "Code durable events to cloud worker",
+  "environment_id": "env_01QDDeyJReBt8gutrhvugRGT",
+  "session_id": "cse_0154EsXSecLZ61Ripto8rRT6"
+}

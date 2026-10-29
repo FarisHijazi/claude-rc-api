@@ -1,0 +1,262 @@
+{
+  "run": "mcp-9c4da61906",
+  "checks": [
+    {
+      "name": "worker",
+      "version": "2.1.312",
+      "base_url": "https://claude.ai",
+      "capabilities": [
+        "start_shell_task_v1"
+      ],
+      "environment_kind": "anthropic_cloud"
+    },
+    {
+      "name": "fixture_bytes",
+      "sha256": "4dd173f9b05e5559e35204b9590df7f87b5e46b1a292215a72e5478c27f4cee1",
+      "tool_use_id": "toolu_01XqncST1Q4ZHEH3BZj3tpzP"
+    },
+    {
+      "name": "dynamic_server_set",
+      "added": [
+        "mcp-9c4da61906"
+      ],
+      "errors": {},
+      "removed_count": 8,
+      "scope": "owned session only"
+    },
+    {
+      "name": "connected_status",
+      "fixture": {
+        "config": {
+          "args": [
+            "run",
+            "--with",
+            "mcp==1.30.0",
+            "python",
+            "/mnt/user-data/working/mcp-9c4da61906.py"
+          ],
+          "command": "uv",
+          "type": "stdio"
+        },
+        "name": "mcp-9c4da61906",
+        "scope": "dynamic",
+        "serverInfo": {
+          "name": "generated-fixture",
+          "version": "1.30.0"
+        },
+        "source": "dynamic",
+        "status": "connected",
+        "tools": [
+          {
+            "annotations": {},
+            "name": "echo"
+          },
+          {
+            "annotations": {},
+            "name": "copy_bytes"
+          }
+        ],
+        "transport": "stdio"
+      }
+    },
+    {
+      "name": "direct_tool_reply",
+      "marker": "MCP_ECHO_OK",
+      "result": {
+        "content": "{\"result\":\"MCP_ECHO_OK\"}",
+        "structuredContent": {
+          "result": "MCP_ECHO_OK"
+        }
+      }
+    },
+    {
+      "name": "disable",
+      "reply": {},
+      "fixture": {
+        "config": {
+          "args": [
+            "run",
+            "--with",
+            "mcp==1.30.0",
+            "python",
+            "/mnt/user-data/working/mcp-9c4da61906.py"
+          ],
+          "command": "uv",
+          "type": "stdio"
+        },
+        "name": "mcp-9c4da61906",
+        "scope": "dynamic",
+        "source": "dynamic",
+        "status": "disabled",
+        "transport": "stdio"
+      }
+    },
+    {
+      "name": "disabled_call_rejected",
+      "error": "MCP server not connected: mcp-9c4da61906"
+    },
+    {
+      "name": "direct_tool_reply",
+      "marker": "MCP_ENABLED_OK",
+      "result": {
+        "content": "{\"result\":\"MCP_ENABLED_OK\"}",
+        "structuredContent": {
+          "result": "MCP_ENABLED_OK"
+        }
+      }
+    },
+    {
+      "name": "direct_tool_reply",
+      "marker": "MCP_RECONNECTED_OK",
+      "result": {
+        "content": "{\"result\":\"MCP_RECONNECTED_OK\"}",
+        "structuredContent": {
+          "result": "MCP_RECONNECTED_OK"
+        }
+      }
+    },
+    {
+      "name": "reconnect",
+      "reply": {}
+    },
+    {
+      "name": "override",
+      "mode": "default",
+      "ask_for_tools": [
+        "echo"
+      ],
+      "reply": {},
+      "fixture": {
+        "config": {
+          "args": [
+            "run",
+            "--with",
+            "mcp==1.30.0",
+            "python",
+            "/mnt/user-data/working/mcp-9c4da61906.py"
+          ],
+          "command": "uv",
+          "type": "stdio"
+        },
+        "name": "mcp-9c4da61906",
+        "scope": "dynamic",
+        "serverInfo": {
+          "name": "generated-fixture",
+          "version": "1.30.0"
+        },
+        "source": "dynamic",
+        "status": "connected",
+        "tools": [
+          {
+            "annotations": {},
+            "name": "echo"
+          },
+          {
+            "annotations": {},
+            "name": "copy_bytes"
+          }
+        ],
+        "transport": "stdio"
+      }
+    },
+    {
+      "name": "override",
+      "mode": "auto",
+      "ask_for_tools": null,
+      "reply": {},
+      "fixture": {
+        "config": {
+          "args": [
+            "run",
+            "--with",
+            "mcp==1.30.0",
+            "python",
+            "/mnt/user-data/working/mcp-9c4da61906.py"
+          ],
+          "command": "uv",
+          "type": "stdio"
+        },
+        "name": "mcp-9c4da61906",
+        "scope": "dynamic",
+        "serverInfo": {
+          "name": "generated-fixture",
+          "version": "1.30.0"
+        },
+        "source": "dynamic",
+        "status": "connected",
+        "tools": [
+          {
+            "annotations": {},
+            "name": "echo"
+          },
+          {
+            "annotations": {},
+            "name": "copy_bytes"
+          }
+        ],
+        "transport": "stdio"
+      }
+    },
+    {
+      "name": "override",
+      "mode": null,
+      "ask_for_tools": null,
+      "reply": {},
+      "fixture": {
+        "config": {
+          "args": [
+            "run",
+            "--with",
+            "mcp==1.30.0",
+            "python",
+            "/mnt/user-data/working/mcp-9c4da61906.py"
+          ],
+          "command": "uv",
+          "type": "stdio"
+        },
+        "name": "mcp-9c4da61906",
+        "scope": "dynamic",
+        "serverInfo": {
+          "name": "generated-fixture",
+          "version": "1.30.0"
+        },
+        "source": "dynamic",
+        "status": "connected",
+        "tools": [
+          {
+            "annotations": {},
+            "name": "echo"
+          },
+          {
+            "annotations": {},
+            "name": "copy_bytes"
+          }
+        ],
+        "transport": "stdio"
+      }
+    },
+    {
+      "name": "permission_policy",
+      "bypass_allowed": true
+    },
+    {
+      "name": "aborted",
+      "error_class": "ControlRejected"
+    }
+  ],
+  "cleanup": [
+    {
+      "session_id": "cse_0154EsXTy9LgwWCgJSUAhUhc",
+      "get_status": 404
+    },
+    {
+      "environment_id": "env_01RzQgbmEwRnjMUWindQiJbQ",
+      "excluded_from_list": true
+    }
+  ],
+  "complete": false,
+  "full_mcp_parity": false,
+  "transport": "Code durable events to cloud worker",
+  "environment_id": "env_01RzQgbmEwRnjMUWindQiJbQ",
+  "session_id": "cse_0154EsXTy9LgwWCgJSUAhUhc"
+}
