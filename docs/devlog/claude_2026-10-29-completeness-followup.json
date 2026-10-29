@@ -1,61 +1,49 @@
 {
-  "version": "0.9.0",
-  "baseline": "a13783c",
+  "date": "2026-10-29",
+  "version": "0.11.1",
+  "baseline": "86ef0574aa4a118ae1f0691e9982cc66e0f8b69e",
   "full_web_parity": false,
-  "summary": "Added and live-qualified metadata-only environment editing, routine edit/history screens, read-only redacted network inspection, binary/base64 CAS editing and conflict-safe drafts. Qualified env/state cookie loading and actual source-pinned 401 recovery using browser-derived test cookies. No claim that all requested gaps are closed. Canonical follow-up now qualifies cookie Code uploads, genuine allow/deny/exact session-rule reuse and native text/number/follow-up API continuation; extended panel parity remains incomplete. Final integration adds independently verified source-pinned auth recovery, capability enumeration and own-message blocking-prompt correlation. Fresh integrated auth/commands checks passed; API scope is explicitly separated from optional presentation, without closing the remaining web API gaps.",
+  "summary": "Integrated independently verified SCM empty-ref fix, exact synced-file fixture transfer, offline prewarmed MCP launch, and live form/URL accept/decline/cancel, explicit timeout and host abort. Remaining blockers are evidence-backed and separate from honest implementable qualification/presentation backlog; this release does not certify that every implementable item is closed.",
+  "previous_plan": {
+    "commit": "7966dbcfde15477e18e75c78cb9f30523d46a12d",
+    "path": "docs/devlog/claude_2026-10-29-completeness-followup.json",
+    "note": "Historical per-review-row evidence retained in git history and referenced source devlogs; superseded missing elicitation-generator claims removed."
+  },
   "tests": {
-    "full_with_playwright": "710 passed, 3 existing legacy fire_routine deprecation warnings",
-    "management_live": "claude_2026-10-29-management-rendered-create-rerun.json",
-    "earlier_management_runs": [
-      "claude_2026-10-29-management-live.json",
-      "claude_2026-10-29-management-rendered-create-live.json"
-    ],
-    "auth_source_live": "claude_2026-10-29-auth-source-live.json",
-    "previous_evidence": "claude_2026-10-28-completeness-followup.json",
-    "canonical_integrated_offline_headless": "732 passed, 3 existing deprecation warnings",
-    "canonical_integrated_live": "claude_2026-10-29-core-integrated-live.json",
-    "final_integrated_offline_headless": "761 passed, 3 existing legacy fire_routine warnings",
-    "final_integrated_auth": "claude_2026-10-29-final-integrated-auth.json",
-    "final_integrated_commands": "claude_2026-10-29-final-integrated-commands.json"
+    "canonical": "849 passed, 0 skipped, 3 existing legacy fire_routine warnings",
+    "command": "PATH=<installed-node-bin>:$PATH uv run --offline --extra test --extra web --extra cli --with playwright --with 'mcp==1.30.0' pytest -q",
+    "integration": "claude_2026-10-29-gaps-integration.json"
   },
-  "scope_and_safety": {
-    "worktree": "worktrees/completeness-fixes",
-    "preserved_existing_worktrees": true,
-    "shared_OAuth_refreshes": 0,
-    "browser_credential_writes": 0,
-    "existing_session_mutations": 0,
-    "user_browser_input": false,
-    "headless_browser": "Separate isolated Chrome, real localhost panel and cookie-auth service client",
-    "cleanup": "Every resource created in these live evidence files was deleted or archived; session GET 404 or environment list exclusion asserted",
-    "public_shares_feedback_tokens_network_writes": "Not performed",
-    "new_resources": "Exactly one session, routine and environment in management-live manifest; session/routine GET 404 and environment list exclusion asserted",
-    "cookie_source_tests": "Browser cookies copied programmatically into isolated env/state sources only; state mode 0600, all temporary files removed; no browser or shared OAuth-store writes"
-  },
-  "review_gaps": [
+  "closed_in_this_release": [
     {
-      "id": "single_choice_other",
-      "status": "fixed_live_and_offline",
-      "evidence": "Both selection directions tested in panel_browser_test.py; rendered Other-to-Blue flow returned Blue in a real worker tool_result in panel-live-cas evidence.",
-      "remaining": []
+      "id": "scm_empty_ref",
+      "evidence": "claude_2026-10-29-gaps-integrated-scm.json"
     },
     {
-      "id": "numeric_skip",
-      "status": "fixed_offline",
-      "evidence": "Out-of-range 99 with a skipped 1..5 numeric question submits; active numbers still validate. Dedicated disposable environments now emit native numeric schemas; see core-integrated-live evidence. The actual numeric skip UI case is not newly live-qualified.",
+      "id": "form_url_timeout_abort",
+      "evidence": "claude_2026-10-29-gaps-integrated-elicitation.json"
+    },
+    {
+      "id": "fixture_transfer_and_warm_launch",
+      "evidence": "claude_2026-10-29-gaps-final-independent.json"
+    }
+  ],
+  "remaining_blockers": [
+    {
+      "id": "owned_auth",
+      "category": "human-only",
       "remaining": [
-        "Rendered live native numeric skip and boundary variants"
-      ]
-    },
-    {
-      "id": "panel_history",
-      "status": "fixed_live_and_offline",
-      "evidence": "history_page retains service cursors; panel pages oldest-first until EOF, then streams at the newest loaded sequence. 451-event fixture and 233 real durable events both retain the oldest anchor without duplicates. Real 105-control batch was rejected HTTP 400; batches of 35 succeeded.",
-      "remaining": []
+        "Isolated PKCE grant enrollment, then owned refresh/restart/concurrent rotation and trusted-device recovery"
+      ],
+      "evidence": [
+        "claude_2026-10-29-final-auth-live.json",
+        "claude_2026-10-29-final-auth-independent.json"
+      ],
+      "constraint": "Authorization reached fresh login without a code/grant. Shared OAuth grants are never a substitute. Approval alone does not produce a separate grant."
     },
     {
       "id": "routine_execution",
-      "status": "diagnosed_platform_quota_block",
-      "evidence": "Routine configuration, created session and worker init all applied claude-haiku-5-5. Account seven_day utilization was 100.0. Worker returned the weekly-limit message; result subtype was success but is_error was true. Run history contained the session. No ROUTINE_OK. All resources cleaned up.",
+      "category": "quota",
       "remaining": [
         "Actual marker execution",
         "Cron firing",
@@ -63,197 +51,81 @@
         "Mode and alternative-model execution",
         "Live tag filtering"
       ],
-      "next": "After routine quota is available, run the missing cases on disabled future-scheduled disposable routines; do not change models blindly or count terminal success as execution.",
-      "estimate": "30-60 min after quota is available",
-      "important_distinction": "Normal Haiku panel inference succeeded in the same follow-up; do not generalize routine denial to all Haiku requests. Panel now honors result.is_error when rendering completion."
+      "evidence": [
+        "claude_2026-10-28-routine-diagnosis.json"
+      ],
+      "constraint": "Historical observed seven_day=100.0 and weekly-limit is_error:true; quota was not re-polled in this release. Recheck availability before the next disposable routine run; no routine success claim."
     },
     {
-      "id": "genuine_permissions",
-      "status": "core_api_live_qualified_rendered_variants_remaining",
-      "evidence": "Canonical real cloud prompts: allow-once writes X; same command prompts again; denial preserves or prevents bytes; exact session-rule reuse writes XX without prompting; other path prompts. All results correlated to own receipts and tool-use IDs.",
+      "id": "natural_events",
+      "category": "time",
       "remaining": [
-        "Rendered permission choices",
-        "Persistent/restart rule reuse",
-        "Redirection-rule reuse",
-        "Interrupt outcome"
+        "Natural cookie expiry/rotation",
+        "Natural worker replacement and watch 410/remint",
+        "Natural MCP expiry/recovery",
+        "Dictation keepalive and natural reconnect"
       ],
-      "next": "Reuse the owned cloud generator for rendered acceptance; do not repeat known failed redirection premises.",
-      "estimate": "1-2 hours for rendered subset; persistence requires a dedicated supported fixture"
+      "evidence": [
+        "claude_2026-10-29-final-auth-independent.json",
+        "claude_2026-10-29-protocol-mcp-summary.json",
+        "claude_2026-10-28-streaming-independent-verification.json",
+        "group07-independent-2026-10-28.json"
+      ],
+      "constraint": "Elapsed service events are not simulated renewal. Explicit 15-second child timeout is qualified separately; no shared-worker termination or mid-audio replay."
     },
     {
-      "id": "auth_qualification",
-      "status": "partial_live_with_explicit_constraints",
-      "evidence": "Existing env/state live checks retained. Final auth branch evidence in claude_2026-10-29-final-auth-live.json: default CDP real 401 -> account 200 -> read 200 with one reread; explicit recover_browser_auth validates identity without replaying an action; new-client auth and actual AUTH_RECOVERED_OK worker/history readback passed, exact session GET 404. 190 shared credential-file hashes unchanged. Isolated authorization was inspected: browser account 200, authorize redirects to fresh login, Google continuation had no navigation in 30 seconds; no code/grant/exchange. scripts/claude-rc-auth now provides on-demand recover/enroll without cookie copying. Full branch suite 749 passed (3 existing warnings).",
+      "id": "cloud_controller_boundaries",
+      "category": "platform-unsupported",
       "remaining": [
-        "Chrome DB extraction",
-        "Natural month-scale cookie expiry/rotation",
-        "Explicit isolated PKCE enrollment",
-        "Owned refresh/restart/concurrent rotation",
-        "Trusted-device recovery",
-        "macOS/Windows locking"
+        "Joining-client dialog and hook ownership",
+        "Cloud fork, task messaging, remote result exclusion",
+        "Spaces/groupings for this org",
+        "Unadvertised send-now/v1 receipts and accepted long-lived control-cancel fixture",
+        "MCP override enforcement without worker startup capability"
       ],
-      "unsupported": [
-        "Client-generated event-attestation signatures"
+      "evidence": [
+        "claude_2026-10-29-elicitation-summary.json",
+        "claude_2026-10-29-protocol-queue-summary.json",
+        "claude_2026-10-29-protocol-mcp-summary.json",
+        "claude_2026-10-29-capture-lifecycle.md"
       ],
-      "next": "Owned refresh tests require a successfully enrolled separate grant: the normal authorization route currently reaches fresh login despite valid browser cookies. Use the explicit on-demand helper when normal account login can complete; do not retry the identical blocked premise or substitute a shared grant. Observe natural cookie rotation separately.",
-      "estimate": "1-2 hours per owned-grant/platform run; natural rotation requires elapsed service time",
-      "constraint": "No-copy-cookie auth still requires signed-in Chrome and reachable CDP; it cannot silently renew a revoked browser login."
+      "constraint": "Scoped to observed cloud/org/CLI 2.1.312 contracts. Bridge fork success needs a separately owned supported host; no global claim that these features never exist."
     },
     {
-      "id": "rendered_browser_acceptance",
-      "status": "core_flow_live_qualified",
-      "evidence": "panel-live-cas: rendered create form, exact initial reply/send, real question tool_result, model settings readback, mode initialize readback, Files byte decoding and CAS edit/conflict, Changes, actual clipboard text, local pin, owned EventSource reconnect with a fresh reply, archive, archived navigation, usable restore, delete GET 404, zero JavaScript errors. Management-live additionally qualifies binary editing/conflicts and the new management subset.",
+      "id": "missing_contracts",
+      "category": "platform-unsupported",
       "remaining": [
-        "Genuine permission choices",
-        "Native text/number/dialog schemas",
-        "Every additional menu variant"
+        "Standalone blob deletion",
+        "Cookie Files API mount/seed",
+        "Integration-fire route"
       ],
-      "next": "Extend the same real browser harness when dedicated generators exist; do not substitute fixtures for those missing cases.",
-      "estimate": "1-2 hours after generators are available"
+      "evidence": [
+        "claude_2026-10-29-core-upload-live.json",
+        "group07-independent-2026-10-28.json",
+        "claude_2026-10-29-gaps-final.json",
+        "claude_2026-10-29-gaps-final-independent.json"
+      ],
+      "constraint": "Client unsupported, not proof of server absence: blob survives session deletion; Files API differs from org upload; 1075-chunk scan found no integration-fire builder. Capture first; never invent routes."
     },
     {
-      "id": "local_slash_behaviors",
-      "status": "implemented_subset_development_backlog",
-      "evidence": "Panel now supplies handlers for login status, config/settings, account skills, advertised workflows and account usage. Copy and local detach execute in the browser, theme remains local. Offline adapter tests prove implemented handlers do not dispatch chat.",
+      "id": "platform_auth_media",
+      "category": "platform-unsupported",
       "remaining": [
-        "Actual enrollment/login rather than status",
-        "Browser logout rather than panel detach",
-        "Sandbox",
-        "Design/slides",
-        "Other host menus such as agents/output-style/channels"
+        "Chrome DB extraction on unqualified platforms",
+        "macOS/Windows locking",
+        "Bearer-write/media lineage without owned credentials",
+        "Desktop dictation tickets and client-generated attestations"
       ],
-      "next": "Capture each menu's actual host behavior and implement a renderer or explicit unsupported state. Existing absent handlers remain fail-closed, never ordinary text.",
-      "estimate": "1 day; not a platform limitation or completed parity"
+      "evidence": [
+        "claude_2026-10-29-final-auth-live.json",
+        "claude_2026-10-28-group01-auth-foundation.md",
+        "group07-independent-2026-10-28.json"
+      ],
+      "constraint": "Linux/CDP proof is not another OS proof; attestations/tickets have no supported client generator. Requires matching platform/owned grant, not shared credentials."
     },
     {
-      "id": "panel_selection",
-      "status": "implemented_and_partly_live_qualified",
-      "evidence": "Prompt dialogs replaced by environment/pool/repository/revision/outcome-branch/model/effort/mode controls. Optional auto/bypass modes require actual permission-policy allowed:true. Offline test covers pool and revision/branch mapping; live browser uses a real default environment, Haiku and plan. Live repository item shapes confirmed owner.login/name/default_branch.",
-      "remaining": [
-        "Live pool-backed execution",
-        "Exhaustive repository enumeration",
-        "All repository/environment-dependent variants"
-      ],
-      "next": "Use an authorized disposable self-hosted pool and exhaust captured page/per_page responses; do not invent a cursor query contract.",
-      "estimate": "1-2 hours with a usable pool"
-    },
-    {
-      "id": "panel_management",
-      "status": "partly_implemented_development_backlog",
-      "evidence": "Management-live and rendered-create-rerun prove rendered disabled routine creation, environment metadata preserves all original private config; routine name and disabled state read back; run-history and redacted read-only network inspection pass. Binary CAS edited 269 bytes with exact independent GET readback; real stale 409 retained the draft and did not overwrite another test-owned edit. Offline browser proves disabled routine creation, BOM preservation, CRLF safety, encoding conversions and delayed first-load behavior.",
-      "remaining": [
-        "Full environment config/setup/secret forms",
-        "Routine prompt/model editing and run-history pagination",
-        "Live rendered routine run/cancel/delete acceptance",
-        "Approved network-write forms",
-        "Remaining navigation parity"
-      ],
-      "next": "Extend existing management forms over their current owners, then test execution/cancellation when an actual routine worker is available. Keep network writes approval-gated.",
-      "estimate": "1-2 days plus explicit network approval and routine quota"
-    },
-    {
-      "id": "question_dialog_variants",
-      "status": "native_api_live_qualified_dialog_hooks_remaining",
-      "evidence": "Actual native text/number schema yields Ada/3; followUp causes a real second native text question and FOLLOW_UP_OK. Canonical rerun passed; known rejected hooks intercepted before HTTP, wrapper exits 1 explicitly.",
-      "remaining": [
-        "Rendered native question acceptance",
-        "Actual dialog renderer and generator",
-        "Actual elicitation renderer and generator",
-        "Actual hook continuation generator"
-      ],
-      "next": "Reuse the qualified native cloud generator for UI acceptance; hooks require another evidenced supported integration, not the rejected initialize premise.",
-      "estimate": "1 day for fixtures and renderers"
-    },
-    {
-      "id": "attachments_and_files",
-      "status": "cookie_code_upload_download_worker_live_qualified_deletion_unsupported",
-      "evidence": "Captured cookie store_as_is uploader preserves binary bytes. Canonical independent download equals input; correlated successful Bash sha256sum equals original SHA-256. Exact session cleanup GET 404, but blob remains downloadable.",
-      "remaining": [
-        "Standalone attachment deletion unsupported: no captured contract",
-        "Nonempty prefetch effect",
-        "Files API mount",
-        "Seed bundle"
-      ],
-      "next": "Capture missing exact contracts before implementing deletion or mounting; do not equate session cleanup with blob deletion.",
-      "estimate": "2-4 hours; candidate source routes are not live acceptance"
-    },
-    {
-      "id": "custom_workspace",
-      "status": "scoped_custom_environment_live_qualified",
-      "evidence": "Fresh environment with explicit /mnt/user-data/working cwd and harmless init setup; actual Bash tool_result verified setup. GET /mnt/user-data/working/custom-owned/proof.txt and PUT /working/custom-owned/proof.txt passed byte readback and stale 409 without overwrite. Session deleted, environment archived and excluded.",
-      "remaining": [
-        "Arbitrary custom cwd and repository namespace mappings"
-      ],
-      "next": "Capture mappings from actual browser/session metadata for other cwd values rather than assuming the qualified tuple is universal.",
-      "estimate": "30-60 min per captured mapping"
-    },
-    {
-      "id": "MCP",
-      "status": "cloud_dynamic_tools_staging_live_qualified_override_effects_partial",
-      "evidence": "claude_2026-10-29-protocol-mcp-summary.json and protocol-mcp-recovery-qualified.json: independently rerun actual cloud SDK child; durable dynamic replacement, connected/disabled/reconnected exact tool replies, genuine model-tool permission and exact session-rule reuse; 271 binary staged bytes; stale-CAS preserves newer bytes; expiry leaves call ledger unchanged and no output; exact child PID absent and owned session/environment cleanup. No full MCP parity.",
-      "remaining": [
-        "Default/auto override behavioral enforcement: current worker rejects bypass transition without startup flag",
-        "Chrome-safe-tool-specific askForTools forced-ask fixture",
-        "Remote-server REST configuration/approval effects (stdio PUT rejected HTTP 400)",
-        "Natural MCP expiry/recovery and platform/size variants"
-      ],
-      "next": "Use a captured supported startup-capable fixture for override contrast and a separately authorized Chrome-safe-tool fixture; do not infer enforcement from worker acknowledgements or generic echo. Synced-lane staged MCP does not require Files API mounts.",
-      "estimate": "1-2 hours per supported override or Chrome-specific fixture"
-    },
-    {
-      "id": "queue_tasks",
-      "status": "held_question_priorities_and_shell_tasks_live_qualified_messaging_rejected",
-      "evidence": "Prior exact cancellation/legacy interrupt qualification retained. claude_2026-10-29-protocol-queue-summary.json and protocol-queue-final.json: next-before-later execution at a genuine question boundary, exact message receipts/results and NEXT/LATER file bytes; shell-task marker output and stopped notification. Cloud send_task_message returns request-ID-correlated ControlRejected, matching the captured unsupported handler. Fixed collector result ownership: a previous result can arrive after the next message starts processing, so explicit result UUIDs must match. 766 offline/headless tests pass. All owned sessions GET 404 and environments excluded.",
-      "remaining": [
-        "Send-now, priority now and other in-flight priority race variants",
-        "Capability-matched interrupt_receipt_v1 receipts",
-        "Agent-task messaging is unsupported on the tested cloud surface; no delivery claim",
-        "In-flight control cancellation lacks an accepted long-lived controller fixture"
-      ],
-      "next": "Require a changed supported cloud contract/capability before retrying send-now, v1 receipts or rejected task messaging. Retain the scoped next/later and shell output/stop proofs, not full race or bridge parity.",
-      "estimate": "1-2 hours after a matching advertised fixture is available"
-    },
-    {
-      "id": "recovery",
-      "status": "consumer_handshake_integrated_natural_events_unverified",
-      "evidence": "Panel and send-and-collect now initialize through the existing writer when stream_session detects a replacement. Offline test proves the handshake occurs without resending the prompt. Live panel reconnect produced an actual fresh reply; it is explicitly a test-owned EventSource close.",
-      "remaining": [
-        "Natural worker replacement/reinitialization",
-        "Natural watch 410/remint"
-      ],
-      "next": "Observe these naturally on an owned long-lived fixture; never kill a shared worker/browser to manufacture the event.",
-      "estimate": "1 hour instrumentation plus natural service event latency"
-    },
-    {
-      "id": "control_variants",
-      "status": "key_inference_flag_layers_and_read_state_live_qualified",
-      "evidence": "final-commands-summary and final-commands-qualified-rerun: Haiku/Sonnet applied readback and actual model-tagged marker replies; plan/acceptEdits/default initialize readback; fast true/false, advisor model/off, thinking false/true and verbose/normal effective flag readback; cost/plan/settings/hooks/rules/version reply shapes; seed then successful Edit without Read and exact updated worker bytes. Current Code menu has 22 names, distinct from 55 advertised worker harness commands; executable command_capabilities and CLI dispatch --capabilities enumerate both.",
-      "remaining": [
-        "Fast/advisor/thinking inference-level behavior, beyond stored flags",
-        "Nonempty plan and file-suggestion results",
-        "Unsupported/unadvertised advanced queue/task variants"
-      ],
-      "next": "Preserve the distinction between flag readback, actual inference and host presentation. Obtain a matching supported fixture for remaining variants rather than infer every CLI command belongs to the web catalog.",
-      "estimate": "1-2 hours per matching supported fixture"
-    },
-    {
-      "id": "discovery_environments",
-      "status": "partial_live",
-      "evidence": "Live repository shape and scoped custom environment setup/CAS qualified. Existing cookie environment CRUD proof retained.",
-      "remaining": [
-        "Exhaustive repository pages",
-        "Pool execution",
-        "Effort/multi-source creation variants",
-        "Successful last-used-environment shape",
-        "Bearer write lineage",
-        "Editable environment-secret effects"
-      ],
-      "next": "Use dedicated pool/bearer/secret fixtures and captured variants; do not borrow shared grants or modify existing environment secrets.",
-      "estimate": "3-6 hours with authorized fixtures"
-    },
-    {
-      "id": "approval_blocked_surfaces",
-      "status": "not_executed_without_explicit_approval",
+      "id": "external_writes",
+      "category": "approval-gated",
       "remaining": [
         "Public share/revocation",
         "Support/debug exports",
@@ -261,65 +133,79 @@
         "Network profile/binding/credential writes",
         "Routine tokens/webhooks",
         "Connector changes",
-        "SCM PR create/subscribe/mute (captured contracts, needs an owned repository)"
+        "SCM PR create/subscribe/mute (captured contracts, needs an owned repository)",
+        "Editable environment secrets",
+        "Remote MCP REST configuration/approvals",
+        "Chrome extension relay/forced-ask connector",
+        "Self-hosted pool provisioning or mutation"
       ],
-      "next": "After explicit authorization, test only harmless generated data and exact disposable resources, revoke any issued access, and verify cleanup.",
-      "estimate": "2-4 hours after authorization"
-    },
-    {
-      "id": "uncaptured_contracts",
-      "status": "unsupported_until_contract_capture",
-      "remaining": [
-        "Integration-fire route"
+      "evidence": [
+        "claude_2026-10-29-capture-scm.json",
+        "claude_2026-10-28-group06-contracts.json",
+        "claude_2026-10-29-protocol-mcp-summary.json",
+        "claude_2026-10-29-elicitation-summary.json"
       ],
-      "evidence": "SCM reads (compare-refs/get-commit/get-file-content) captured from the 2026-10-29 bundle, implemented in scm.py and live-qualified against GitHub's public API (docs/devlog/claude_2026-10-29-capture-scm.json). PR create/generate-content/subscribe/unsubscribe/mute contracts are captured there but approval-gated and not implemented; no commit-write web route exists. Fork (bridge-only fork_conversation), project templates, spaces and session groupings were captured from the 2026-10-29 bundle; fork/templates/spaces are implemented and FK-qualified (cloud fork declines unsupported, spaces_disabled, groupings unrouted 404), grouping settings/coordinator are documented only (docs/devlog/claude_2026-10-29-capture-lifecycle.md).",
-      "next": "Capture exact method/body/readback from the browser before implementing. Keep permanent environment deletion and service-owned/cloud-rejected controls unsupported.",
-      "estimate": "1 day of contract capture; write actions require approval"
-    },
-    {
-      "id": "media_variants",
-      "status": "unqualified_variants",
-      "evidence": "Existing generated-audio cookie dictation and pre-audio injected retry proof retained, not relabeled as mid-audio or natural reconnect.",
-      "remaining": [
-        "Keepalive over time",
-        "Natural dictation reconnect",
-        "Bearer-media variants"
-      ],
-      "unsupported": [
-        "Desktop dictation tickets",
-        "Automatic replay after partial audio"
-      ],
-      "next": "Use finite generated audio on a dedicated supported transport and record actual service reconnect behavior without microphone capture.",
-      "estimate": "1-2 hours plus natural service timing"
-    },
-    {
-      "id": "overall_verification",
-      "status": "partial_completion_not_full_parity",
-      "evidence": "Canonical merged tree: 732 offline/headless tests passed; fresh upload, genuine permission/file effects and native/follow-up API continuation passed. Remaining extended-panel, approval, quota, grant and uncaptured-contract gaps are explicit. Final merged 0.9.0 tree: 761 offline/headless tests; fresh auth before/after continuation and paged readback; two-model inference, seed/edit, exact queue cancellation and legacy interrupt outcome all passed with exact cleanup.",
-      "remaining": [
-        "All rows above that are not fully qualified"
-      ],
-      "next": "Follow the per-row acceptance plan; do not report every capability complete from a green default suite.",
-      "estimate": "Several days plus authorization, quota and natural-rotation waits"
+      "constraint": "No approval inferred from the workflow text. No shares, PRs, connector/network/token writes, shared secrets or persistent services were exercised."
     }
   ],
-  "verifier_limitations": [
-    "One early rendered-create run aborted after preflight at an AssertionError without a saved location; environment cleanup passed. Diagnostic rerun passed environment HTTP/config/description assertions and the entire flow. Original failure is retained and its cause is unverified, not attributed to service or implementation."
+  "implementable_backlog": [
+    {
+      "id": "discovery_and_creation",
+      "scope": "web_api_qualification",
+      "status": "implementable_not_completed",
+      "remaining": [
+        "Exhaustive captured repository paging",
+        "Effort/multi-source creation variants",
+        "Successful last-used-environment shape"
+      ],
+      "evidence": [
+        "claude_2026-10-28-group06-contracts.json",
+        "claude_2026-10-28-custom-workspace.json"
+      ],
+      "estimate": "1-3 hours"
+    },
+    {
+      "id": "behavioral_variants",
+      "scope": "web_api_qualification",
+      "status": "implementable_not_completed",
+      "remaining": [
+        "Nonempty prefetch effects",
+        "Additional captured custom-cwd/repository mappings",
+        "Live MCP cross-session isolation",
+        "Nonempty plan/file-suggestion results",
+        "Supported permission persistence/redirection/interrupt variants",
+        "Inference behavior beyond stored fast/advisor/thinking flags where supported"
+      ],
+      "evidence": [
+        "group07-independent-2026-10-28.json",
+        "claude_2026-10-28-custom-workspace.json",
+        "claude_2026-10-29-protocol-mcp-independent-summary.json",
+        "claude_2026-10-29-final-commands-summary.json",
+        "claude_2026-10-29-core-permissions-summary.json"
+      ],
+      "estimate": "Several hours across dedicated supported fixtures; not a service-time blocker"
+    },
+    {
+      "id": "optional_presentation",
+      "scope": "local_panel_cli_not_web_api",
+      "status": "implementable_not_completed",
+      "remaining": [
+        "Live native-question numeric boundaries/skip and permission rendering",
+        "Elicitation renderer acceptance",
+        "Full environment/routine config forms and run-history paging",
+        "Captured host-local menu renderers and remaining navigation"
+      ],
+      "evidence": [
+        "claude_2026-10-29-core-questions-qualified.json",
+        "claude_2026-10-29-management-rendered-create-rerun.json",
+        "claude_2026-10-29-gaps-final-independent.json",
+        "claude_2026-10-29-final-commands-summary.json"
+      ],
+      "estimate": "1-2 days; keep approval-gated writes separately gated"
+    }
   ],
-  "implementation_notes": [
-    "Reused environment, triggers and file library owners; no new HTTP transport, credential owner or service.",
-    "Panel environment changes deliberately accept name/description only; redacted values cannot be submitted as secrets.",
-    "Panel routine creation is always disabled. No API-token/webhook route is exposed by this change.",
-    "Network inspection has no write route. No network credentials or bindings were changed.",
-    "Base64 payload validation happens before the existing CAS writer. Text conversion preserves BOM and refuses carriage-return normalization.",
-    "All original feature worktrees and canonical untracked review evidence are preserved."
-  ],
-  "canonical_integration": {
-    "evidence": "claude_2026-10-29-core-integrated-live.json",
-    "full_web_parity": false,
-    "supersedes": "Historical missing permission/native generator and rejected cookie-upload states only; other gaps remain.",
-    "final_evidence": "claude_2026-10-29-final-integration.json"
-  },
+  "any_implementable_item_remains": true,
+  "classification_rule": "Only remaining_blockers use human-only/quota/time/platform-unsupported/approval-gated categories. Implementable work is not renamed time-blocked or silently removed; no full-parity/no-implementable-gap claim.",
   "scope_classification": {
     "requested_core": [
       "browser-source authentication",
@@ -328,11 +214,11 @@
       "history/recovery/lifecycle"
     ],
     "extended_web_api_gaps_not_ui_only": [
-      "routine execution/cron/cancel",
-      "MCP override/Chrome forced-ask and remote-server REST effects",
-      "Files API mount/seed and attachment deletion",
-      "network/connector writes",
-      "uncaptured fork/grouping/SCM routes"
+      "Routine execution/cron/cancel",
+      "MCP behavioral and remote REST variants",
+      "Files API mount/seed, prefetch and attachment deletion",
+      "Network/connector/SCM writes",
+      "Discovery/creation/workspace variants"
     ],
     "separate_presentation_backlog": [
       "panel renderers/management forms",
@@ -340,5 +226,14 @@
       "host-local CLI workflows"
     ],
     "rule": "Missing renderer or absent menu entry is not proof a web API does not exist. Retain all API gaps and evidence boundaries."
+  },
+  "safety": {
+    "shared_oauth_refreshes": 0,
+    "invented_routes": 0,
+    "deployment": false,
+    "persistent_services_added": false,
+    "existing_sessions_mutated": false,
+    "approval_gated_writes": false,
+    "cleanup": "See each exact owned-resource live manifest; never claim uploaded-blob deletion from session deletion."
   }
 }

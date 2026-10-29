@@ -1,0 +1,63 @@
+{
+  "date": "2026-10-29",
+  "version": "0.11.1",
+  "merged_base": "7966dbcfde15477e18e75c78cb9f30523d46a12d",
+  "verified_branch_tip": "86ef0574aa4a118ae1f0691e9982cc66e0f8b69e",
+  "merge": "fast-forward, no conflicts",
+  "version_tool": "uv run --offline --with hatch hatch version patch",
+  "version_reason": "Bug fixes and live qualification only; no new public API surface.",
+  "tests": {
+    "canonical": {
+      "passed": 849,
+      "skipped": 0,
+      "warnings": 3,
+      "elapsed_seconds": 67.19,
+      "command": "PATH=<installed-node-bin>:$PATH uv run --offline --extra test --extra web --extra cli --with playwright --with 'mcp==1.30.0' pytest -q"
+    }
+  },
+  "live_reruns": {
+    "scm": "claude_2026-10-29-gaps-integrated-scm.json",
+    "elicitation": "claude_2026-10-29-gaps-integrated-elicitation.json",
+    "mcp": "claude_2026-10-29-gaps-integrated-mcp.json"
+  },
+  "fresh_client_cleanup": [
+    {
+      "session_id": "cse_0154EsXSLHX8VsY81ugGCfP3",
+      "get_status": 404,
+      "environment_id": "env_01YCv43GgRDjDMM4jrqugMoj",
+      "excluded_from_list": true
+    },
+    {
+      "session_id": "cse_0154EsXRSX39ACkcbFSVXdTf",
+      "get_status": 404,
+      "environment_id": "env_01DeSvMzYaCtg7PnUHPJLHid",
+      "excluded_from_list": true
+    }
+  ],
+  "live_effects": [
+    "SCM default branch and empty-ref bytes/commit/compare cross-checks",
+    "Exact source-byte transfer and prewarmed offline MCP startup",
+    "Form and URL accept/decline/cancel exact child ledger/tool results",
+    "Explicit 15-second child timeout: code 408, worker cancellation and no pending request",
+    "Host interrupt: tool_cancelled ledger, cancellation and error_during_execution",
+    "MCP status/toggle/reconnect, model permission reuse, staged bytes/CAS/expiry and child PID absence"
+  ],
+  "retained_failure": {
+    "location": "scripts/claude-rc-scm-smoke independent GitHub raw-content cross-check",
+    "cause": "Proxy CA not trusted by system-only/default certificate bundle",
+    "fix": "Reran with concatenated system + existing proxy CA in a scratch file; passed; TLS verification not disabled",
+    "failed_attempt_mutations": 0
+  },
+  "limits": {
+    "full_web_parity": false,
+    "any_implementable_item_remains": true,
+    "inventory": "claude_2026-10-29-completeness-followup.json",
+    "integration_fire": "Still uncaptured; independent immutable bundle hashes matched, no new route inferred",
+    "routine_quota": "Historical denial retained, quota not freshly polled",
+    "deployment": false,
+    "shared_oauth_refreshes": 0,
+    "persistent_services_added": false,
+    "approval_gated_writes": false,
+    "unrelated_untracked_evidence": "Preserved untouched"
+  }
+}

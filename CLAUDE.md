@@ -10,7 +10,7 @@ dependency (its `pyproject.toml`), so there is no second copy to keep in sync.
 - `origin` = `git@github.com:FarisHijazi/claude-rc-api.git` (push here; `main`).
 - `upstream` = `ThatCrispyToast/claude-rc-api`, **read-only**: fetch and merge
   `upstream/main` into `main`; never push there, never open upstream PRs/issues.
-- Version: ours is `0.11.0` (upstream already used 0.4.0). Bump the minor for a
+- Version: ours is `0.11.1` (upstream already used 0.4.0). Bump the minor for a
   new surface.
 
 ## Layout
@@ -407,3 +407,11 @@ remain their owner's path; no classifier was added for fields absent from live
 session rows and no token/fire write was promoted from the deprecated legacy
 helper. `docs/devlog/claude_2026-10-29-gaps-final.json` is the plain-path evidence
 index and lists the unsupported items. Full web parity is not claimed.
+
+0.11.1 canonical integration: `docs/devlog/claude_2026-10-29-gaps-integration.json`
+(plain path) records the verified `86ef057` fast-forward, 849 passing tests (zero
+skips), fresh SCM/elicitation/MCP effects and fresh-client exact cleanup. Patch
+release: no new public API surface. The current completeness plan separates
+external blockers from implementable API qualification and optional presentation
+backlog; implementable work still remains. Never relabel that backlog as elapsed
+service time or claim a no-implementable-gap/full-parity result.

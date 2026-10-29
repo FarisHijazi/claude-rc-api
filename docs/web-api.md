@@ -1,4 +1,4 @@
-# Web controller: contracts and evidence (0.9.0)
+# Web controller: contracts and evidence (0.11.1)
 
 This is the canonical `claude_rc` implementation. The original eight feature
 branches and independently verified final auth/command branches are integrated.
@@ -66,6 +66,7 @@ Evidence files are deliberately plain paths, not force-loaded includes:
 | P2 | `claude_2026-10-29-core-permissions-qualified.json` (genuine cloud allow/deny/exact-rule reuse); `claude_2026-10-29-core-permissions-summary.json` (method, source provenance and retained failures) |
 | EL | `claude_2026-10-29-elicitation-live.json` (cloud MCP elicitation accept/decline/cancel continuations, repeated `hooks_applied:false`, no Chrome server, exact cleanup); `claude_2026-10-29-elicitation-summary.json` (CLI/web bundle evidence for the dialog, hook and Chrome forced-ask boundaries); `claude_2026-10-29-elicitation-independent.json` (independent rerun: one pass, one fixture-install failure, exact cleanup) |
 | GF | `claude_2026-10-29-gaps-final.json` (index: get-file-content empty ref, URL-mode web contract, timeout/abort, fixture-install fix, integration-fire capture); `claude_2026-10-29-gaps-final-elicitation-live.json`, `claude_2026-10-29-gaps-final-elicitation-rerun.json`, `claude_2026-10-29-gaps-final-mcp-live.json` (fresh owned runs, exact cleanup); `claude_2026-10-29-gaps-final-independent.json` (independent byte-transfer fix, 849 tests, fresh live effects and cleanup) |
+| I111 | `claude_2026-10-29-gaps-integration.json` (0.11.1 canonical 849-test suite; fresh SCM/elicitation/MCP effects and fresh-client exact cleanup; implementable backlog retained) |
 | I11 | `claude_2026-10-29-capture-integration.json` (0.11.0 canonical 839-test suite and fresh merged-main FK/S1/EL reruns, exact cleanup) |
 | FK | `claude_2026-10-29-capture-lifecycle-live.json` and `claude_2026-10-29-capture-lifecycle.md` (fork/templates/spaces/groupings capture, cloud fork decline, exact cleanup, independent verification) |
 | S1 | `claude_2026-10-29-capture-scm.json` (SCM read contracts, GitHub cross-check, captured-but-unsent PR write contracts) |
@@ -83,7 +84,7 @@ Evidence files are deliberately plain paths, not force-loaded includes:
 | H | `claude_2026-10-28-panel-long-live-rerun.json` (233 real events, two panel pages); earlier `claude_2026-10-28-panel-long-live.json` retains rejected 105-event batch attempt |
 | D | `claude_2026-10-28-routine-diagnosis.json` (actual model, quota response and result error flag) |
 | C2 | `claude_2026-10-28-custom-workspace.json` (owned custom environment, exact namespace, CAS bytes and conflict) |
-| G | `claude_2026-10-29-completeness-followup.json` (current gap/acceptance plan; canonical core integration: 732 tests); `claude_2026-10-28-completeness-followup.json` (prior state retained) |
+| G | `claude_2026-10-29-completeness-followup.json` (0.11.1 blocker/implementable-backlog inventory; 849 canonical tests); `claude_2026-10-28-completeness-followup.json` (prior state retained) |
 | M | `claude_2026-10-29-management-rendered-create-rerun.json` (rendered metadata, disabled routine creation/edit/history, read-only network and binary CAS); `claude_2026-10-29-management-live.json` (initial pass), `claude_2026-10-29-management-rendered-create-live.json` (early unlocated assertion failure retained; cleanup verified) |
 | K | `claude_2026-10-29-core-integrated-live.json` (canonical merged 732-test suite and fresh upload/permission/native-continuation effects; scoped hook skip, exact cleanup and retained blob) |
 | A2 | `claude_2026-10-29-auth-source-live.json` (isolated env/state loading and real 401 recovery; browser-derived test cookies, temporary files removed) |
@@ -94,6 +95,18 @@ Branch evidence records the feature branch at the time it ran; claims that those
 branches were not yet integrated are historical, not the current main state.
 
 ## Canonical core integration
+
+**LIVE CHECK I111 (0.11.1):** verified branch `86ef057` integrated without
+conflicts; 849 offline/headless tests passed, zero skipped, three existing
+legacy `fire_routine` warnings. Fresh SCM default/empty-ref cross-checks,
+form/URL accept/decline/cancel, explicit child timeout, host abort and the full
+MCP smoke passed. A new client independently confirmed both owned sessions
+return GET 404 and both environments are excluded. The SCM cross-check first
+failed certificate validation against GitHub; concatenating the system and
+existing proxy CA bundles fixed the rerun without disabling TLS verification.
+I111 records these effects and the retained failure. Integration fire remains
+uncaptured; implementable API qualification and optional presentation work
+remain explicitly open in G.
 
 **INDEPENDENT LIVE CHECK GF:** at `14d7d82574600529713d7e83338bd2ca8a65b606`,
 844 tests and the SCM/MCP live smokes passed, but two elicitation runs failed
@@ -589,33 +602,36 @@ qualify a real worker.
 
 ## Remaining acceptance plan
 
-1. Use P2/Q2's now-qualified cloud generators for rendered permission/native-form
-   acceptance (~1–2 hours). Elicitation (form, URL, timeout, abort) now has a live generator
-   (`scripts/claude-rc-elicitation-smoke`); dialogs and hook callbacks have none
-   for a joining client by CLI contract (EL), so do not retry those premises.
-2. After routine quota is available, require an actual marker, cron firing and
-   active cancellation (~30 min plus waiting for service quota). D already
-   diagnosed Haiku + weekly-limit output + `is_error:true`; terminal `success`
-   must never substitute for execution.
-3. Capture standalone org attachment deletion if exposed (~1 hour); U qualifies
-   ordinary upload/download/worker consumption, but session deletion leaves blobs
-   readable. Qualify nonempty prefetch separately (~30 min); Files mount/seed
-   require their own accepted Files API contract, not org upload UUIDs. MC's
-   qualified staged MCP instead consumes the existing synced-file lane. Override
-   enforcement requires a worker launched with supported bypass capability;
-   Chrome-safe askForTools requires its distinct authorized fixture (~1 hour per
-   supported fixture), neither is proved by the generic SDK tool.
-4. Extend C2 to arbitrary custom cwd mappings (~30 min). Its explicit
-   `/mnt/user-data/working` environment passed byte readback and stale-write 409;
-   do not assume that proves every environment's namespace.
-5. Enroll an explicitly approved isolated OAuth grant (~1 hour after approval) and qualify refresh/restart,
-   concurrent rotation and trusted-device recovery without touching shared grants.
-6. Complete full environment/routine configuration forms, run-history paging,
-   approved network-write forms and remaining local slash renderers (development
-   backlog, ~1–2 days). M qualifies metadata/routine/read-only network screens
-   and binary CAS; rendered permission/native-form acceptance, dialogs and additional
-   variants still need separate acceptance (P2/Q2 qualify their core API subset).
-7. Obtain explicit approval before public shares, support/debug exports (~2 hours after approval),
-   feedback/log uploads, network bindings, tokens or webhook writes. Capture
-   unsupported fork/grouping contracts before implementation (integration fire remains uncaptured after a fresh 1075-chunk scan, GF); SCM PR
-   writes are captured and need approval plus an owned repository (~1 hour).
+The current machine-readable inventory is G. **Implementable work still remains**;
+this release does not meet a "nothing implementable left" acceptance criterion.
+Do not classify ordinary development time as a natural-service-time blocker.
+
+### External blockers (not implementation completion claims)
+
+| Category | Current boundary and evidence | Acceptance after unblock |
+|---|---|---|
+| Human-only | A3/final-auth-independent: isolated authorization reaches fresh login, no owned grant | Complete separate enrollment, then owned refresh/restart/concurrency/trusted-device tests (~1–2 hours); never borrow shared refresh grants |
+| Quota | D: routine weekly-limit result has `is_error:true`; historical quota, not freshly re-polled here | Recheck quota, then actual marker/cron/active cancel/mode/model/tag effects (~30–60 min plus quota wait) |
+| Time | A3/S/MC/F: natural cookie/MCP expiry, watch 410, worker replacement and dictation reconnect remain unobserved | Observe natural events on owned fixtures; no manufactured shared-worker crash, no mid-audio replay (~1 hour setup plus elapsed service events) |
+| Platform-unsupported | EL/W3/MC/FK: first-client dialog/hooks; cloud fork/task-message/result-exclusion; spaces/grouping denials; unsupported startup/admission capabilities | Require a changed supported contract or an owned matching bridge/platform fixture (~1–2 hours per fixture) |
+| Platform-unsupported (client contract missing) | U/F/GF: blobs survive session deletion; cookie Files API mount/seed unqualified; no integration-fire builder in 1075 scanned chunks | Capture first; no guessed deletion/fire routes. This is not proof that no server route exists (~1 day capture, without gated writes) |
+| Platform-unsupported (unqualified OS/grant) | A/F: Chrome DB extraction, macOS/Windows locking and bearer media/write variants lack matching owned fixtures | Qualify on the matching platform/grant, not by copying Linux/CDP success (~1–2 hours per fixture) |
+| Approval-gated | S1/E/MC/EL: PRs/shares/support/debug/feedback/network/tokens/webhooks/connectors, editable secrets, remote MCP REST/Chrome relay and pool provisioning | Explicit authorization and exact owned-resource cleanup before exercising those writes (~2–4 hours after approval) |
+
+### Implementable backlog (not external blockers)
+
+- **Web API qualification:** captured repository paging, effort/multi-source and
+  last-used-environment variants; nonempty prefetch; other captured workspace
+  mappings; live MCP cross-session isolation; nonempty plan/file suggestions;
+  supported permission variants and inference effects beyond stored flags.
+  E/F/C2/MC/W2/P2 retain the existing scoped proof, not these missing assertions
+  (~several hours across dedicated fixtures).
+- **Optional local presentation:** live native numeric boundaries/skip and
+  permission rendering, elicitation renderer acceptance, full management forms,
+  routine-history paging and captured local menu/navigation handlers. M/Q2/GF
+  qualify their documented subsets only (~1–2 days). These are not missing web
+  endpoints, and implementing a renderer would not close an API qualification gap.
+
+The independently verified branch closed form/URL elicitation, explicit child
+15-second timeout and host abort; no missing-generator item remains for those
+API cases. Natural timeout/expiry and renderer acceptance are distinct.
