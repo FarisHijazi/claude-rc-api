@@ -22,8 +22,9 @@ an unimplemented or unqualified web operation into a UI-only feature.
 | Lifecycle | Rename, archive, restore followed by a fresh reply, delete followed by GET 404 | Share/export writes not exercised; fork/grouping/SCM contracts uncaptured |
 
 **Extended web API surfaces remain API gaps, not presentation extras.** Routine
-worker execution/cron/cancellation (observed quota denial), MCP mutations/staged
-results, Files API mount/seed, nonempty attachment prefetch, network/connector
+worker execution/cron/cancellation (observed quota denial), MCP override/Chrome
+forced-ask enforcement and remote-server REST variants, Files API mount/seed,
+nonempty attachment prefetch, network/connector
 writes and uncaptured fork/SCM routes retain their exact matrix status below.
 Standalone org attachment deletion has no captured contract; session deletion
 was proven not to delete the uploaded blob.
@@ -65,6 +66,7 @@ Evidence files are deliberately plain paths, not force-loaded includes:
 | Q2 | `claude_2026-10-29-core-questions-qualified.json` (native cloud text/number/follow-up; hook registration explicitly not applied) |
 | W | `claude_2026-10-28-group05-independent-summary.json` and its linked task/rerun evidence |
 | W2 | `claude_2026-10-29-final-commands-summary.json`; `claude_2026-10-29-final-commands-qualified-rerun.json` (current web catalog, controls, seed-state and queue/interrupt effects; earlier failures retained) |
+| MC | `claude_2026-10-29-protocol-mcp-recovery-qualified.json` (independent recovery rerun: cloud SDK child, tool replies, permission-rule reuse, staged bytes/CAS/expiry, exact child/session/environment cleanup); `claude_2026-10-29-protocol-mcp-summary.json` (provenance, prior qualification, retained failures and per-capability limits) |
 | E | `claude_2026-10-28-group06-independent-evidence.json`, `claude_2026-10-28-group06-contracts.json` |
 | F | `group07-independent-2026-10-28.json` |
 | R | `claude_2026-10-28-group08-independent-evidence.json` |
@@ -283,12 +285,30 @@ Q2 also archives its environment and verifies list exclusion.
 | Guarded rewind | Implemented | Live W matching target; unguarded rewind failed earlier independent assertion |
 | Task output/stop/end-session | Implemented | Live W marker output, stopped-task notification and worker verdict |
 | Task messaging / control cancellation | Implemented | Offline; dedicated live outcomes missing |
-| MCP status/toggle/reconnect/permission override | Implemented | Status ephemeral S; mutation effects offline pending dedicated fixture; askForTools uses name objects, never scalar strings |
-| MCP call/staged input/output/expiry/result exclusion | Implemented/gated | Offline; authorized fixture absent. Remote result-exclusion has local-pipe restrictions |
-| Session MCP servers/approvals REST | Implemented | Captured contracts/offline; connector changes not submitted |
+| MCP status/toggle/reconnect/permission override | Implemented | Live MC connected/disabled status, rejected disabled call and exact replies after enable/reconnect. Default/auto/clear and askForTools object shapes received worker success; override enforcement remains unqualified: account policy allowed bypass but worker rejected transition without its startup flag. askForTools forced-ask applies to Chrome-safe tools; generic fixture cannot prove it |
+| MCP call/staged input/output/expiry/result exclusion | Implemented/gated | Live MC direct/model tool replies and exact session-rule reuse; 271-byte binary synced-lane round trip, opaque input/output etags, stale-CAS output_conflict preserving newer bytes, expiry leaves tool-call ledger unchanged and output absent. Result exclusion remains unsupported remotely, worker-owned local-pipe only |
+| Session dynamic worker MCP replacement | Implemented | Live MC `set_worker_mcp_servers(..., confirm=True)` over existing durable control writer. Session-scoped replacement can remove inherited servers from that worker; empty mapping disconnects child, exact PID absence verified. No global connector mutation |
+| Session MCP servers/approvals REST | Implemented | Live MC stdio config PUT rejected HTTP 400; distinct remote-server config and approval effects remain offline. Do not substitute this REST route for the qualified dynamic control |
 | Feedback/rating/survey and Chrome hints | Implemented | Offline; no user feedback/logs submitted as a probe |
 | Cloud-rejected and service/agent-originated controls | Explicitly unsupported | Offline fail-before-HTTP gates, including liveReply escape path; `start_shell_task`, auth/UI resources and service events cannot become controller support by serialization |
 | Worker hosting, shared memory, SCM service and runner registry | Outside scope | Existing service owner must implement these, not a second controller-side service |
+
+**LIVE CHECK MC:** `scripts/claude-rc-mcp-smoke --output PATH` reuses SDK
+FastMCP 1.30.0 in one on-demand cloud child. It verifies actual replies, own-message
+processing receipts, tool-use IDs and independent decoded file bytes. The child
+is disconnected before its exact `/proc/PID` absence is observed through Bash;
+the owned session returns GET 404 and environment is excluded after archive.
+The separate native cloud-host admission switch rejects `mcp_set_servers`, but
+actual Code durable event delivery reaches the worker's bridge handler and
+executed it on a real `anthropic_cloud` environment at `https://claude.ai`.
+This qualifies that cloud-session delivery path, not every cloud-host channel
+or only a local bridge simulation. Override acknowledgements are explicitly
+not counted as permission-mode enforcement. Staging uses synced-file rows,
+not `/v1/files` upload/mount or account connectors. Recovery independently passed
+781 tests including the real local SDK stdio child, cleanup failure paths and
+isolated headless browser suite. The recovery's first live run exposed an unsynced
+ledger 404; expiry now checks the child ledger through worker `read_file`, not a
+potentially stale synced-file snapshot. The failed run and its cleanup are retained.
 
 `command_table()` lists routing, not proof that every local renderer exists.
 **LIVE CHECK W2:** the current signed-in Code composer offered 22 names, exactly
@@ -448,7 +468,7 @@ qualify a real worker.
 ## Remaining acceptance plan
 
 1. Use P2/Q2's now-qualified cloud generators for rendered permission/native-form
-   acceptance (~1–2 hours); dedicated MCP/dialog/elicitation and actual hook
+   acceptance (~1–2 hours); dedicated dialog/elicitation and actual hook
    callback generators remain missing (~1 day). Cloud initialize refused the
    tested SDK hook registration, so do not treat its acknowledgement as continuation.
 2. After routine quota is available, require an actual marker, cron firing and
@@ -457,8 +477,12 @@ qualify a real worker.
    must never substitute for execution.
 3. Capture standalone org attachment deletion if exposed (~1 hour); U qualifies
    ordinary upload/download/worker consumption, but session deletion leaves blobs
-   readable. Qualify nonempty prefetch separately (~30 min); Files mount/seed and
-   staged MCP require their own accepted Files API contract, not org upload UUIDs.
+   readable. Qualify nonempty prefetch separately (~30 min); Files mount/seed
+   require their own accepted Files API contract, not org upload UUIDs. MC's
+   qualified staged MCP instead consumes the existing synced-file lane. Override
+   enforcement requires a worker launched with supported bypass capability;
+   Chrome-safe askForTools requires its distinct authorized fixture (~1 hour per
+   supported fixture), neither is proved by the generic SDK tool.
 4. Extend C2 to arbitrary custom cwd mappings (~30 min). Its explicit
    `/mnt/user-data/working` environment passed byte readback and stale-write 409;
    do not assume that proves every environment's namespace.

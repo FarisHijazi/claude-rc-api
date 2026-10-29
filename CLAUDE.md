@@ -93,7 +93,8 @@ On dev, uv needs the proxy CA plus the system bundle:
 
 - `control_profile` defaults to `cloud` for cookies and `bridge` for bearer auth;
   set it explicitly when the session worker differs. `_send_control` checks the
-  captured CLI 2.1.312 admission policy before enqueueing. Raw `send_events` is
+  captured CLI 2.1.312 admission policy before enqueueing, with the live-qualified
+  durable-session `mcp_set_servers` exception documented below. Raw `send_events` is
   still the protocol escape hatch, not a promise that a worker accepts a control.
 - `set_model(..., wait=seconds)` and `set_permission_mode(..., wait=seconds)`
   return worker verdicts; without `wait` they retain the legacy enqueue ack.
@@ -121,13 +122,33 @@ On dev, uv needs the proxy CA plus the system bundle:
   just like results, so an earlier queued turn's question cannot end collection.
 - Group05 live evidence, per-capability limitations and integration contracts
   are in `docs/devlog/claude_2026-10-28-group05-live.json` (deliberately a plain
-  path, not an include). Ephemeral MCP replies remain unverified live; the
-  correlator/parser are owned by the streaming module, not a new poller here.
+  path, not an include). Those historical MCP gaps are superseded by the scoped
+  qualification below; the correlator/parser remain owned by streaming, not a new poller here.
 - Independent controls verification and its remaining acceptance gaps are indexed
   in `docs/devlog/claude_2026-10-28-group05-independent-summary.json` (plain path;
   context/usage/MCP evidence stores shapes and counts, not configuration payloads).
   `ask_for_tools` must be a sequence of names, never a scalar string: otherwise
   it silently expands into one-character tool declarations.
+- MCP cloud qualification: `scripts/claude-rc-mcp-smoke --output PATH` uses SDK
+  FastMCP 1.30.0 in one disposable cloud child. `set_worker_mcp_servers(...,
+  confirm=True)` replaces only that session's dynamic set via the existing
+  durable control writer; replacement can remove inherited worker servers.
+  It works on Code cloud workers despite the separate native cloud-host
+  admission switch rejecting `mcp_set_servers`; do not conflate those paths.
+  Status, disable/re-enable/reconnect replies, actual model-tool permission-rule
+  reuse, staged binary bytes, stale-CAS protection and expiry's unchanged call
+  ledger are qualified. Synced-file staging does not require Files API mounts.
+  Empty replacement disconnects the child; exact PID absence, session GET 404
+  and environment list exclusion are checked. Worker override/askForTools
+  acknowledgements do not prove enforcement: bypass transition requires a
+  missing startup flag, and forced-ask is Chrome-safe-tool-specific. Stdio REST
+  PUT returns 400; remote config/approval effects remain unqualified. Evidence:
+  `docs/devlog/claude_2026-10-29-protocol-mcp-summary.json` and its linked runs,
+  deliberately plain paths. Recovery independently passed 781 tests, including
+  an actual local SDK child, six cleanup-path cases and isolated headless browser
+  tests. Read the child call ledger with worker `read_file`, not the synced-file
+  snapshot: child-written files may not yet exist in that snapshot. Cleanup still
+  attempts environment archive after a session-cleanup failure and fails closed.
 
 ## Auth rules
 

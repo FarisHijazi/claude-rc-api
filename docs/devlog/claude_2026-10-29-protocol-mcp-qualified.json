@@ -1,0 +1,370 @@
+{
+  "run": "mcp-1db8a778a7",
+  "checks": [
+    {
+      "name": "worker",
+      "version": "2.1.312",
+      "base_url": "https://claude.ai",
+      "capabilities": [
+        "start_shell_task_v1"
+      ],
+      "environment_kind": "anthropic_cloud"
+    },
+    {
+      "name": "fixture_bytes",
+      "sha256": "4dd173f9b05e5559e35204b9590df7f87b5e46b1a292215a72e5478c27f4cee1",
+      "tool_use_id": "toolu_01GqDNpQpN3gC2Dw3xBEJJ7z"
+    },
+    {
+      "name": "dynamic_server_set",
+      "added": [
+        "mcp-1db8a778a7"
+      ],
+      "errors": {},
+      "removed_count": 8,
+      "scope": "owned session only"
+    },
+    {
+      "name": "connected_status",
+      "fixture": {
+        "config": {
+          "args": [
+            "run",
+            "--with",
+            "mcp==1.30.0",
+            "python",
+            "/mnt/user-data/working/mcp-1db8a778a7.py"
+          ],
+          "command": "uv",
+          "type": "stdio"
+        },
+        "name": "mcp-1db8a778a7",
+        "scope": "dynamic",
+        "serverInfo": {
+          "name": "generated-fixture",
+          "version": "1.30.0"
+        },
+        "source": "dynamic",
+        "status": "connected",
+        "tools": [
+          {
+            "annotations": {},
+            "name": "echo"
+          },
+          {
+            "annotations": {},
+            "name": "copy_bytes"
+          }
+        ],
+        "transport": "stdio"
+      }
+    },
+    {
+      "name": "direct_tool_reply",
+      "marker": "MCP_ECHO_OK",
+      "result": {
+        "content": "{\"result\":\"MCP_ECHO_OK\"}",
+        "structuredContent": {
+          "result": "MCP_ECHO_OK"
+        }
+      }
+    },
+    {
+      "name": "disable",
+      "reply": {},
+      "fixture": {
+        "config": {
+          "args": [
+            "run",
+            "--with",
+            "mcp==1.30.0",
+            "python",
+            "/mnt/user-data/working/mcp-1db8a778a7.py"
+          ],
+          "command": "uv",
+          "type": "stdio"
+        },
+        "name": "mcp-1db8a778a7",
+        "scope": "dynamic",
+        "source": "dynamic",
+        "status": "disabled",
+        "transport": "stdio"
+      }
+    },
+    {
+      "name": "disabled_call_rejected",
+      "error": "MCP server not connected: mcp-1db8a778a7"
+    },
+    {
+      "name": "direct_tool_reply",
+      "marker": "MCP_ENABLED_OK",
+      "result": {
+        "content": "{\"result\":\"MCP_ENABLED_OK\"}",
+        "structuredContent": {
+          "result": "MCP_ENABLED_OK"
+        }
+      }
+    },
+    {
+      "name": "direct_tool_reply",
+      "marker": "MCP_RECONNECTED_OK",
+      "result": {
+        "content": "{\"result\":\"MCP_RECONNECTED_OK\"}",
+        "structuredContent": {
+          "result": "MCP_RECONNECTED_OK"
+        }
+      }
+    },
+    {
+      "name": "reconnect",
+      "reply": {}
+    },
+    {
+      "name": "override",
+      "mode": "default",
+      "ask_for_tools": [
+        "echo"
+      ],
+      "reply": {},
+      "fixture": {
+        "config": {
+          "args": [
+            "run",
+            "--with",
+            "mcp==1.30.0",
+            "python",
+            "/mnt/user-data/working/mcp-1db8a778a7.py"
+          ],
+          "command": "uv",
+          "type": "stdio"
+        },
+        "name": "mcp-1db8a778a7",
+        "scope": "dynamic",
+        "serverInfo": {
+          "name": "generated-fixture",
+          "version": "1.30.0"
+        },
+        "source": "dynamic",
+        "status": "connected",
+        "tools": [
+          {
+            "annotations": {},
+            "name": "echo"
+          },
+          {
+            "annotations": {},
+            "name": "copy_bytes"
+          }
+        ],
+        "transport": "stdio"
+      }
+    },
+    {
+      "name": "override",
+      "mode": "auto",
+      "ask_for_tools": null,
+      "reply": {},
+      "fixture": {
+        "config": {
+          "args": [
+            "run",
+            "--with",
+            "mcp==1.30.0",
+            "python",
+            "/mnt/user-data/working/mcp-1db8a778a7.py"
+          ],
+          "command": "uv",
+          "type": "stdio"
+        },
+        "name": "mcp-1db8a778a7",
+        "scope": "dynamic",
+        "serverInfo": {
+          "name": "generated-fixture",
+          "version": "1.30.0"
+        },
+        "source": "dynamic",
+        "status": "connected",
+        "tools": [
+          {
+            "annotations": {},
+            "name": "echo"
+          },
+          {
+            "annotations": {},
+            "name": "copy_bytes"
+          }
+        ],
+        "transport": "stdio"
+      }
+    },
+    {
+      "name": "override",
+      "mode": null,
+      "ask_for_tools": null,
+      "reply": {},
+      "fixture": {
+        "config": {
+          "args": [
+            "run",
+            "--with",
+            "mcp==1.30.0",
+            "python",
+            "/mnt/user-data/working/mcp-1db8a778a7.py"
+          ],
+          "command": "uv",
+          "type": "stdio"
+        },
+        "name": "mcp-1db8a778a7",
+        "scope": "dynamic",
+        "serverInfo": {
+          "name": "generated-fixture",
+          "version": "1.30.0"
+        },
+        "source": "dynamic",
+        "status": "connected",
+        "tools": [
+          {
+            "annotations": {},
+            "name": "echo"
+          },
+          {
+            "annotations": {},
+            "name": "copy_bytes"
+          }
+        ],
+        "transport": "stdio"
+      }
+    },
+    {
+      "name": "permission_policy",
+      "bypass_allowed": true
+    },
+    {
+      "name": "override_effect_blocked",
+      "error": "Cannot set permission mode to bypassPermissions because the session was not launched with --dangerously-skip-permissions",
+      "limitation": "Account policy allows bypass, but this worker lacks the startup flag; default pin enforcement remains unqualified"
+    },
+    {
+      "name": "genuine_tool_permission",
+      "tool": "mcp__mcp-1db8a778a7__echo",
+      "request_id": "06f74315-8015-4f78-9a87-43eaad092b14"
+    },
+    {
+      "name": "model_tool_reply",
+      "marker": "MCP_MODEL_FIRST",
+      "tool_result": {
+        "content": "{\"result\":\"MCP_MODEL_FIRST\"}",
+        "tool_use_id": "toolu_01Sss7G8wNmM7c9eYdJrstqW",
+        "type": "tool_result"
+      },
+      "prompt_count": 1,
+      "limitation": "askForTools forced-ask is Chrome-safe-tool-specific, not proven by generic SDK echo"
+    },
+    {
+      "name": "model_tool_reply",
+      "marker": "MCP_MODEL_REUSE",
+      "tool_result": {
+        "content": "{\"result\":\"MCP_MODEL_REUSE\"}",
+        "tool_use_id": "toolu_01WXWKD5HeuH4NWmVL7ZzuZ8",
+        "type": "tool_result"
+      },
+      "prompt_count": 0,
+      "limitation": "askForTools forced-ask is Chrome-safe-tool-specific, not proven by generic SDK echo"
+    },
+    {
+      "name": "staged_call",
+      "result": {
+        "content": [
+          {
+            "text": "{\n  \"size\": 271,\n  \"sha256\": \"4196d22a856ac6081b0361a29cdb527087e69839ed956f1e1212a5ed4f995483\",\n  \"pid\": 333\n}",
+            "type": "text"
+          }
+        ],
+        "staging": {
+          "inputs_used": [
+            {
+              "etag": "4191b73bf6f5dba32dd8513a836709a790bb86bdb72031b5f3be48207798ddf3",
+              "lane_path": "/working/mcp-1db8a778a7.input"
+            }
+          ],
+          "ok": true,
+          "outputs": [
+            {
+              "bytes": 271,
+              "etag": "4191b73bf6f5dba32dd8513a836709a790bb86bdb72031b5f3be48207798ddf3",
+              "lane_path": "/working/mcp-1db8a778a7.output"
+            }
+          ]
+        }
+      },
+      "input_etag": "4191b73bf6f5dba32dd8513a836709a790bb86bdb72031b5f3be48207798ddf3",
+      "input_sha256": "4196d22a856ac6081b0361a29cdb527087e69839ed956f1e1212a5ed4f995483",
+      "input_size": 271
+    },
+    {
+      "name": "staged_output_bytes",
+      "exact_match": true,
+      "size": 271,
+      "fixture_pid": 333
+    },
+    {
+      "name": "staged_cas_conflict",
+      "result": {
+        "staging": {
+          "detail": "output write failed for /working/mcp-1db8a778a7.output: lane row changed since if_match",
+          "error_code": "output_conflict",
+          "ok": false,
+          "retryable": false
+        }
+      },
+      "newer_bytes_preserved": true
+    },
+    {
+      "name": "expired",
+      "result": {
+        "staging": {
+          "detail": "request expired at 2000-01-01T00:00:00Z",
+          "error_code": "expired",
+          "ok": false
+        }
+      },
+      "call_ledger_unchanged": true,
+      "output_status": 404
+    },
+    {
+      "name": "remote_result_exclusion",
+      "status": "unsupported",
+      "error": "result_not_for_model is honored only on worker-owned local pipes, not this remote transport"
+    },
+    {
+      "name": "stdio_rest",
+      "status": 400
+    },
+    {
+      "name": "fixture_disconnected",
+      "server_removed": true
+    },
+    {
+      "name": "fixture_child_exited",
+      "pid": 333,
+      "proc_absent": true,
+      "tool_use_id": "toolu_014SCKXxdqW83LsYzpgis93K",
+      "signals_sent": 0
+    }
+  ],
+  "cleanup": [
+    {
+      "session_id": "cse_0154EsXTLK2brxz9af3x6ERd",
+      "get_status": 404
+    },
+    {
+      "environment_id": "env_012MpUKuGfGa7WcT52SSo4yc",
+      "excluded_from_list": true
+    }
+  ],
+  "complete": true,
+  "full_mcp_parity": false,
+  "transport": "Code durable events to cloud worker",
+  "environment_id": "env_012MpUKuGfGa7WcT52SSo4yc",
+  "session_id": "cse_0154EsXTLK2brxz9af3x6ERd"
+}

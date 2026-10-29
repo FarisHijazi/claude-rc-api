@@ -189,18 +189,16 @@
     },
     {
       "id": "MCP",
-      "status": "unverified_missing_authorized_fixture",
-      "evidence": "Existing ephemeral mcp_status correlation remains live-qualified; no new connector or server mutation was made.",
+      "status": "cloud_dynamic_tools_staging_live_qualified_override_effects_partial",
+      "evidence": "claude_2026-10-29-protocol-mcp-summary.json and protocol-mcp-recovery-qualified.json: independently rerun actual cloud SDK child; durable dynamic replacement, connected/disabled/reconnected exact tool replies, genuine model-tool permission and exact session-rule reuse; 271 binary staged bytes; stale-CAS preserves newer bytes; expiry leaves call ledger unchanged and no output; exact child PID absent and owned session/environment cleanup. No full MCP parity.",
       "remaining": [
-        "Toggle/reconnect execution effects",
-        "Permission override reuse",
-        "Actual askForTools calls",
-        "Staged input/output/expiry",
-        "Result exclusion restrictions",
-        "Session MCP REST mutations"
+        "Default/auto override behavioral enforcement: current worker rejects bypass transition without startup flag",
+        "Chrome-safe-tool-specific askForTools forced-ask fixture",
+        "Remote-server REST configuration/approval effects (stdio PUT rejected HTTP 400)",
+        "Natural MCP expiry/recovery and platform/size variants"
       ],
-      "next": "Build an explicitly authorized harmless MCP fixture with owned files; assert tool replies, staged bytes and expiry effects rather than request serialization.",
-      "estimate": "4-8 hours after fixture authorization"
+      "next": "Use a captured supported startup-capable fixture for override contrast and a separately authorized Chrome-safe-tool fixture; do not infer enforcement from worker acknowledgements or generic echo. Synced-lane staged MCP does not require Files API mounts.",
+      "estimate": "1-2 hours per supported override or Chrome-specific fixture"
     },
     {
       "id": "queue_tasks",
@@ -333,7 +331,7 @@
     ],
     "extended_web_api_gaps_not_ui_only": [
       "routine execution/cron/cancel",
-      "MCP mutations/staging",
+      "MCP override/Chrome forced-ask and remote-server REST effects",
       "Files API mount/seed and attachment deletion",
       "network/connector writes",
       "uncaptured fork/grouping/SCM routes"

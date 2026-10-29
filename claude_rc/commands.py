@@ -14,7 +14,7 @@ CLOUD_FLAG_SETTINGS = frozenset({
     "model", "advisorModel", "effortLevel", "ultracode", "fastMode", "viewMode", "alwaysThinkingEnabled",
 })
 CLOUD_REJECTED_SUBTYPES = frozenset({
-    "set_color", "fork_conversation", "rewind_files", "mcp_set_servers", "update_settings",
+    "set_color", "fork_conversation", "rewind_files", "update_settings",
     "get_memory_dialog", "get_skills_dialog", "get_status", "export_conversation",
     "list_cloud_sessions", "get_cloud_session", "get_cloud_session_transcript",
     "get_chrome_dialog", "get_chrome_browsers", "select_chrome_browser", "get_sandbox_dialog",
@@ -41,7 +41,7 @@ CLOUD_ALLOWED_SUBTYPES = frozenset({
     "get_workspace_diff", "get_plan", "stop_task", "background_tasks", "get_task_output",
     "send_task_message", "get_settings", "get_hooks_listing", "list_permission_rules",
     "submit_feedback", "submit_survey_feedback", "message_rated", "generate_session_title",
-    "side_question", "mcp_call", "prefetch_attachments", "rename_session",
+    "side_question", "mcp_call", "prefetch_attachments", "rename_session", "mcp_set_servers",
 })
 
 
@@ -313,6 +313,27 @@ class CommandsMixin:
         """Captured web PUT contract; replacing connector config is explicit."""
         rows = [{**dict(config), "name": name} for name, config in servers.items()]
         return self._request("PUT", self._url(session_id, "mcp-servers"), json={"mcp_servers": rows})
+
+    def set_worker_mcp_servers(self, session_id: str, servers: Mapping[str, Mapping[str, Any]], *,
+                               confirm: bool = False, timeout: float = 60.0) -> dict:
+        """Replace this worker's dynamic MCP set, not account connectors.
+
+        An empty mapping disconnects the dynamic set. Replacement can remove
+        inherited servers from this session, so explicit confirmation is required.
+        Durable Code session delivery is live-qualified on cloud CLI 2.1.312,
+        despite that binary's separate cloud-host admission switch rejecting it.
+        This is distinct from the web mcp-servers PUT contract. The reply's
+        errors map must be checked: success can contain failed connections.
+        """
+        if confirm is not True:
+            raise ValueError("replacing the worker MCP set requires confirm=True")
+        if not isinstance(servers, Mapping) or any(
+            not isinstance(name, str) or not name or not isinstance(config, Mapping)
+            for name, config in servers.items()
+        ):
+            raise ValueError("servers must map nonempty names to configuration objects")
+        return self.request_control(session_id, "mcp_set_servers", timeout=timeout,
+                                    servers={name: dict(config) for name, config in servers.items()})
 
     def approve_session_mcp_tool(self, session_id: str, tool_name: str, scope: str, tool_use_id: str) -> dict:
         """Captured web POST. Scope is caller-supplied; no enum was inferred."""
