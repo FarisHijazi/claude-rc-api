@@ -2,7 +2,7 @@
   "version": "0.8.0",
   "baseline": "a13783c",
   "full_web_parity": false,
-  "summary": "Added and live-qualified metadata-only environment editing, routine edit/history screens, read-only redacted network inspection, binary/base64 CAS editing and conflict-safe drafts. Qualified env/state cookie loading and actual source-pinned 401 recovery using browser-derived test cookies. No claim that all requested gaps are closed.",
+  "summary": "Added and live-qualified metadata-only environment editing, routine edit/history screens, read-only redacted network inspection, binary/base64 CAS editing and conflict-safe drafts. Qualified env/state cookie loading and actual source-pinned 401 recovery using browser-derived test cookies. No claim that all requested gaps are closed. Canonical follow-up now qualifies cookie Code uploads, genuine allow/deny/exact session-rule reuse and native text/number/follow-up API continuation; extended panel parity remains incomplete.",
   "tests": {
     "full_with_playwright": "710 passed, 3 existing legacy fire_routine deprecation warnings",
     "management_live": "claude_2026-10-29-management-rendered-create-rerun.json",
@@ -11,7 +11,9 @@
       "claude_2026-10-29-management-rendered-create-live.json"
     ],
     "auth_source_live": "claude_2026-10-29-auth-source-live.json",
-    "previous_evidence": "claude_2026-10-28-completeness-followup.json"
+    "previous_evidence": "claude_2026-10-28-completeness-followup.json",
+    "canonical_integrated_offline_headless": "732 passed, 3 existing deprecation warnings",
+    "canonical_integrated_live": "claude_2026-10-29-core-integrated-live.json"
   },
   "scope_and_safety": {
     "worktree": "worktrees/completeness-fixes",
@@ -36,9 +38,9 @@
     {
       "id": "numeric_skip",
       "status": "fixed_offline",
-      "evidence": "Out-of-range 99 with a skipped 1..5 numeric question submits; active numbers still validate. Native numeric schema remains fixture-only, not claimed live.",
+      "evidence": "Out-of-range 99 with a skipped 1..5 numeric question submits; active numbers still validate. Dedicated disposable environments now emit native numeric schemas; see core-integrated-live evidence. The actual numeric skip UI case is not newly live-qualified.",
       "remaining": [
-        "Native worker numeric generator is unavailable"
+        "Rendered live native numeric skip and boundary variants"
       ]
     },
     {
@@ -64,15 +66,16 @@
     },
     {
       "id": "genuine_permissions",
-      "status": "unverified_missing_live_generator",
-      "evidence": "Independent prior live Bash executed without can_use_tool. No synthetic permission response is counted as acceptance. This follow-up did not alter worker or shared harness permission configuration.",
+      "status": "core_api_live_qualified_rendered_variants_remaining",
+      "evidence": "Canonical real cloud prompts: allow-once writes X; same command prompts again; denial preserves or prevents bytes; exact session-rule reuse writes XX without prompting; other path prompts. All results correlated to own receipts and tool-use IDs.",
       "remaining": [
-        "Allow once with file effect",
-        "Deny with no file effect",
-        "Permanent exact-rule reuse without another prompt"
+        "Rendered permission choices",
+        "Persistent/restart rule reuse",
+        "Redirection-rule reuse",
+        "Interrupt outcome"
       ],
-      "next": "Provide an isolated authorized worker/tool fixture that deterministically asks for one exact harmless operation, then verify all three execution outcomes.",
-      "estimate": "4-8 hours for fixture and acceptance"
+      "next": "Reuse the owned cloud generator for rendered acceptance; do not repeat known failed redirection premises.",
+      "estimate": "1-2 hours for rendered subset; persistence requires a dedicated supported fixture"
     },
     {
       "id": "auth_qualification",
@@ -147,29 +150,28 @@
     },
     {
       "id": "question_dialog_variants",
-      "status": "native_variants_unverified",
-      "evidence": "Single/multi real browser continuation passes. Native text/number/default/unit/follow-up forms remain fixture-only. Dialog/elicitation/hook serializers are not counted as live renderers.",
+      "status": "native_api_live_qualified_dialog_hooks_remaining",
+      "evidence": "Actual native text/number schema yields Ada/3; followUp causes a real second native text question and FOLLOW_UP_OK. Canonical rerun passed; known rejected hooks intercepted before HTTP, wrapper exits 1 explicitly.",
       "remaining": [
-        "Native schema generator",
-        "Actual dialog renderer",
-        "Actual elicitation renderer",
+        "Rendered native question acceptance",
+        "Actual dialog renderer and generator",
+        "Actual elicitation renderer and generator",
         "Actual hook continuation generator"
       ],
-      "next": "Use current supported worker/integration schemas to generate each request and assert returned values and execution continuation, keeping rejected schemas unsupported.",
+      "next": "Reuse the qualified native cloud generator for UI acceptance; hooks require another evidenced supported integration, not the rejected initialize premise.",
       "estimate": "1 day for fixtures and renderers"
     },
     {
       "id": "attachments_and_files",
-      "status": "legacy_routes_rejected_new_browser_contract_candidate_captured",
-      "evidence": "Prior OAuth attachment route returned 401 and Files API upload returned 404. Public captured browser bundles 33.js/42.js show org multipart POST /api/{org}/upload with field file; bundle 33.js shows GET /api/organizations/{org}/files/{uuid}/contents. This follow-up did not implement or call these candidate contracts, and has no captured standalone org-upload deletion contract.",
+      "status": "cookie_code_upload_download_worker_live_qualified_deletion_unsupported",
+      "evidence": "Captured cookie store_as_is uploader preserves binary bytes. Canonical independent download equals input; correlated successful Bash sha256sum equals original SHA-256. Exact session cleanup GET 404, but blob remains downloadable.",
       "remaining": [
-        "Accepted authorized upload/download/hash/delete roundtrip",
+        "Standalone attachment deletion unsupported: no captured contract",
         "Nonempty prefetch effect",
-        "Files mount",
-        "Seed bundle",
-        "Working upload integration in Code, not merely unrelated Chat uploads"
+        "Files API mount",
+        "Seed bundle"
       ],
-      "next": "Trace the Code browser's uploader lineage and cleanup contract, then test generated harmless files end-to-end before modifying the existing OAuth adapter.",
+      "next": "Capture missing exact contracts before implementing deletion or mounting; do not equate session cleanup with blob deletion.",
       "estimate": "2-4 hours; candidate source routes are not live acceptance"
     },
     {
@@ -293,7 +295,7 @@
     {
       "id": "overall_verification",
       "status": "partial_completion_not_full_parity",
-      "evidence": "710 offline/headless tests pass. New rendered management/binary acceptance and env/state 401 source recovery pass. All 17 assigned gap categories remain explicitly partial unless the individual operation is proven; quota, missing owned OAuth grant/generators, approval and uncaptured contracts are not relabeled complete.",
+      "evidence": "Canonical merged tree: 732 offline/headless tests passed; fresh upload, genuine permission/file effects and native/follow-up API continuation passed. Remaining extended-panel, approval, quota, grant and uncaptured-contract gaps are explicit.",
       "remaining": [
         "All rows above that are not fully qualified"
       ],
@@ -311,5 +313,10 @@
     "Network inspection has no write route. No network credentials or bindings were changed.",
     "Base64 payload validation happens before the existing CAS writer. Text conversion preserves BOM and refuses carriage-return normalization.",
     "All original feature worktrees and canonical untracked review evidence are preserved."
-  ]
+  ],
+  "canonical_integration": {
+    "evidence": "claude_2026-10-29-core-integrated-live.json",
+    "full_web_parity": false,
+    "supersedes": "Historical missing permission/native generator and rejected cookie-upload states only; other gaps remain."
+  }
 }

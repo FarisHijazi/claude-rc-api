@@ -1,0 +1,200 @@
+#!/usr/bin/env python3
+"""Opt-in cloud permission proof on one owned disposable session.
+
+Removes the worker's broad cliArg Bash allow through a genuine question's
+permission response, then requires actual permission prompts and file effects.
+No shared settings, credentials, existing sessions or service processes change.
+Exit 1 means a check is unqualified; the JSON retains evidence and cleanup.
+"""
+from __future__ import annotations
+
+import argparse
+import base64
+import json
+import sys
+import time
+import uuid
+from datetime import datetime
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from claude_rc import APIError, RemoteControlClient
+from claude_rc.environments import default_environment
+from claude_rc.prompts import PendingRequest
+
+
+def permission_rules(client, session_id):
+    reply = client.request_control(session_id, "list_permission_rules", timeout=30)
+    return [{k: r.get(k) for k in ("rule", "behavior", "source", "editability")}
+            for r in reply.get("state", {}).get("rules", [])
+            if r.get("rule", "").startswith("Bash") or r.get("rule") == "preset:default"]
+
+
+def tool_results(events, tool_name):
+    ids = {t["id"] for event in events for t in event.tool_uses() if t.get("name") == tool_name}
+    return [b for event in events for b in event._content_blocks()
+            if isinstance(b, dict) and b.get("type") == "tool_result" and b.get("tool_use_id") in ids]
+
+
+def collect(client, session_id, prompt, respond, *, timeout=120):
+    newest = client.list_events(session_id, limit=1, sort_order="desc")
+    seq = max((e.sequence_num or 0 for e in newest), default=0)
+    start = seq
+    message_id = str(uuid.uuid4())
+    client.send_prompt(session_id, prompt, message_uuid=message_id)
+    events, pending = [], []
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        page = client.list_events(session_id, limit=200, sort_order="asc", cursor=str(seq))
+        for event in page:
+            seq = max(seq, event.sequence_num or 0)
+            events.append(event)
+            request = PendingRequest.from_payload(event.payload, event)
+            if request:
+                pending.append(request)
+                respond(request)
+            if event.source == "worker" and event.is_turn_end:
+                own = [row for row in client.iter_history(session_id, after_sequence_num=start)
+                       if row.type == "user" and row.payload.get("uuid") == message_id]
+                stamps = [row.raw.get("processing_at") or row.raw.get("processed_at") for row in own]
+                created = event.raw.get("created_at")
+                if not created or not any(stamp and datetime.fromisoformat(stamp.replace("Z", "+00:00"))
+                                          <= datetime.fromisoformat(created.replace("Z", "+00:00"))
+                                          for stamp in stamps):
+                    raise AssertionError("no own-message processing receipt before worker result")
+                if event.payload.get("is_error") or event.subtype != "success":
+                    raise RuntimeError("worker turn failed")
+                return events, pending
+        time.sleep(1)
+    raise TimeoutError("owned worker did not finish before deadline")
+
+
+def file_bytes(client, session_id, path):
+    try:
+        reply = client.get_session_file(session_id, path)
+    except APIError as error:
+        if error.status == 404:
+            return None
+        raise
+    return base64.b64decode(reply["content"], validate=True)
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--model", default="claude-haiku-5-5")
+    args = parser.parse_args()
+    proof = {"run": "core-permissions-" + uuid.uuid4().hex[:12], "profile": "cloud",
+             "checks": [], "cleanup": [], "complete": False}
+    sid = None
+    def save():
+        args.output.write_text(json.dumps(proof, indent=2) + "\n")
+    def record(name, **details):
+        row = {"name": name, **details}
+        proof["checks"].append(row)
+        save()
+        print(json.dumps(row), flush=True)
+    with RemoteControlClient(direct=True, timeout=25) as client:
+        try:
+            client.list_sessions(limit=1)
+            environment = default_environment(client.list_environments())
+            sid = client.create_session(environment.get("environment_id") or environment["id"],
+                                        title=proof["run"], tags=[proof["run"]],
+                                        model=args.model, permission_mode="default")["id"]
+            proof["session_id"] = sid
+            save()
+            init = client.initialize(sid, timeout=45)
+            record("worker_policy", version=init.get("claude_code_version"),
+                   mode=init.get("current_permission_mode"), rules=permission_rules(client, sid))
+            root = "/mnt/user-data/working/" + proof["run"]
+            def reject_unexpected(request):
+                client.deny_permission(sid, request, "Unexpected fixture operation; do not retry.", interrupt=True)
+                raise AssertionError("unexpected prompt")
+            events, _ = collect(client, sid,
+                f"Isolated API fixture. Use Bash exactly once: mkdir -p {root}; printf SETUP_OK. No other tools.",
+                reject_unexpected)
+            assert any("SETUP_OK" in str(b.get("content")) and not b.get("is_error")
+                       for b in tool_results(events, "Bash"))
+            record("baseline_bash", executed=True, prompt_count=0)
+            removal = [{"type": "removeRules", "rules": [{"toolName": "Bash"}],
+                        "behavior": "allow", "destination": "cliArg"}]
+            def bootstrap(request):
+                assert request.kind == "question" and len(request.questions) == 1
+                updated = {**request.input, "answers": {request.questions[0].question: "Continue"}}
+                client.always_allow(sid, request, permissions=removal, updated_input=updated)
+                record("bootstrap_response", request_id=request.request_id, permissions=removal)
+            events, pending = collect(client, sid,
+                'Call AskUserQuestion exactly once with question "Tighten this disposable worker?", header "Fixture", '
+                'options Continue and Stop, with descriptions, multiSelect false. After the answer say BOOTSTRAP_OK. No other tools.',
+                bootstrap)
+            assert len(pending) == 1 and tool_results(events, "AskUserQuestion")
+            rules = permission_rules(client, sid)
+            record("after_tightening", rules=rules)
+            if any(r["rule"] == "Bash" and r["behavior"] == "allow" for r in rules):
+                raise RuntimeError("worker retained broad Bash allow; no genuine permission qualification")
+            for case in ("allow_once", "repeat_once", "deny", "always_allow", "reuse", "out_of_scope"):
+                filename = ("always" if case in ("always_allow", "reuse") else
+                            "allow_once" if case == "repeat_once" else case)
+                path = root + "/" + filename + ".txt"
+                command = f'''python3 -c "open('{path}', 'a').write('X')"'''
+                before = file_bytes(client, sid, path)
+                responses = []
+                def respond(request):
+                    assert request.kind == "permission" and request.tool_name == "Bash"
+                    assert request.input.get("command") == command
+                    responses.append(request.request_id)
+                    record("permission_prompt", case=case, request_id=request.request_id,
+                           tool_use_id=request.tool_use_id, command=command,
+                           suggestions=request.permission_suggestions,
+                           decision_reason=request.request.get("decision_reason"),
+                           decision_reason_type=request.request.get("decision_reason_type"))
+                    if case == "reuse":
+                        client.deny_permission(sid, request, "Unexpected prompt during reuse; do not retry.")
+                    elif case in ("repeat_once", "deny", "out_of_scope"):
+                        client.deny_permission(sid, request, "Deny this fixture write. Do not retry or use another tool.")
+                    elif case == "always_allow":
+                        exact = [{"type": "addRules", "rules": [{"toolName": "Bash", "ruleContent": command}],
+                                  "behavior": "allow", "destination": "session"}]
+                        client.always_allow(sid, request, permissions=exact)
+                        record("exact_rule", permissions=exact)
+                    else:
+                        client.allow_once(sid, request)
+                events, _ = collect(client, sid,
+                    f"Use Bash exactly once with this exact command: {command}\n"
+                    "No other tools. If denied, do not retry, change the command or write any other way. Then say CASE_FINISHED.",
+                    respond)
+                results = tool_results(events, "Bash")
+                after = file_bytes(client, sid, path)
+                denied = case in ("repeat_once", "deny", "out_of_scope")
+                assert len(responses) == (0 if case == "reuse" else 1), "wrong prompt count"
+                assert len(results) == 1 and bool(results[0].get("is_error")) == denied
+                assert after == (before if denied else (before or b"") + b"X"), "wrong file effect"
+                record(case, status="passed", prompts=len(responses),
+                       before=None if before is None else before.decode(),
+                       after=None if after is None else after.decode(),
+                       tool_result=results[0], rules=permission_rules(client, sid))
+            proof["complete"] = True
+        except Exception as error:
+            record("qualification", status="unqualified", error_class=type(error).__name__,
+                   http_status=getattr(error, "status", None),
+                   reason=str(error) if isinstance(error, (AssertionError, RuntimeError, TimeoutError)) else None)
+        finally:
+            if sid:
+                try:
+                    client.delete_session(sid)
+                    try:
+                        client.get_session(sid)
+                    except APIError as error:
+                        assert error.status == 404
+                    else:
+                        raise AssertionError("owned session still exists")
+                    proof["cleanup"].append({"session_id": sid, "get_404": True})
+                except Exception as error:
+                    proof["complete"] = False
+                    proof["cleanup"].append({"session_id": sid, "error_class": type(error).__name__})
+            save()
+    return 0 if proof["complete"] else 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

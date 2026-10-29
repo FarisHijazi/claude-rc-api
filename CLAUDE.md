@@ -60,6 +60,15 @@ multiple Other entries for the same question, even through different key aliases
 before posting (multi-select permits selected labels plus one Other only).
 Independent refutation, fix reproduction and live worker-result assertions are in
 `docs/devlog/claude_2026-10-28-group04-independent-verification.json` (plain path).
+Current cloud qualification supersedes that historical missing-generator state:
+`docs/devlog/claude_2026-10-29-core-permissions-summary.json` indexes bounded
+`scripts/claude-rc-permission-smoke` and `scripts/claude-rc-question-smoke` proofs.
+Cloud default includes a broad cliArg Bash allow; tighten only an owned fixture
+via the existing permission-response owner before testing genuine prompts.
+Native text/number kinds require the remote-worker startup environment flag
+`CLAUDE_CODE_QUESTION_EXTENDED=1` in a disposable environment. The tested cloud
+initialize hook registration returns `hooks_applied:false`; never count it as a
+working callback. These evidence paths are deliberately plain, not includes.
 
 Lifecycle integration contracts and per-capability live evidence are in
 `docs/devlog/claude_2026-10-28-group02-lifecycle.json` (deliberately a plain
@@ -207,8 +216,10 @@ These are deliberately plain paths, not `@` includes.
   using `/mnt/user-data/working` are qualified; arbitrary custom cwd mappings are
   not. Never derive the token locally or retry a conflict as an overwrite.
 - Routine enqueue/terminal success is not execution: require the actual expected
-  assistant marker. Genuine permission prompts, owned OAuth enrollment/refresh,
-  standalone upload deletion and full live-browser parity remain incomplete.
+  assistant marker. Core permission allow/deny/exact session-rule reuse, native
+  text/number/follow-up and cookie Code attachments are live-qualified. Rendered
+  permission/native-form acceptance, owned OAuth enrollment/refresh, standalone
+  upload deletion and full live-browser parity remain incomplete.
 - `tests/integration_adapters_test.py` covers merged boundaries;
   `tests/panel_browser_test.py` optionally runs isolated headless Chrome via
   `uv run --extra test --extra web --extra cli --with playwright pytest -q`.
@@ -237,3 +248,8 @@ These are deliberately plain paths, not `@` includes.
   `subtype: success, is_error: true`. Respect the error flag; do not equate turn
   completion with successful execution. All remaining review gaps and next acceptance
   steps are in `docs/devlog/claude_2026-10-28-completeness-followup.json` (plain path).
+
+Canonical core integration: `docs/devlog/claude_2026-10-29-core-integrated-live.json` records
+732 offline/headless tests and fresh upload/permission/native-question effects
+and exact cleanup. These are plain paths, not includes. Blob deletion and full
+extended panel parity remain unsupported or incomplete; the gap plan is updated.

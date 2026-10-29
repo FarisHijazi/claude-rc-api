@@ -1,0 +1,146 @@
+#!/usr/bin/env python3
+"""Opt-in native question/hook negotiation probe on owned cloud resources.
+
+Uses the captured CLI 2.1.312 CLAUDE_CODE_QUESTION_EXTENDED startup flag in a
+fresh environment. A choice fallback is recorded as unsupported, never native.
+"""
+from __future__ import annotations
+import argparse
+import json
+import runpy
+import sys
+import uuid
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from claude_rc import APIError, RemoteControlClient
+
+helpers = runpy.run_path(str(Path(__file__).with_name("claude-rc-permission-smoke")))
+collect = helpers["collect"]
+tool_results = helpers["tool_results"]
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--output", type=Path, required=True)
+    args = parser.parse_args()
+    proof = {"run": "core-questions-" + uuid.uuid4().hex[:12], "profile": "cloud",
+             "checks": [], "cleanup": [], "native_qualified": False}
+    sid = eid = None
+    def save():
+        args.output.write_text(json.dumps(proof, indent=2) + "\n")
+    def record(name, **details):
+        row = {"name": name, **details}
+        proof["checks"].append(row)
+        save()
+        print(json.dumps(row), flush=True)
+    with RemoteControlClient(direct=True, timeout=25) as client:
+        try:
+            client.list_sessions(limit=1)
+            env = client.create_cloud_environment(proof["run"], description="Disposable native question schema fixture",
+                cwd="/mnt/user-data/working", environment={"CLAUDE_CODE_QUESTION_EXTENDED": "1"})
+            eid = env["environment_id"]
+            proof["environment_id"] = eid
+            save()
+            sid = client.create_session(eid, title=proof["run"], model="claude-haiku-5-5", permission_mode="default")["id"]
+            proof["session_id"] = sid
+            save()
+            init = client.initialize(sid, timeout=45)
+            record("worker", version=init.get("claude_code_version"), mode=init.get("current_permission_mode"))
+            schemas = []
+            def answer(request):
+                assert request.kind == "question"
+                schemas.append(request.input)
+                record("actual_question", schema=request.input)
+                kinds = [q.kind for q in request.questions]
+                if kinds == ["text", "number"]:
+                    client.answer_questions(sid, request, other={0: "Ada", 1: "3"})
+                else:
+                    client.skip_questions(sid, request, encoding="browser")
+            events, pending = collect(client, sid,
+                'Isolated schema test. Use AskUserQuestion exactly once for two questions, only if your tool input schema admits native kinds. '
+                'First question "Name?", kind text, header Name, placeholder "Type a name". Second question "Count?", kind number, '
+                'header Count, min 1 max 5 step 1 defaultValue 2 unit items. No fake options for text/number. '
+                'If native kinds are absent, call exactly one normal choice question "Native kinds unavailable?" with Yes/No choices and descriptions, '
+                'then explain which schema fields are absent. After answers echo values exactly. No other tools.', answer)
+            results = tool_results(events, "AskUserQuestion")
+            assert len(pending) == 1 and len(results) == 1 and not results[0].get("is_error")
+            native = len(schemas[0].get("questions", [])) == 2 and [q.get("kind") for q in schemas[0]["questions"]] == ["text", "number"]
+            record("native_continuation", native=native, tool_result=results[0],
+                   assistant="".join(e.text() for e in events if e.role == "assistant"))
+            proof["native_qualified"] = native and all(value in str(results[0].get("content")) for value in ("Ada", "3"))
+            follow_requests = []
+            def follow_up(request):
+                assert request.kind == "question"
+                follow_requests.append(request.input)
+                record("follow_up_question", ordinal=len(follow_requests), schema=request.input)
+                if len(follow_requests) == 1:
+                    assert all("kind" in q.raw for q in request.questions), "followUp needs extended kinds"
+                    updated = {**request.input, "answers": {q.question: q.labels[0] if q.labels else "Yes"
+                               for q in request.questions}, "followUp": True,
+                               "response": "Ask exactly one further confirmation question before proceeding."}
+                    client.allow_once(sid, request, updated_input=updated)
+                elif len(follow_requests) == 2:
+                    client.answer_questions(sid, request, other={i: "Confirmed" for i in range(len(request.questions))})
+                else:
+                    client.deny_permission(sid, request, "Fixture question limit reached.", interrupt=True)
+                    raise AssertionError("too many follow-up questions")
+            events, _ = collect(client, sid,
+                'Call AskUserQuestion once with a native extended kind choice question "Keep current settings?", '
+                'header Confirm, options Keep/Change with descriptions. Honor a followUp response by asking exactly one '
+                'further native text question "Proceed?", header Proceed. After the second answer finish with FOLLOW_UP_OK. No other tools.', follow_up)
+            results = tool_results(events, "AskUserQuestion")
+            proof["follow_up_qualified"] = (len(follow_requests) == 2 and len(results) == 2
+                and any("follow-up questions" in str(b.get("content")) for b in results)
+                and any("Confirmed" in str(b.get("content")) for b in results))
+            record("follow_up_continuation", qualified=proof["follow_up_qualified"],
+                   actual_tool_results=results,
+                   assistant="".join(e.text() for e in events if e.role == "assistant"))
+            # This is captured initialize.hooks, not guessed hook configuration.
+            reply = client.request_control(sid, "initialize", timeout=30,
+                hooks={"PreToolUse": [{"matcher": "Bash", "hookCallbackIds": ["owned-core-hook"], "timeout": 10}]})
+            record("hook_negotiation", response_keys=sorted(reply), hooks_applied=reply.get("hooks_applied"))
+            callbacks = []
+            def callback(request):
+                if request.kind == "hook_callback" and request.request.get("callback_id") == "owned-core-hook":
+                    callbacks.append(request.request_id)
+                    client.answer_hook_callback(sid, request, {"continue": True})
+                else:
+                    client.deny_permission(sid, request, "Unexpected fixture request; do not retry.", interrupt=True)
+                    raise AssertionError("unexpected callback")
+            events, _ = collect(client, sid, 'Use Bash exactly once: printf HOOK_CONTINUED. No other tools.', callback)
+            results = tool_results(events, "Bash")
+            executed = any("HOOK_CONTINUED" in str(b.get("content")) and not b.get("is_error") for b in results)
+            assert executed
+            proof["hook_qualified"] = bool(callbacks) and executed
+            record("hook_continuation", callbacks=len(callbacks), actual_bash_result=results,
+                   qualified=proof["hook_qualified"])
+        except Exception as error:
+            record("qualification", status="unqualified", error_class=type(error).__name__, http_status=getattr(error, "status", None))
+        finally:
+            if sid:
+                try:
+                    client.delete_session(sid)
+                    try:
+                        client.get_session(sid)
+                    except APIError as error:
+                        assert error.status == 404
+                    else:
+                        raise AssertionError("session still exists")
+                    proof["cleanup"].append({"session_id": sid, "get_404": True})
+                except Exception as error:
+                    proof["cleanup"].append({"session_id": sid, "error_class": type(error).__name__})
+            if eid:
+                try:
+                    client.archive_environment(eid)
+                    assert eid not in [e["environment_id"] for e in client.list_environments()]
+                    proof["cleanup"].append({"environment_id": eid, "excluded_from_list": True})
+                except Exception as error:
+                    proof["cleanup"].append({"environment_id": eid, "error_class": type(error).__name__})
+            save()
+    return 0 if (proof["native_qualified"] and proof.get("hook_qualified")
+                 and proof.get("follow_up_qualified") and not any("error_class" in row for row in proof["cleanup"])) else 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

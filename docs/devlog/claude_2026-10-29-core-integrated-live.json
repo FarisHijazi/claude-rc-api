@@ -1,0 +1,573 @@
+{
+  "date": "2026-10-29",
+  "base": "f8af7858fd0d9f6b0a2126814bec3c658b02e63b",
+  "integrated_features": [
+    "5821d01e46b805c1409a6876a5ee8d671fe6f12c",
+    "1088298a5bb82ff7e109f802c3f0420426bb3d21"
+  ],
+  "tests": {
+    "canonical_offline_headless": "732 passed, 3 existing legacy fire_routine deprecation warnings",
+    "command": "uv run --extra test --extra web --extra cli --with playwright pytest -q tests"
+  },
+  "live": {
+    "upload": {
+      "contract": "Code cookie store_as_is upload",
+      "checks": {
+        "download_byte_equality": true,
+        "worker_hash_matches": true,
+        "session_deleted_404": true,
+        "blob_retained_after_session_delete": true
+      },
+      "owned": {
+        "session_id": "cse_0154EsXR59faATb9L3m9zyLc",
+        "file_uuid": "ab2143b0-6cf5-4ac1-a3fc-e632a8e88c46"
+      },
+      "standalone_attachment_delete": "unsupported: no captured contract",
+      "file": {
+        "name": "owned-upload-d36c65c63eb6.bin",
+        "sha256": "f2ce0f26aa6980058380968096e8dfc9d336e1e1ea82e769e287f3740570923b",
+        "size": 48
+      },
+      "worker": {
+        "tool_use_id": "toolu_013zAw86VDco696XwDr1PXFb",
+        "sha256": "f2ce0f26aa6980058380968096e8dfc9d336e1e1ea82e769e287f3740570923b",
+        "result_uuid": "37f5b43f-7077-4526-ab8c-c586a6a5ca07",
+        "is_error": false
+      },
+      "passed": true
+    },
+    "permissions": {
+      "run": "core-permissions-b6027b39b8b5",
+      "profile": "cloud",
+      "checks": [
+        {
+          "name": "worker_policy",
+          "version": "2.1.312",
+          "mode": "default",
+          "rules": [
+            {
+              "rule": "preset:default",
+              "behavior": "allow",
+              "source": "cliArg",
+              "editability": "session"
+            },
+            {
+              "rule": "Bash",
+              "behavior": "allow",
+              "source": "cliArg",
+              "editability": "session"
+            },
+            {
+              "rule": "BashOutput",
+              "behavior": "allow",
+              "source": "cliArg",
+              "editability": "session"
+            }
+          ]
+        },
+        {
+          "name": "baseline_bash",
+          "executed": true,
+          "prompt_count": 0
+        },
+        {
+          "name": "bootstrap_response",
+          "request_id": "f884cc5a-7efe-4702-bdbb-71776a516976",
+          "permissions": [
+            {
+              "type": "removeRules",
+              "rules": [
+                {
+                  "toolName": "Bash"
+                }
+              ],
+              "behavior": "allow",
+              "destination": "cliArg"
+            }
+          ]
+        },
+        {
+          "name": "after_tightening",
+          "rules": [
+            {
+              "rule": "preset:default",
+              "behavior": "allow",
+              "source": "cliArg",
+              "editability": "session"
+            },
+            {
+              "rule": "BashOutput",
+              "behavior": "allow",
+              "source": "cliArg",
+              "editability": "session"
+            }
+          ]
+        },
+        {
+          "name": "permission_prompt",
+          "case": "allow_once",
+          "request_id": "e1252976-5390-4611-8017-8f6ccab73d5b",
+          "tool_use_id": "toolu_01Uqknshhb9Fjdj5LcYy8HUW",
+          "command": "python3 -c \"open('/mnt/user-data/working/core-permissions-b6027b39b8b5/allow_once.txt', 'a').write('X')\"",
+          "suggestions": [
+            {
+              "behavior": "allow",
+              "destination": "localSettings",
+              "rules": [
+                {
+                  "ruleContent": "python3 -c \"open('/mnt/user-data/working/core-permissions-b6027b39b8b5/allow_once.txt', 'a').write('X')\"",
+                  "toolName": "Bash"
+                }
+              ],
+              "type": "addRules"
+            }
+          ],
+          "decision_reason": "This command requires approval",
+          "decision_reason_type": "other"
+        },
+        {
+          "name": "allow_once",
+          "status": "passed",
+          "prompts": 1,
+          "before": null,
+          "after": "X",
+          "tool_result": {
+            "content": "(Bash completed with no output)",
+            "is_error": false,
+            "tool_use_id": "toolu_01Uqknshhb9Fjdj5LcYy8HUW",
+            "type": "tool_result"
+          },
+          "rules": [
+            {
+              "rule": "preset:default",
+              "behavior": "allow",
+              "source": "cliArg",
+              "editability": "session"
+            },
+            {
+              "rule": "BashOutput",
+              "behavior": "allow",
+              "source": "cliArg",
+              "editability": "session"
+            }
+          ]
+        },
+        {
+          "name": "permission_prompt",
+          "case": "repeat_once",
+          "request_id": "2272023c-7648-4758-aa96-4dc966e7b7ed",
+          "tool_use_id": "toolu_0175ZVUmKJ4SvfCoNquNWfff",
+          "command": "python3 -c \"open('/mnt/user-data/working/core-permissions-b6027b39b8b5/allow_once.txt', 'a').write('X')\"",
+          "suggestions": [
+            {
+              "behavior": "allow",
+              "destination": "localSettings",
+              "rules": [
+                {
+                  "ruleContent": "python3 -c \"open('/mnt/user-data/working/core-permissions-b6027b39b8b5/allow_once.txt', 'a').write('X')\"",
+                  "toolName": "Bash"
+                }
+              ],
+              "type": "addRules"
+            }
+          ],
+          "decision_reason": "This command requires approval",
+          "decision_reason_type": "other"
+        },
+        {
+          "name": "repeat_once",
+          "status": "passed",
+          "prompts": 1,
+          "before": "X",
+          "after": "X",
+          "tool_result": {
+            "content": "Deny this fixture write. Do not retry or use another tool.",
+            "is_error": true,
+            "tool_use_id": "toolu_0175ZVUmKJ4SvfCoNquNWfff",
+            "type": "tool_result"
+          },
+          "rules": [
+            {
+              "rule": "preset:default",
+              "behavior": "allow",
+              "source": "cliArg",
+              "editability": "session"
+            },
+            {
+              "rule": "BashOutput",
+              "behavior": "allow",
+              "source": "cliArg",
+              "editability": "session"
+            }
+          ]
+        },
+        {
+          "name": "permission_prompt",
+          "case": "deny",
+          "request_id": "02ab0b7e-9666-4109-8992-d4d501a8d3f2",
+          "tool_use_id": "toolu_011gp22pGiAmQPizioPeHgTv",
+          "command": "python3 -c \"open('/mnt/user-data/working/core-permissions-b6027b39b8b5/deny.txt', 'a').write('X')\"",
+          "suggestions": [
+            {
+              "behavior": "allow",
+              "destination": "localSettings",
+              "rules": [
+                {
+                  "ruleContent": "python3 -c \"open('/mnt/user-data/working/core-permissions-b6027b39b8b5/deny.txt', 'a').write('X')\"",
+                  "toolName": "Bash"
+                }
+              ],
+              "type": "addRules"
+            }
+          ],
+          "decision_reason": "This command requires approval",
+          "decision_reason_type": "other"
+        },
+        {
+          "name": "deny",
+          "status": "passed",
+          "prompts": 1,
+          "before": null,
+          "after": null,
+          "tool_result": {
+            "content": "Deny this fixture write. Do not retry or use another tool.",
+            "is_error": true,
+            "tool_use_id": "toolu_011gp22pGiAmQPizioPeHgTv",
+            "type": "tool_result"
+          },
+          "rules": [
+            {
+              "rule": "preset:default",
+              "behavior": "allow",
+              "source": "cliArg",
+              "editability": "session"
+            },
+            {
+              "rule": "BashOutput",
+              "behavior": "allow",
+              "source": "cliArg",
+              "editability": "session"
+            }
+          ]
+        },
+        {
+          "name": "permission_prompt",
+          "case": "always_allow",
+          "request_id": "fff8a277-f875-4b9f-9384-6945223180d5",
+          "tool_use_id": "toolu_01VRhDDamBEYAPNz8GnqfRNH",
+          "command": "python3 -c \"open('/mnt/user-data/working/core-permissions-b6027b39b8b5/always.txt', 'a').write('X')\"",
+          "suggestions": [
+            {
+              "behavior": "allow",
+              "destination": "localSettings",
+              "rules": [
+                {
+                  "ruleContent": "python3 -c \"open('/mnt/user-data/working/core-permissions-b6027b39b8b5/always.txt', 'a').write('X')\"",
+                  "toolName": "Bash"
+                }
+              ],
+              "type": "addRules"
+            }
+          ],
+          "decision_reason": "This command requires approval",
+          "decision_reason_type": "other"
+        },
+        {
+          "name": "exact_rule",
+          "permissions": [
+            {
+              "type": "addRules",
+              "rules": [
+                {
+                  "toolName": "Bash",
+                  "ruleContent": "python3 -c \"open('/mnt/user-data/working/core-permissions-b6027b39b8b5/always.txt', 'a').write('X')\""
+                }
+              ],
+              "behavior": "allow",
+              "destination": "session"
+            }
+          ]
+        },
+        {
+          "name": "always_allow",
+          "status": "passed",
+          "prompts": 1,
+          "before": null,
+          "after": "X",
+          "tool_result": {
+            "content": "(Bash completed with no output)",
+            "is_error": false,
+            "tool_use_id": "toolu_01VRhDDamBEYAPNz8GnqfRNH",
+            "type": "tool_result"
+          },
+          "rules": [
+            {
+              "rule": "preset:default",
+              "behavior": "allow",
+              "source": "cliArg",
+              "editability": "session"
+            },
+            {
+              "rule": "BashOutput",
+              "behavior": "allow",
+              "source": "cliArg",
+              "editability": "session"
+            },
+            {
+              "rule": "Bash(python3 -c \"open\\('/mnt/user-data/working/core-permissions-b6027b39b8b5/always.txt', 'a'\\).write\\('X'\\)\")",
+              "behavior": "allow",
+              "source": "session",
+              "editability": "session"
+            }
+          ]
+        },
+        {
+          "name": "reuse",
+          "status": "passed",
+          "prompts": 0,
+          "before": "X",
+          "after": "XX",
+          "tool_result": {
+            "content": "(Bash completed with no output)",
+            "is_error": false,
+            "tool_use_id": "toolu_01XHZUUjKyspePNRY1U4Rwxp",
+            "type": "tool_result"
+          },
+          "rules": [
+            {
+              "rule": "preset:default",
+              "behavior": "allow",
+              "source": "cliArg",
+              "editability": "session"
+            },
+            {
+              "rule": "BashOutput",
+              "behavior": "allow",
+              "source": "cliArg",
+              "editability": "session"
+            },
+            {
+              "rule": "Bash(python3 -c \"open\\('/mnt/user-data/working/core-permissions-b6027b39b8b5/always.txt', 'a'\\).write\\('X'\\)\")",
+              "behavior": "allow",
+              "source": "session",
+              "editability": "session"
+            }
+          ]
+        },
+        {
+          "name": "permission_prompt",
+          "case": "out_of_scope",
+          "request_id": "2bc56c1d-d4f3-4cb7-beea-4f409ed1f20c",
+          "tool_use_id": "toolu_01Q3QKLiZj8LdZPi1ADJjmrE",
+          "command": "python3 -c \"open('/mnt/user-data/working/core-permissions-b6027b39b8b5/out_of_scope.txt', 'a').write('X')\"",
+          "suggestions": [
+            {
+              "behavior": "allow",
+              "destination": "localSettings",
+              "rules": [
+                {
+                  "ruleContent": "python3 -c \"open('/mnt/user-data/working/core-permissions-b6027b39b8b5/out_of_scope.txt', 'a').write('X')\"",
+                  "toolName": "Bash"
+                }
+              ],
+              "type": "addRules"
+            }
+          ],
+          "decision_reason": "This command requires approval",
+          "decision_reason_type": "other"
+        },
+        {
+          "name": "out_of_scope",
+          "status": "passed",
+          "prompts": 1,
+          "before": null,
+          "after": null,
+          "tool_result": {
+            "content": "Deny this fixture write. Do not retry or use another tool.",
+            "is_error": true,
+            "tool_use_id": "toolu_01Q3QKLiZj8LdZPi1ADJjmrE",
+            "type": "tool_result"
+          },
+          "rules": [
+            {
+              "rule": "preset:default",
+              "behavior": "allow",
+              "source": "cliArg",
+              "editability": "session"
+            },
+            {
+              "rule": "BashOutput",
+              "behavior": "allow",
+              "source": "cliArg",
+              "editability": "session"
+            },
+            {
+              "rule": "Bash(python3 -c \"open\\('/mnt/user-data/working/core-permissions-b6027b39b8b5/always.txt', 'a'\\).write\\('X'\\)\")",
+              "behavior": "allow",
+              "source": "session",
+              "editability": "session"
+            }
+          ]
+        }
+      ],
+      "cleanup": [
+        {
+          "session_id": "cse_0154EsXTa8jEV6tSMudJS63e",
+          "get_404": true
+        }
+      ],
+      "complete": true,
+      "session_id": "cse_0154EsXTa8jEV6tSMudJS63e"
+    },
+    "native_questions": {
+      "run": "core-questions-cec5b97d66b5",
+      "profile": "cloud",
+      "checks": [
+        {
+          "name": "worker",
+          "version": "2.1.312",
+          "mode": "default"
+        },
+        {
+          "name": "actual_question",
+          "schema": {
+            "questions": [
+              {
+                "header": "Name",
+                "kind": "text",
+                "multiSelect": false,
+                "options": [],
+                "placeholder": "Type a name",
+                "question": "Name?"
+              },
+              {
+                "defaultValue": 2,
+                "header": "Count",
+                "kind": "number",
+                "max": 5,
+                "min": 1,
+                "multiSelect": false,
+                "options": [],
+                "question": "Count?",
+                "step": 1,
+                "unit": "items"
+              }
+            ]
+          }
+        },
+        {
+          "name": "native_continuation",
+          "native": true,
+          "tool_result": {
+            "content": "The user answered: \"Name?\"=\"Ada\", \"Count?\"=\"3\". Read the answers carefully \u2014 they may request clarification, changes, or that you not proceed \u2014 and follow what they actually say.",
+            "tool_use_id": "toolu_018GnL1kH6QQF5ZcJ53EB3ty",
+            "type": "tool_result"
+          },
+          "assistant": "Name: Ada\nCount: 3"
+        },
+        {
+          "name": "follow_up_question",
+          "ordinal": 1,
+          "schema": {
+            "questions": [
+              {
+                "header": "Confirm",
+                "kind": "choice",
+                "multiSelect": false,
+                "options": [
+                  {
+                    "description": "Keep the current settings unchanged",
+                    "label": "Keep"
+                  },
+                  {
+                    "description": "Change the current settings",
+                    "label": "Change"
+                  }
+                ],
+                "question": "Keep current settings?"
+              }
+            ]
+          }
+        },
+        {
+          "name": "follow_up_question",
+          "ordinal": 2,
+          "schema": {
+            "questions": [
+              {
+                "header": "Proceed",
+                "kind": "text",
+                "multiSelect": false,
+                "options": [],
+                "placeholder": "Type your answer",
+                "question": "Proceed?"
+              }
+            ]
+          }
+        },
+        {
+          "name": "follow_up_continuation",
+          "qualified": true,
+          "actual_tool_results": [
+            {
+              "content": "The user asked for more questions before you proceed. So far they answered: \"Keep current settings?\"=\"Keep\". They also wrote: \"Ask exactly one further confirmation question before proceeding.\". Call AskUserQuestion again with follow-up questions that build on these answers (do not repeat these); do not start the task yet.",
+              "tool_use_id": "toolu_01TCjBFxcBpk4rkn1Y448yLo",
+              "type": "tool_result"
+            },
+            {
+              "content": "The user answered: \"Proceed?\"=\"Confirmed\". Read the answers carefully \u2014 they may request clarification, changes, or that you not proceed \u2014 and follow what they actually say.",
+              "tool_use_id": "toolu_01D9ZTYpDC7MVrFA4BajspY7",
+              "type": "tool_result"
+            }
+          ],
+          "assistant": "FOLLOW_UP_OK"
+        },
+        {
+          "name": "qualification",
+          "status": "unqualified",
+          "error_class": "RuntimeError",
+          "http_status": null
+        }
+      ],
+      "cleanup": [
+        {
+          "session_id": "cse_0154EsXQcLrKEdSyVXQhngLS",
+          "get_404": true
+        },
+        {
+          "environment_id": "env_01JPkctpFZFPoUpMc9awoU42",
+          "excluded_from_list": true
+        }
+      ],
+      "native_qualified": true,
+      "environment_id": "env_01JPkctpFZFPoUpMc9awoU42",
+      "session_id": "cse_0154EsXQcLrKEdSyVXQhngLS",
+      "follow_up_qualified": true
+    }
+  },
+  "question_wrapper": {
+    "exit_code": 1,
+    "reason": "Existing script includes hook acceptance. Wrapper deliberately stops before known rejected hook initialize HTTP. Native text/number and follow-up assertions and cleanup passed. No hook or dialog qualification."
+  },
+  "core_scope": "Cookie Code attachment roundtrip and worker consumption; genuine allow-once, denial and exact session-rule reuse; native text/number and follow-up continuation. Existing lifecycle/history/stream/control/environment/media qualifications retained, not relabeled complete.",
+  "extended_panel_parity": false,
+  "remaining": [
+    "Standalone upload deletion (blob remains downloadable after session deletion)",
+    "Nonempty prefetch and Files API mount/seed",
+    "Rendered permission/native-form acceptance",
+    "Dialog/elicitation/hook continuation",
+    "Exact redirection-rule reuse and persistent/restart rule reuse",
+    "Routine marker/cron/cancellation (prior quota denial)",
+    "Owned OAuth rotation/device enrollment",
+    "MCP mutations/staged effects",
+    "Remaining management/local-slash variants and uncaptured contracts"
+  ],
+  "safety": {
+    "shared_grant_refreshes": 0,
+    "existing_session_mutations": 0,
+    "browser_input": false,
+    "persistent_services": 0,
+    "deployments": 0,
+    "untracked_review_evidence_preserved": true
+  }
+}
