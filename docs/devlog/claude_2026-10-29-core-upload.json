@@ -1,0 +1,46 @@
+{
+  "base": "f8af7858fd0d9f6b0a2126814bec3c658b02e63b",
+  "branch": "feat/core-upload",
+  "summary": "Captured and implemented the actual deferred Claude Code cookie attachment uploader; qualified byte-preserving upload/download and Code-worker consumption, not just Chat upload or enqueue acknowledgements.",
+  "reuse": {
+    "upstream": "Read-only upstream/main has no claude_rc/files.py; existing fork FilesMixin and client._send remain the sole file/HTTP owners.",
+    "source": "Reused prior bundle research; traced current Code composer through shared Os/ip/ltK symbols and captured the actual browser request including store_as_is=true.",
+    "new_transport_or_auth_owner": false
+  },
+  "implementation": [
+    "Cookie upload_attachment selects POST /api/{org}/upload?store_as_is=true with multipart file. Bearer CLI OAuth route and Files API routes remain unchanged.",
+    "Cookie download_attachment selects GET /api/organizations/{org}/files/{uuid}/contents; identifiers are URL-quoted.",
+    "Cookie refs retain the captured mime_type field; send_message_with_files retains it alongside existing optional digest/size fields.",
+    "Cookie lane options fail before HTTP rather than inventing upload headers.",
+    "Malformed upload replies fail without including the raw server body in the ValueError.",
+    "Executable scripts/claude-rc-upload-smoke uses existing cookie auth, lifecycle and processing-receipt-aware send_and_collect; verifies correlated Bash tool results and exact session deletion."
+  ],
+  "tests": {
+    "focused_files_and_client": "109 passed",
+    "full_with_playwright": "718 passed, 3 pre-existing fire_routine deprecation warnings",
+    "live_client_harness": "passed: exact binary byte download, original SHA-256 in correlated successful Bash result, successful terminal worker result, archived/deleted session GET 404",
+    "browser_capture": "Code composer Send performed actual deferred ZIP upload; worker sha256sum matched independent download and unzip -p returned generated proof text"
+  },
+  "evidence": [
+    "claude_2026-10-29-core-upload-browser.json",
+    "claude_2026-10-29-core-upload-live.json"
+  ],
+  "remaining": [
+    "No standalone org attachment deletion contract captured. Both exact test sessions were deleted and return GET 404, but both uploaded blobs remain readable. No fabricated DELETE, retention expiry or upload-cleanup claim.",
+    "Nonempty attachment prefetch has no separately asserted prefetch effect; ordinary attachment consumption does not qualify it.",
+    "Files API mount/seed uses a distinct file ID contract and is not qualified by org attachment uploads.",
+    "No public panel or media CLI upload acceptance was changed or claimed."
+  ],
+  "safety": {
+    "created_sessions": 2,
+    "created_uploads": 2,
+    "deleted_sessions_verified_404": 2,
+    "retained_org_blobs_without_captured_delete": 2,
+    "owned_browser_tabs_created_and_closed": 1,
+    "existing_session_mutations": 0,
+    "shared_oauth_refreshes": 0,
+    "browser_cookie_or_shared_credentials_writes": 0,
+    "public_shares_support_submissions_system_changes_or_daemons": 0,
+    "browser_notice": "Dismissed transient notification offer only in the owned tab; did not grant browser notification permissions."
+  }
+}

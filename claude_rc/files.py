@@ -1,7 +1,13 @@
 """File uploads for sessions.
 
-Two upload routes exist, for different jobs (spec surface.md §4.2/§4.4,
-sessions.md §4/§5):
+Cookie Code attachments use ``POST /api/{org}/upload?store_as_is=true``
+with multipart ``file`` and download through
+``GET /api/organizations/{org}/files/{uuid}/contents``. This preserves bytes
+and returns ``file_uuid`` / ``file_kind`` / ``media_type``. Captured from the
+Code composer on 2026-10-29 and qualified with actual worker file hashes.
+No standalone org attachment deletion contract has been captured.
+
+Two additional CLI routes exist (spec surface.md §4.2/§4.4, sessions.md §4/§5):
 
 * **Chat attachments** — ``POST /api/oauth/file_upload``, multipart field
   ``file`` (real content type), optional ``x-claude-code-upload-lane`` header
@@ -224,28 +230,43 @@ class FilesMixin:
         *,
         lane: str | None = None,
     ) -> dict:
-        """``POST /api/oauth/file_upload`` — upload a chat attachment. Returns
-        the reply ``{file_uuid, file_kind?}`` plus the local ``file_name``,
-        ``sha256``, ``file_size`` and ``is_image`` (when known), ready for
-        :func:`attachment_ref`. Sent like the CLI: bare OAuth headers (no CCR
-        beta / org), ``lane`` as ``x-claude-code-upload-lane``."""
+        """Upload a Code attachment, preserving its bytes.
+
+        Cookies use the captured org upload with ``store_as_is=true``; bearer
+        clients retain the CLI OAuth route (not cookie-compatible). ``lane``
+        belongs only to that CLI contract. Standalone cookie attachment deletion
+        is not captured; deleting a session does not establish blob deletion.
+        """
+        cookie = self._auth.is_cookie
+        if cookie and lane is not None:
+            raise ValueError("upload lane is only supported by the bearer upload contract")
         data, name, kind = read_upload(file, filename, mime)
+        path = f"/api/{quote(self.org_uuid, safe='')}/upload" if cookie else FILE_UPLOAD_PATH
         reply = self._request(
             "POST",
-            FILE_UPLOAD_PATH,
+            path,
+            params={"store_as_is": "true"} if cookie else None,
             files={"file": (name, data, kind)},
             headers={UPLOAD_LANE_HEADER: lane} if lane else None,
             web=False,
             org=False,
             accept=(200, 201),
         )
-        if not isinstance(reply, dict) or "file_uuid" not in reply:
-            raise ValueError(f"file_upload replied without file_uuid: {reply!r}")
-        return {**reply, **attachment_ref(reply, name, data=data, mime=kind)}
+        if not isinstance(reply, dict) or not isinstance(reply.get("file_uuid"), str) or not reply["file_uuid"]:
+            raise ValueError("file_upload replied without a nonempty file_uuid")
+        result = {**reply, **attachment_ref(reply, name, data=data, mime=kind)}
+        if cookie:
+            result["mime_type"] = reply.get("media_type") or kind
+        return result
 
     def download_attachment(self, file_uuid: str) -> bytes:
-        """``GET /api/oauth/files/{uuid}/content`` — an attachment's bytes."""
-        return self._send("GET", f"/api/oauth/files/{file_uuid}/content", web=False, org=False).content
+        """Read original attachment bytes using the auth-specific captured route."""
+        ident = quote(file_uuid, safe="")
+        path = (
+            f"/api/organizations/{quote(self.org_uuid, safe='')}/files/{ident}/contents"
+            if self._auth.is_cookie else f"/api/oauth/files/{ident}/content"
+        )
+        return self._send("GET", path, web=False, org=False).content
 
     def send_message_with_files(
         self,
@@ -264,7 +285,7 @@ class FilesMixin:
                 refs.append(dict(f))
                 continue
             up = self.upload_attachment(f)
-            refs.append({k: up[k] for k in ("file_uuid", "file_name", "is_image", "sha256", "file_size") if k in up})
+            refs.append({k: up[k] for k in ("file_uuid", "file_name", "mime_type", "is_image", "sha256", "file_size") if k in up})
         event = user_message_with_files(text, refs, message_uuid=message_uuid)
         return self.send_events(session_id, [event])
 

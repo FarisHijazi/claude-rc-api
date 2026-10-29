@@ -1,0 +1,26 @@
+{
+  "contract": "Code cookie store_as_is upload",
+  "checks": {
+    "download_byte_equality": true,
+    "worker_hash_matches": true,
+    "session_deleted_404": true,
+    "blob_retained_after_session_delete": true
+  },
+  "owned": {
+    "session_id": "cse_0154EsXSNhsAreS4XZcNSSzr",
+    "file_uuid": "e757a0ec-e444-4cc4-8944-222de66b7e4a"
+  },
+  "standalone_attachment_delete": "unsupported: no captured contract",
+  "file": {
+    "name": "owned-upload-8e8b65f3fba7.bin",
+    "sha256": "e48236561ac4cbc52768141ee8db408557ad760d226a5ff57c8d9337f0d37496",
+    "size": 48
+  },
+  "worker": {
+    "tool_use_id": "toolu_01Q3HPvxyVSgMpWHqHiybv1m",
+    "sha256": "e48236561ac4cbc52768141ee8db408557ad760d226a5ff57c8d9337f0d37496",
+    "result_uuid": "f252cb91-c909-4044-991e-b5f3722153ab",
+    "is_error": false
+  },
+  "passed": true
+}

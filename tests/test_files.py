@@ -108,3 +108,65 @@ def test_invalid_sync_options_fail_before_write(kwargs):
 def test_sync_requires_hash_in_server_reply():
     with client(lambda r: httpx.Response(200, json={})) as rc, pytest.raises(ValueError, match="content_sha256"):
         rc.put_synced_file("cse_owned", "/tmp/fixture", b"x")
+
+
+@pytest.mark.parametrize("cookie", [True, False])
+def test_attachment_upload_download_selects_auth_contract(cookie):
+    data = b"exact\x00bytes\xff\r\n"
+    seen = []
+
+    def handler(request):
+        seen.append(request)
+        if request.method == "GET":
+            return httpx.Response(200, content=data)
+        return httpx.Response(200, json={"file_uuid": "owned-file", "file_kind": "blob",
+                                         "media_type": "application/zip"})
+
+    kwargs = {"session_key": "test"} if cookie else {"token": "test"}
+    with RemoteControlClient(**kwargs, org_uuid="org", transport=httpx.MockTransport(handler)) as rc:
+        upload = rc.upload_attachment(data, "proof.zip", "application/zip")
+        assert rc.download_attachment(upload["file_uuid"]) == data
+    assert seen[0].url.path == ("/api/org/upload" if cookie else "/api/oauth/file_upload")
+    assert dict(seen[0].url.params) == ({"store_as_is": "true"} if cookie else {})
+    assert seen[1].url.path == ("/api/organizations/org/files/owned-file/contents" if cookie
+                                else "/api/oauth/files/owned-file/content")
+    assert b'name="file"; filename="proof.zip"' in seen[0].content
+    assert b"Content-Type: application/zip" in seen[0].content
+    assert data in seen[0].content
+    assert upload["sha256"] == hashlib.sha256(data).hexdigest()
+    assert upload["file_size"] == len(data)
+    absent_header = "authorization" if cookie else "cookie"
+    assert absent_header not in seen[0].headers
+    assert "content-type" not in seen[1].headers or "multipart" not in seen[1].headers["content-type"]
+
+
+def test_cookie_attachment_send_retains_captured_mime_reference():
+    seen = []
+
+    def handler(request):
+        seen.append(request)
+        return httpx.Response(200, json={"file_uuid": "owned-file", "file_kind": "blob",
+                                         "media_type": "application/octet-stream"})
+
+    with RemoteControlClient(session_key="test", org_uuid="org", transport=httpx.MockTransport(handler)) as rc:
+        rc.send_message_with_files("cse_owned", "read", [b"\x00\xff"], message_uuid="owned-message")
+    assert len(seen) == 2
+    payload = json.loads(seen[1].content)["events"][0]["payload"]
+    assert payload["uuid"] == "owned-message"
+    assert payload["file_attachments"][0]["mime_type"] == "application/octet-stream"
+    assert payload["file_attachments"][0]["is_image"] is False
+
+
+@pytest.mark.parametrize("reply", [{}, {"file_uuid": ""}, {"file_uuid": None}, {"file_uuid": 42}])
+def test_cookie_upload_rejects_missing_identifier(reply):
+    with RemoteControlClient(session_key="test", org_uuid="org",
+                             transport=httpx.MockTransport(lambda r: httpx.Response(200, json=reply))) as rc:
+        with pytest.raises(ValueError, match="nonempty file_uuid"):
+            rc.upload_attachment(b"safe")
+
+
+def test_cookie_upload_lane_fails_before_http():
+    with RemoteControlClient(session_key="test", org_uuid="org",
+                             transport=httpx.MockTransport(lambda r: pytest.fail("unexpected HTTP"))) as rc:
+        with pytest.raises(ValueError, match="bearer"):
+            rc.upload_attachment(b"safe", lane="test")
