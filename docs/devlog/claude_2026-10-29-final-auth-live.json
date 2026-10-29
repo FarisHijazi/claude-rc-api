@@ -1,0 +1,130 @@
+{
+  "scope": "auth recovery and isolated enrollment qualification",
+  "base_commit": "eb77674307c74f05df04b35a2428184ca88d01ed",
+  "branch": "feat/final-auth",
+  "implementation": [
+    "Reused resolve_auth, CookieJar.reread, _check_cookie_identity, _send, isolated PKCE helpers and existing refresh/CAS persistence; no new HTTP or credential owner.",
+    "recover_browser_auth explicitly validates the original source, preserves pinned account/org, rolls back failure, and does not replay an action or consume any grant.",
+    "scripts/claude-rc-auth provides on-demand recover and explicit enrollment with an owned Chrome CDP tab, optional Playwright, bounded wait, sanitized failures and no automatic consent clicks.",
+    "PKCE rejects blank duplicate state/code, OAuth error callbacks, fragments, nonmatching Unicode state and malformed successful grant payloads. Consumed/expired is rechecked inside the enrollment lock so concurrent failed attempts cannot exchange twice.",
+    "Installed Claude Code 2.1.312 authorization URL/client/scope literals were rechecked. Prior group01 upstream/community and ownership research was reused, not replaced by another auth implementation."
+  ],
+  "offline_verification": {
+    "focused_command": "uv --directory <worktree> run --extra test --extra web --extra cli pytest -q tests/auth_recovery_test.py tests/test_auth.py",
+    "focused_passed": 56,
+    "full_command": "uv --directory <worktree> run --extra test --extra web --extra cli --with playwright pytest -q",
+    "full_passed": 749,
+    "existing_deprecation_warnings": 3,
+    "owned_refresh_qualification": "Offline MockTransport: secure mode-0600 persistence, restart with rotated token, thread and POSIX-process concurrent refresh adopt one CAS exchange. Not server token replacement proof.",
+    "diff_check": "passed"
+  },
+  "verification_limitations": [
+    "The first browser inspection selected two body nodes due an injected DOM; it failed at locator strictness. Using the first body fixed the verifier; this was not a service auth failure.",
+    "No independent OAuth code/grant was obtained. Owned token replacement, owned-grant restart and concurrent server refresh were not run; no shared grant was copied or substituted.",
+    "The auth page changed the browser cookie snapshot. Which cookie changed was not measured; do not claim browser-session rotation or unchanged browser cookies.",
+    "Natural month-scale expiry, revocation recovery, Chrome DB extraction, trusted-device enrollment and macOS/Windows lock execution are not qualified by this run."
+  ],
+  "post_enrollment_readonly_check": {
+    "account_http_status": 200,
+    "expected_user_identity": true,
+    "remaining_oauth_login_tabs": 0,
+    "client_cookie_writes": 0,
+    "shared_grant_reads_printed_or_refreshed": 0
+  },
+  "checks": [
+    {
+      "name": "default_authenticated_reads",
+      "passed": true,
+      "source": "cookies:cdp",
+      "account_pinned": true
+    },
+    {
+      "name": "automatic_reacquisition_on_authenticated_read",
+      "passed": true,
+      "http": [
+        {
+          "method": "GET",
+          "path": "/v1/code/sessions",
+          "status": 401
+        },
+        {
+          "method": "GET",
+          "path": "/api/account",
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/v1/code/sessions",
+          "status": 200
+        }
+      ],
+      "rereads": 1,
+      "same_account_org": true,
+      "fault": "invalid cookie in this client memory, not natural expiry"
+    },
+    {
+      "name": "on_demand_recovery",
+      "passed": true,
+      "http": [
+        {
+          "method": "GET",
+          "path": "/api/account",
+          "status": 200
+        }
+      ],
+      "same_account_org": true,
+      "no_action_replayed": true
+    },
+    {
+      "name": "fresh_client_browser_reacquisition",
+      "passed": true,
+      "source": "cookies:cdp",
+      "same_account_org": true
+    },
+    {
+      "name": "post_recovery_worker_continuation",
+      "passed": true,
+      "actual_assistant_marker": true,
+      "own_processing_receipt": true,
+      "turn_completed": true,
+      "independent_history_readback": true
+    },
+    {
+      "name": "explicit_isolated_enrollment",
+      "passed": false,
+      "status": "blocked",
+      "error_class": "CredentialsError",
+      "fresh_signin_screen_observed": true,
+      "browser_account_http_status": 200,
+      "observed_route": "claude.com/cai/oauth/authorize -> claude.ai/oauth/authorize -> claude.ai/login",
+      "login_screen": "Continue with your Claude.ai account to authenticate connections",
+      "separate_inspection_google_continuation": "No navigation after 30 seconds; no consent or code returned",
+      "owned_credential_file_created": false,
+      "token_endpoint_exchange": false,
+      "owned_refresh_restart_concurrency_live": "not run: no independently enrolled grant",
+      "no_global_impossibility_claim": true
+    }
+  ],
+  "shared_refresh_exchanges": 0,
+  "created_sessions": [
+    "cse_0154EsXSNUyuZvb92Q2vhGTd"
+  ],
+  "cleanup": [
+    {
+      "session": "cse_0154EsXSNUyuZvb92Q2vhGTd",
+      "get_status": 404
+    }
+  ],
+  "natural_expiry_observed": false,
+  "credential_values_logged": false,
+  "shared_credentials": {
+    "files_compared": 190,
+    "all_unchanged": true
+  },
+  "browser_cookie_snapshot_unchanged": true,
+  "shared_credentials_after_enrollment": {
+    "files_compared": 190,
+    "all_unchanged": true
+  },
+  "browser_cookie_snapshot_after_enrollment_unchanged": false
+}

@@ -454,6 +454,28 @@ class RemoteControlClient(
         transports such as the TTS websocket; ``None`` under bearer auth."""
         return self._auth.jar.header() if self._auth.jar is not None else None
 
+    @_auth_serialized
+    def recover_browser_auth(self) -> bool:
+        """Reacquire the original cookie source and validate the pinned account.
+
+        Call on demand after restoring the browser login or CDP connection.
+        Returns whether cookies changed; an unchanged jar still gets a real
+        account check. Never opens a browser, switches sources, replays an
+        operation, consumes an OAuth grant or enrolls a device. Failure restores
+        the previous jar. Automatic request-time recovery remains the default.
+        """
+        jar = self.cookie_jar
+        if jar is None or jar.source == webauth.EXPLICIT:
+            raise CredentialsError("recovery requires a reloadable cookie source")
+        old = (dict(jar.cookies), jar.source, jar.detail, jar.seed)
+        try:
+            changed = jar.reread()
+            self._check_cookie_identity(reread=False)
+        except Exception:
+            jar.cookies, jar.source, jar.detail, jar.seed = old
+            raise
+        return changed
+
     def _reload_credentials(self) -> bool:
         """Re-read the credential source; ``True`` if it held different tokens.
 
@@ -595,7 +617,7 @@ class RemoteControlClient(
                 self._org_uuid = None
         return self._org_uuid
 
-    def _check_cookie_identity(self) -> None:
+    def _check_cookie_identity(self, *, reread: bool = True) -> None:
         """Pin the browser account before first use and validate after rereads.
 
         A changed login is never used for the caller's operation. Organization
@@ -610,7 +632,7 @@ class RemoteControlClient(
             except APIError as exc:
                 # A new client may start with stale cookies. Establish its first
                 # identity from the original source before sending any operation.
-                if (self._account_uuid is not None or not self._auto_refresh
+                if (not reread or self._account_uuid is not None or not self._auto_refresh
                         or exc.failure_kind not in ("authentication", "authentication_or_policy")
                         or not self.cookie_jar.reread()):
                     raise

@@ -1,0 +1,86 @@
+#!/usr/bin/env python3
+"""On-demand browser recovery or explicit, isolated OAuth enrollment.
+
+Recovery uses only the existing cookie source. Enrollment needs optional
+Playwright and opens one tab in an already-running CDP browser; approve normal
+account login in that tab if the service requires it. No cookie copying, shared
+refresh, profile changes, background worker or callback listener.
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import sys
+from pathlib import Path
+from urllib.parse import urlsplit
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from claude_rc import RemoteControlClient
+from claude_rc.credentials import CredentialsError, client_credentials_path
+from claude_rc.login import REDIRECT_URI, begin_login, finish_login
+
+
+def enroll(path: Path, *, cdp_url: str, timeout: float, direct: bool) -> None:
+    try:
+        from playwright.sync_api import sync_playwright
+    except ImportError:
+        raise CredentialsError('enrollment requires the optional playwright package') from None
+    login = begin_login(path)
+    with sync_playwright() as playwright:
+        page = None
+        try:
+            browser = playwright.chromium.connect_over_cdp(cdp_url, timeout=10000)
+            if not browser.contexts:
+                raise CredentialsError('CDP browser has no existing profile context')
+            page = browser.contexts[0].new_page()
+            print('Opened one OAuth tab. Complete normal account authorization there if requested.', flush=True)
+            page.goto(login.authorization_url, wait_until='domcontentloaded', timeout=30000)
+            expected = urlsplit(REDIRECT_URI)
+            def callback(url):
+                parsed = urlsplit(url)
+                return (parsed.scheme, parsed.netloc, parsed.path) == (expected.scheme, expected.netloc, expected.path)
+            page.wait_for_url(callback, timeout=timeout * 1000, wait_until='commit')
+            finish_login(login, page.url, direct=direct)
+        except CredentialsError:
+            raise
+        except Exception as exc:
+            # Browser errors can embed full authorization/callback URLs.
+            raise CredentialsError('browser enrollment did not complete (' + type(exc).__name__
+                                   + '); account sign-in or consent may still be required') from None
+        finally:
+            if page is not None:
+                page.close()
+    print(json.dumps({'enrolled': True, 'credentials_path': str(login.path),
+                      'shared_credentials_modified': False}))
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('action', choices=['recover', 'enroll'])
+    parser.add_argument('--direct', action='store_true')
+    parser.add_argument('--credentials', type=Path, default=client_credentials_path())
+    parser.add_argument('--cdp-url', default=os.environ.get('CLAUDE_AI_CDP_URL', 'http://127.0.0.1:9222'))
+    parser.add_argument('--timeout', type=float, default=120)
+    args = parser.parse_args()
+    if not 0 < args.timeout <= 600:
+        parser.error('--timeout must be greater than zero and at most 600 seconds')
+    try:
+        if args.action == 'enroll':
+            enroll(args.credentials, cdp_url=args.cdp_url, timeout=args.timeout, direct=args.direct)
+        else:
+            with RemoteControlClient(direct=args.direct) as client:
+                changed = client.recover_browser_auth()
+                client.list_sessions(limit=1)
+                print(json.dumps({'account_verified': True, 'cookies_changed': changed,
+                                  'session_read': True, 'auth_source': client._auth.origin}))
+    except Exception as exc:
+        # No raw browser, transport or API exception body in CLI output.
+        message = str(exc) if isinstance(exc, CredentialsError) else type(exc).__name__
+        print('Authentication failed: ' + message, file=sys.stderr)
+        return 1
+    return 0
+
+
+if __name__ == '__main__':
+    raise SystemExit(main())

@@ -145,6 +145,15 @@ On dev, uv needs the proxy CA plus the system bundle:
 - Contracts, live 401 recovery evidence and explicit remaining verification:
   `docs/devlog/claude_2026-10-28-group01-auth-foundation.md` (deliberately a plain
   path, not an `@` include).
+- `recover_browser_auth()` explicitly rereads the original cookie source, validates
+  the pinned account and rolls back on failure; it never replays an operation.
+  `scripts/claude-rc-auth recover|enroll` provides on-demand recovery or an owned
+  PKCE tab (optional Playwright), never automatic consent or shared refresh.
+  Live OAuth inspection still reached fresh login without a code/grant; owned
+  rotation remains offline-only. Evidence: `docs/devlog/claude_2026-10-29-final-auth-live.json`
+  (deliberately plain path, not an include). Browser auth-page cookie changes are
+  not a promise of natural renewal; all 190 compared shared credential files
+  were unchanged. PKCE single-use is checked again inside the enrollment lock.
 - Never print, log, commit or put in fixtures any token or cookie value
   (`repr`s show names only).
 
