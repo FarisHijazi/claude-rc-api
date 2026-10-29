@@ -123,6 +123,42 @@ def initial_events(
     return out
 
 
+#: ``fork_conversation`` refusal reasons -> web status (claude.ai/code bundle 2026-10-29).
+FORK_REASONS = {
+    "requires_remote_control_server": "requires_server",
+    "background_sessions_unavailable": "background_unavailable",
+}
+_FORK_ID = re.compile(r"^(session|cse)_[A-Za-z0-9_-]+$")
+_FORK_STRINGS = ("sessionId", "cliSessionId", "targetMessageUuid", "error")
+PROJECT_TEMPLATES_PATH = "/v1/code/project-templates"
+SPACES_PATH = "/v1/code/spaces"
+
+
+def fork_result(response: Any, source_session_id: str) -> dict:
+    """Normalize a ``fork_conversation`` reply exactly as the web app does:
+    ``status`` is ``forked`` (with the new ``session_X`` ``session_id``),
+    ``requires_server``, ``background_unavailable``, ``declined``, ``invalid``
+    (no/odd id, or the source itself) or ``unsupported`` (unparseable)."""
+    if (not isinstance(response, Mapping) or not isinstance(response.get("forked"), bool)
+            or any(k in response and not isinstance(response[k], str) for k in _FORK_STRINGS)
+            or not isinstance(response.get("prefillText"), (str, type(None)))):
+        return {"status": "unsupported"}
+    if not response["forked"]:
+        return {"status": FORK_REASONS.get(response.get("reason"), "declined"), "reason": response.get("reason")}
+    new_id = response.get("sessionId")
+    if new_id is None or not _FORK_ID.match(new_id):
+        return {"status": "invalid"}
+    new_id = to_session_id(new_id)
+    if new_id == to_session_id(source_session_id):
+        return {"status": "invalid"}
+    out = {"status": "forked", "session_id": new_id}
+    for wire, key in (("cliSessionId", "cli_session_id"), ("prefillText", "prefill_text"),
+                      ("targetMessageUuid", "target_message_uuid")):
+        if response.get(wire) is not None:
+            out[key] = response[wire]
+    return out
+
+
 def _unwrap_session(body: Any) -> Any:
     # client.py imports this module, so its helpers are looked up at call time.
     from .client import _unwrap_session as unwrap
@@ -694,3 +730,95 @@ class LifecycleMixin:
         return self._request(
             "GET", f"/api/oauth/organizations/{self.org_uuid}/code/repos/{owner}/{name}",
             web=False, client_platform=self.client_platform)
+
+    # -- fork / templates / spaces (claude.ai/code bundle 2026-10-29) ---------
+    def fork_session(
+        self,
+        session_id: str,
+        *,
+        target_message_uuid: str | None = None,
+        title: str | None = None,
+        timeout: float = 60.0,
+    ) -> dict:
+        """``/fork`` (or branch from ``target_message_uuid``): the web sends the
+        ``fork_conversation`` control to a Remote Control bridge host and reads
+        the new session id from the reply (:func:`fork_result`). The web never
+        offers it for cloud sessions, and the cloud admission gate rejects it
+        locally; use ``control_profile="bridge"`` for a bridge session."""
+        fields: dict[str, Any] = {}
+        if target_message_uuid is not None:
+            fields["target_message_uuid"] = target_message_uuid
+        if title is not None:
+            fields["title"] = title
+        response = self.request_control(session_id, "fork_conversation", timeout=timeout, **fields)
+        return fork_result(response, session_id)
+
+    def list_project_templates(self) -> dict:
+        """``GET /v1/code/project-templates`` -> ``{templates, setup_templates}``.
+        A server-managed catalog: the web app has no template write route."""
+        return self._request("GET", PROJECT_TEMPLATES_PATH)
+
+    def list_spaces(
+        self,
+        *,
+        limit: int | None = None,
+        cursor: str | None = None,
+        scope: str | None = None,
+        include_capabilities: bool = False,
+    ) -> dict:
+        """``GET /v1/code/spaces`` -> ``{data, next_cursor?}`` (``can_create_space``
+        with ``include_capabilities``). Orgs without spaces get HTTP 400
+        ``spaces_disabled`` as :class:`~claude_rc.client.APIError`."""
+        q: dict[str, Any] = {}
+        if include_capabilities:
+            q["include_capabilities"] = "true"
+        if limit is not None:
+            q["limit"] = limit
+        if cursor is not None:
+            q["cursor"] = cursor
+        if scope is not None:
+            q["scope"] = scope
+        return self._request("GET", SPACES_PATH, params=q)
+
+
+def register_lifecycle_cli(subparsers: Any, client_factory: Any, *, parents=()) -> None:
+    """Add ``fork``, ``templates`` and ``spaces``; ``client_factory(args)`` is the
+    CLI's one authenticated client context manager."""
+    def run(args):
+        with client_factory(args) as client:
+            return dispatch_lifecycle_cli(client, args)
+
+    pf = subparsers.add_parser("fork", help="fork a bridge session (optionally from a message)", parents=list(parents))
+    pf.set_defaults(func=run, lifecycle_command="fork")
+    pf.add_argument("session_id")
+    pf.add_argument("--message", dest="target_message_uuid", help="branch from this message uuid")
+    pf.add_argument("--title")
+    pf.add_argument("--timeout", type=float, default=60.0)
+    pf.add_argument("--profile", choices=["bridge", "cloud"], help="override the client's control profile")
+    subparsers.add_parser("templates", help="list Code project templates", parents=list(parents)).set_defaults(
+        func=run, lifecycle_command="templates")
+    ps = subparsers.add_parser("spaces", help="list Code spaces", parents=list(parents))
+    ps.set_defaults(func=run, lifecycle_command="spaces")
+    ps.add_argument("--limit", type=int)
+    ps.add_argument("--cursor")
+    ps.add_argument("--scope")
+    ps.add_argument("--capabilities", action="store_true")
+
+
+def dispatch_lifecycle_cli(client: Any, args: Any) -> int:
+    import json
+    import sys
+
+    cmd = args.lifecycle_command
+    if cmd == "fork":
+        if args.profile:
+            client.control_profile = args.profile
+        out = client.fork_session(args.session_id, target_message_uuid=args.target_message_uuid,
+                                  title=args.title, timeout=args.timeout)
+    elif cmd == "templates":
+        out = client.list_project_templates()
+    else:
+        out = client.list_spaces(limit=args.limit, cursor=args.cursor, scope=args.scope,
+                                 include_capabilities=args.capabilities)
+    sys.stdout.write(json.dumps(out, indent=2) + "\n")
+    return 0 if cmd != "fork" or out.get("status") == "forked" else 1

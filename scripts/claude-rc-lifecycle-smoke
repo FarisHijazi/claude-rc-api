@@ -1,0 +1,179 @@
+#!/usr/bin/env python3
+"""LIVE qualification of the 2026-10-29 fork / project-template / spaces capture.
+
+  uv run --extra web --extra cli python scripts/claude-rc-lifecycle-smoke --output PATH
+
+Read-only: project templates, spaces, and whether the session-groupings router
+exists. Writes: exactly one disposable cloud session (Haiku, tiny prompts). It
+checks the local cloud gate for ``fork_session``, sends the raw
+``fork_conversation`` control once to record the worker's own verdict, proves
+the worker still answers a later turn, checks no forked child appeared, then
+archives and deletes the session and requires GET 404. Never prints secrets.
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import signal
+import sys
+import time
+import uuid
+from datetime import datetime, timezone
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from claude_rc import APIError, RemoteControlClient, default_environment  # noqa: E402
+from claude_rc.commands import UnsupportedControl  # noqa: E402
+from claude_rc.events import cli_control_request  # noqa: E402
+from claude_rc.lifecycle import fork_result, to_session_id  # noqa: E402
+
+
+def _err(e: APIError) -> dict:
+    body = e.body or ""
+    try:
+        parsed = json.loads(body).get("error") or {}
+    except ValueError:
+        parsed = {"text": body.strip()[:60]}
+    return {"status": e.status, "type": parsed.get("type"), "reason": parsed.get("reason"),
+            "message": parsed.get("message") or parsed.get("text")}
+
+
+def _turn(rc: RemoteControlClient, sid: str, start: int, deadline: float) -> str:
+    text: list[str] = []
+    for ev in rc.stream_session(sid, from_sequence_num=start):
+        if time.monotonic() > deadline:
+            raise TimeoutError("turn did not finish in time")
+        if ev.role == "assistant":
+            text.append(ev.text())
+        if ev.is_terminal:
+            raise RuntimeError(f"session ended: {ev.type}/{ev.subtype}")
+        if ev.is_turn_end:
+            return "".join(text)
+    raise RuntimeError("stream closed before the turn ended")
+
+
+def _newest(rc: RemoteControlClient, sid: str) -> int:
+    page = rc.list_events(sid, limit=1, sort_order="desc")
+    return max((e.sequence_num or 0) for e in page) if page else 0
+
+
+def _user_uuid(rc: RemoteControlClient, sid: str) -> str | None:
+    for ev in rc.list_events(sid, limit=200, sort_order="asc"):
+        if ev.role == "user" and isinstance(ev.payload.get("uuid"), str):
+            return ev.payload["uuid"]
+    return None
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--output", required=True)
+    ap.add_argument("--model", default="claude-haiku-5-5")
+    ap.add_argument("--timeout", type=float, default=240.0)
+    args = ap.parse_args()
+    signal.signal(signal.SIGALRM, lambda *_: (_ for _ in ()).throw(TimeoutError("hard timeout")))
+    signal.alarm(int(args.timeout * 3 + 180))
+    ev: dict = {"started_at": datetime.now(timezone.utc).isoformat(), "checks": {}, "owned": {}}
+    checks = ev["checks"]
+    rc = RemoteControlClient(direct=True, timeout=30)
+    ev["auth_origin"] = rc._auth.origin
+    ev["control_profile"] = rc.control_profile
+
+    tpl = rc.list_project_templates()
+    checks["project_templates"] = {"http": 200, "keys": sorted(tpl), "templates": len(tpl.get("templates", [])),
+                                   "setup_templates": len(tpl.get("setup_templates", []))}
+    try:
+        rc.list_spaces(limit=1, include_capabilities=True)
+        checks["spaces"] = {"http": 200}
+    except APIError as e:
+        checks["spaces"] = _err(e)
+    probe = "sgrp_" + "0" * 26
+    for name, path in (("session_grouping_get", f"/v1/code/session_groupings/{probe}"),
+                       ("session_grouping_settings_get", f"/v1/code/session_groupings/{probe}/settings"),
+                       ("control_unknown_session_get", f"/v1/code/sessions/session_{'0' * 24}")):
+        try:
+            r = rc._send("GET", path, accept=(200,))
+            checks[name] = {"http": r.status_code}
+        except APIError as e:
+            checks[name] = _err(e)
+
+    envs = rc.list_environments()
+    env = default_environment(envs) or {}
+    env_id = env.get("environment_id") or env.get("id")
+    sid = None
+    started = time.time()
+    try:
+        s = rc.create_session(env_id, "Reply with exactly FORKBASE and nothing else.", model=args.model,
+                              title="claude-rc lifecycle fork probe")
+        sid = s["id"]
+        ev["owned"]["session"] = to_session_id(sid)
+        reply = _turn(rc, sid, 0, time.monotonic() + args.timeout)
+        checks["base_turn"] = {"contains_marker": "FORKBASE" in reply}
+        target = _user_uuid(rc, sid)
+        checks["target_message_uuid_found"] = target is not None
+
+        try:
+            rc.fork_session(sid, target_message_uuid=target)
+            checks["cloud_gate"] = {"rejected_locally": False}
+        except UnsupportedControl as e:
+            checks["cloud_gate"] = {"rejected_locally": True, "error": str(e)[:200]}
+
+        rid = f"fork_conversation-{uuid.uuid4()}"
+        fields = {"target_message_uuid": target} if target else {}
+        ack = rc.send_events(sid, [cli_control_request("fork_conversation", rid, **fields)])
+        verdict = rc.wait_control_response(sid, rid, timeout=60)
+        checks["raw_fork_conversation"] = {
+            "enqueue_ack_keys": sorted(ack) if isinstance(ack, dict) else None,
+            "verdict_received": verdict is not None,
+            "verdict_subtype": (verdict or {}).get("subtype"),
+            "verdict_error": str((verdict or {}).get("error"))[:300] if verdict and verdict.get("error") else None,
+            "raw_response": (verdict or {}).get("response"),
+            "normalized": fork_result((verdict or {}).get("response"), sid) if verdict else None,
+        }
+
+        start = _newest(rc, sid)
+        rc.send_message(sid, "Reply with exactly AFTERFORK and nothing else.")
+        reply = _turn(rc, sid, start, time.monotonic() + args.timeout)
+        checks["continuation_turn"] = {"contains_marker": "AFTERFORK" in reply}
+
+        recent = rc.query_sessions(limit=50).get("data", [])
+        children = [x["id"] for x in recent if x.get("parent_session_id") and
+                    to_session_id(x["parent_session_id"]) == to_session_id(sid)]
+        new_titles = [x["id"] for x in recent if to_session_id(x.get("id", "")) != to_session_id(sid) and
+                      "lifecycle fork probe" in (x.get("title") or "")]
+        checks["no_fork_child"] = {"children_with_parent": children, "same_title_others": new_titles,
+                                   "scanned": len(recent)}
+    finally:
+        if sid:
+            cleanup: dict = {}
+            try:
+                rc.archive_session(sid)
+                cleanup["archived"] = True
+            except APIError as e:
+                cleanup["archive_error"] = _err(e)
+            try:
+                rc.delete_session(sid)
+                cleanup["deleted"] = True
+            except APIError as e:
+                cleanup["delete_error"] = _err(e)
+            try:
+                RemoteControlClient(direct=True, timeout=30).get_session(sid)
+                cleanup["get_after_delete"] = 200
+            except APIError as e:
+                cleanup["get_after_delete"] = e.status
+            ev["cleanup"] = cleanup
+        ev["elapsed_s"] = round(time.time() - started, 1)
+        Path(args.output).write_text(json.dumps(ev, indent=2) + "\n")
+        rc.close()
+    ok = (checks.get("cloud_gate", {}).get("rejected_locally") and checks.get("base_turn", {}).get("contains_marker")
+          and checks.get("continuation_turn", {}).get("contains_marker")
+          and not checks.get("no_fork_child", {}).get("children_with_parent")
+          and not checks.get("no_fork_child", {}).get("same_title_others")
+          and ev.get("cleanup", {}).get("get_after_delete") == 404)
+    print(json.dumps(checks, indent=1))
+    print("PASS" if ok else "FAIL")
+    return 0 if ok else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -28,7 +28,7 @@ module that owns the area, or a new mixin module plus one line in the
 | `credentials.py` | OAuth credentials (file / macOS Keychain), refresh with CAS save, trusted devices, `resolve_auth` (the auth chain), cswap slots |
 | `webauth.py` | claude.ai cookie jar: env, state file, Chrome cookie DB, Chrome CDP; Cloudflare detection |
 | `login.py` | explicit isolated PKCE helpers; never called by auth discovery; live grant exchange still unverified |
-| `lifecycle.py` | create/unarchive/delete/share/tag, filtered/local-title discovery, cookie repo/branch pickers, guarded support/debug export, secret scan, teleport events |
+| `lifecycle.py` | create/unarchive/delete/share/tag, filtered/local-title discovery, cookie repo/branch pickers, guarded support/debug export, secret scan, teleport events, bridge `fork_session`, project templates, spaces read; `register_lifecycle_cli` (fork/templates/spaces) |
 | `environments.py` | environments (cookie private writes + bearer lineage), recursive config merging, archive, self-hosted pool reads, network profiles/rules/credentials |
 | `account.py` | read-only web usage/settings/profile/subscription/connectors/skills; distinct from session worker settings and usage |
 | `streaming.py` | paginated durable history, metadata/ephemeral session streams, bounded reconnect/backfill, live control correlation, account watch; opt-in CLI registration helpers |
@@ -78,6 +78,12 @@ Independent lifecycle verification is recorded in
 `docs/devlog/claude_2026-10-28-group02-independent-verification.json` (also a
 plain path). Unarchive state alone is not worker readiness: send a fresh
 message and require a newer worker result when testing usability.
+Fork/templates/spaces/groupings capture (2026-10-29 web bundle) and live proof:
+`docs/devlog/claude_2026-10-29-capture-lifecycle.md` (plain path). Fork is a
+bridge-host control; a cloud worker answers success `{forked:false,
+reason:"unsupported"}`, so read `fork_result(...)["status"]`, never the verdict
+subtype. Spaces are `spaces_disabled` and `/v1/code/session_groupings` is
+unrouted for this org: grouping settings are documented, not implemented.
 
 ## Test
 
@@ -282,7 +288,7 @@ per-capability matrix and endpoint map; branch devlogs retain historical states.
 integrated cookie-auth/worker/CLI/panel-HTTP run, including incomplete checks.
 These are deliberately plain paths, not `@` includes.
 
-- `commands`, `account`, `streaming`, and `media_cli` registration helpers are
+- `commands`, `account`, `streaming`, `lifecycle` and `media_cli` registration helpers are
   wired by `cli.build_parser`; credential flags use its one client factory.
 - `InteractionMixin(PromptsMixin, CommandsMixin)` preserves prompt exports and
   delegates streams to their owner. Live control correlation must enforce the

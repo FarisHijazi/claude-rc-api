@@ -1,0 +1,83 @@
+{
+  "started_at": "2026-10-29T11:26:44.212309+00:00",
+  "checks": {
+    "project_templates": {
+      "http": 200,
+      "keys": [
+        "setup_templates",
+        "templates"
+      ],
+      "templates": 0,
+      "setup_templates": 0
+    },
+    "spaces": {
+      "status": 400,
+      "type": "invalid_request_error",
+      "reason": "spaces_disabled",
+      "message": "spaces are not available for this organization"
+    },
+    "session_grouping_get": {
+      "status": 404,
+      "type": null,
+      "reason": null,
+      "message": "404 page not found"
+    },
+    "session_grouping_settings_get": {
+      "status": 404,
+      "type": null,
+      "reason": null,
+      "message": "404 page not found"
+    },
+    "control_unknown_session_get": {
+      "status": 400,
+      "type": "invalid_request_error",
+      "reason": "",
+      "message": "invalid session ID: must be a cse_\u2026 or session_\u2026 tagged ID"
+    },
+    "base_turn": {
+      "contains_marker": true
+    },
+    "target_message_uuid_found": true,
+    "cloud_gate": {
+      "rejected_locally": true,
+      "error": "fork_conversation is not admitted by the cloud controller channel"
+    },
+    "raw_fork_conversation": {
+      "enqueue_ack_keys": [
+        "attestation_feedback",
+        "results"
+      ],
+      "verdict_received": true,
+      "verdict_subtype": "success",
+      "verdict_error": null,
+      "raw_response": {
+        "error": "unsupported",
+        "forked": false,
+        "reason": "unsupported"
+      },
+      "normalized": {
+        "status": "declined",
+        "reason": "unsupported"
+      }
+    },
+    "continuation_turn": {
+      "contains_marker": true
+    },
+    "no_fork_child": {
+      "children_with_parent": [],
+      "same_title_others": [],
+      "scanned": 50
+    }
+  },
+  "owned": {
+    "session": "session_0154EsXSbYYSrziVSBvproKb"
+  },
+  "auth_origin": "cookies:cdp",
+  "control_profile": "cloud",
+  "cleanup": {
+    "archived": true,
+    "deleted": true,
+    "get_after_delete": 404
+  },
+  "elapsed_s": 16.7
+}

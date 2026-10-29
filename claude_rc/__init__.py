@@ -105,6 +105,7 @@ from .interaction import (
 )
 from .lifecycle import (
     branch_for,
+    fork_result,
     initial_events,
     repo_slug,
     session_web_url,
@@ -195,6 +196,7 @@ __all__ = [
     "pending_from_initialize",
     # lifecycle
     "branch_for",
+    "fork_result",
     "initial_events",
     "repo_slug",
     "session_web_url",

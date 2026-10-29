@@ -20,13 +20,13 @@ an unimplemented or unqualified web operation into a UI-only feature.
 | Models and commands | Haiku/Sonnet model-tagged inference; mode and flag readbacks; typed controls, advertised worker commands and captured 22-name web menu enumerated separately | Flag storage is not inference proof; not every advertised command was executed. Unsupported cloud controls fail closed |
 | Permissions and questions | Genuine allow/deny/exact session-rule reuse; choice and native text/number/follow-up tool results | Persistent/restart/redirection rule variants, actual dialogs/elicitation and hook continuation remain unqualified; tested cloud hooks returned `hooks_applied:false` |
 | Session MCP tools | `set_worker_mcp_servers(..., confirm=True)` replaces one session's dynamic set; connect/status, disable/re-enable/reconnect, direct and model tool calls, session-rule reuse, staged bytes, stale CAS and expiry effects (MC) | Permission-override enforcement needs a worker startup flag; Chrome forced-ask, remote-server REST config/approvals, natural expiry and live cross-session isolation remain unqualified; remote result exclusion is unsupported by the worker |
-| Lifecycle | Rename, archive, restore followed by a fresh reply, delete followed by GET 404 | Share/export writes not exercised; fork/grouping/SCM contracts uncaptured |
+| Lifecycle | Rename, archive, restore followed by a fresh reply, delete followed by GET 404; project-template catalog read (FK) | Share/export writes not exercised; fork is bridge-only (cloud worker declines `unsupported`, FK); spaces are `spaces_disabled` and session-grouping routes are unrouted (404) for this org; SCM contracts uncaptured |
 
 **Extended web API surfaces remain API gaps, not presentation extras.** Routine
 worker execution/cron/cancellation (observed quota denial), MCP override/Chrome
 forced-ask enforcement and remote-server REST variants, Files API mount/seed,
 nonempty attachment prefetch, network/connector
-writes and uncaptured fork/SCM routes retain their exact matrix status below.
+writes, bridge-only fork and uncaptured SCM routes retain their exact matrix status below.
 Standalone org attachment deletion has no captured contract; session deletion
 was proven not to delete the uploaded blob.
 
@@ -89,6 +89,14 @@ Branch evidence records the feature branch at the time it ran; claims that those
 branches were not yet integrated are historical, not the current main state.
 
 ## Canonical core integration
+
+**LIVE CHECK FK (capture-lifecycle):** `scripts/claude-rc-lifecycle-smoke --output PATH`
+(cookie CDP auth, cloud profile) read templates (200, empty), spaces (400
+`spaces_disabled`) and grouping routes (plain 404), then on one disposable Haiku
+session: local cloud rejection of `fork_session`, raw `fork_conversation` with a
+real user-message UUID answered `{forked:false, reason:"unsupported"}`, a later
+AFTERFORK turn completed, no child/duplicate session, archive+delete and GET 404.
+Evidence: `docs/devlog/claude_2026-10-29-capture-lifecycle-live.json`.
 
 **LIVE CHECK 0.10.0:** canonical main merging MC and W3 passed **811 offline/headless
 tests** (real local SDK MCP child and isolated headless Chrome included; three
@@ -218,7 +226,11 @@ neither cookie rereads nor isolated OAuth helpers can guarantee silent renewal.
 | Share GET/create/revoke/shared-session read | Implemented | Captured contracts/offline; create requires `confirm=True`; public sharing not exercised |
 | Secret scanning | Implemented | Rejected L: GET 404; explicit harmless fallback 403. Unavailable is not a clean scan |
 | Support-share and debug-export | Implemented | Offline/blocked approval; no transcript/log export submitted |
-| Fork, spaces/grouping/templates and SCM commit/PR actions | Unsupported | Contracts not captured; no guessed routes or action names |
+| Fork / branch-from-message (`fork_session`, `claude-rc fork`) | Implemented bridge-only | Captured web `fork_conversation {target_message_uuid?, title?}` control and reply normalization (offline). Web offers it only for bridge/desktop sessions; cloud profile rejects locally. FK: raw control to a cloud worker returned success `{forked:false, reason:"unsupported"}`, worker answered a later turn, no child session. Bridge fork not live-qualified (needs an owned Remote Control host) |
+| Project templates (`list_project_templates`, `claude-rc templates`) | Implemented read | Live FK cookie GET 200 `{templates:[], setup_templates:[]}`; server-managed catalog, no web write route. Bearer gets 401 `oauth_scope_insufficient` |
+| Spaces (`list_spaces`, `claude-rc spaces`) | Implemented read | Live FK 400 `spaces_disabled` for this org. Captured but not implemented (cannot qualify): create/get/update/rename/delete space and member/channel moves |
+| Session groupings ("projects", `sgrp_`) | Unsupported | Captured GET `/v1/code/session_groupings/{id}`, GET/PUT `…/settings` `{default_environment_id, settings:{repo_urls,instructions,model_id,coordinator_model_id,effort_level,coordinator_effort_level,color,icon}}`, POST `…/coordinator` `{environment_id?}`; FK: plain-text router 404 (unrouted), no `session_grouping_id` in 600 own sessions, no web create route. List filters `session_grouping_id`/`has_member_groupings` pass through `query_sessions(**params)` |
+| SCM commit/PR actions | Unsupported | Contracts not captured; no guessed routes or action names |
 | Teleport/bridge move-to-cloud | Implemented bridge-only | Offline; not a general cloud migration API |
 
 ### Chat, history and recovery
@@ -489,6 +501,7 @@ Matrix status above applies to every route; listing a route is not live proof.
 | Cookie Code attachments | POST `/api/{org}/upload?store_as_is=true`, multipart `file`; GET `/api/organizations/{org}/files/{uuid}/contents`; message `file_attachments` contains `file_uuid,file_name,mime_type,is_image` (optional local digest/size). No standalone deletion contract |
 | CLI upload/mount | POST `/api/oauth/file_upload` multipart (bearer only); `/v1/files` family; POST `S/{id}/files` captured mount body |
 | MCP REST | PUT `S/{id}/mcp-servers` `{mcp_servers:[...]}`; POST `…/mcp-approvals` `{tool_name,scope,tool_use_id}` |
+| Fork/templates/spaces | Control `fork_conversation` `{target_message_uuid?,title?}` → `{forked, sessionId?, cliSessionId?, targetMessageUuid?, prefillText?, reason?}`; GET `/v1/code/project-templates`; GET `/v1/code/spaces?include_capabilities&limit&cursor&scope` |
 | Routines | GET/POST `T`; GET/POST/DELETE `T/{id}`; POST `…/run` `{}` or `{text}`; POST `…/fork` `{}`; POST `…/runs/{session_id}/cancel` `{}`; POST/DELETE `…/api-token` `{}` |
 | Webhook create | POST `/v1/code/webhook-triggers`; captured builder only; integration fire route not known |
 | TTS | WSS `/api/ws/text_to_speech/text_stream`; text chunks then close_stream; binary Opus then SpeechComplete |
