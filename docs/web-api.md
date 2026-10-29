@@ -16,9 +16,10 @@ an unimplemented or unqualified web operation into a UI-only feature.
 |---|---|---|
 | Authentication without repeated manual cookies | Automatic signed-in Chrome/CDP discovery, source-pinned reread and explicit recovery; real continuation after injected auth denial | Chrome must remain signed in/reachable. Owned OAuth enrollment/rotation and natural month-scale expiry are not live-qualified |
 | Create, discover and configure environments/sessions | Cookie environment CRUD/archive, inline/deferred session creation, configured model/mode and worker execution | Pool execution, exhaustive repository paging, effort/multi-source variants, editable secrets and bearer-write lineage remain unqualified |
-| Chat, stream and durable readback | Own processing receipts, completed replies, paginated fresh-client history and bounded recovery | Natural worker replacement/watch 410; send-now/priority races and v1 interrupt receipts remain unqualified |
+| Chat, stream and durable readback | Own processing receipts, completed replies, paginated fresh-client history and bounded recovery | Next-before-later priority at a real question boundary and explicit result-UUID ownership are live-observed (W3). Natural worker replacement/watch 410, send-now, v1 interrupt receipts and in-flight control cancellation remain unqualified; cloud `send_task_message` is rejected by the worker (unsupported contract) |
 | Models and commands | Haiku/Sonnet model-tagged inference; mode and flag readbacks; typed controls, advertised worker commands and captured 22-name web menu enumerated separately | Flag storage is not inference proof; not every advertised command was executed. Unsupported cloud controls fail closed |
 | Permissions and questions | Genuine allow/deny/exact session-rule reuse; choice and native text/number/follow-up tool results | Persistent/restart/redirection rule variants, actual dialogs/elicitation and hook continuation remain unqualified; tested cloud hooks returned `hooks_applied:false` |
+| Session MCP tools | `set_worker_mcp_servers(..., confirm=True)` replaces one session's dynamic set; connect/status, disable/re-enable/reconnect, direct and model tool calls, session-rule reuse, staged bytes, stale CAS and expiry effects (MC) | Permission-override enforcement needs a worker startup flag; Chrome forced-ask, remote-server REST config/approvals, natural expiry and live cross-session isolation remain unqualified; remote result exclusion is unsupported by the worker |
 | Lifecycle | Rename, archive, restore followed by a fresh reply, delete followed by GET 404 | Share/export writes not exercised; fork/grouping/SCM contracts uncaptured |
 
 **Extended web API surfaces remain API gaps, not presentation extras.** Routine
@@ -67,6 +68,7 @@ Evidence files are deliberately plain paths, not force-loaded includes:
 | W | `claude_2026-10-28-group05-independent-summary.json` and its linked task/rerun evidence |
 | W2 | `claude_2026-10-29-final-commands-summary.json`; `claude_2026-10-29-final-commands-qualified-rerun.json` (current web catalog, controls, seed-state and queue/interrupt effects; earlier failures retained) |
 | MC | `claude_2026-10-29-protocol-mcp-recovery-qualified.json` (independent recovery rerun: cloud SDK child, tool replies, permission-rule reuse, staged bytes/CAS/expiry, exact child/session/environment cleanup); `claude_2026-10-29-protocol-mcp-summary.json` (provenance, prior qualification, retained failures and per-capability limits) |
+| I10 | `claude_2026-10-29-canonical-integration.json` (0.10.0 canonical 811-test suite); `claude_2026-10-29-canonical-mcp-live.json`, `claude_2026-10-29-canonical-queue-live.json` (fresh MC/W3 reruns on merged main, exact cleanup) |
 | W3 | `claude_2026-10-29-protocol-queue-summary.json`; `claude_2026-10-29-protocol-queue-final.json` (held-question priority execution, cross-turn result race, shell-task output/stop and typed task-message rejection) |
 | E | `claude_2026-10-28-group06-independent-evidence.json`, `claude_2026-10-28-group06-contracts.json` |
 | F | `group07-independent-2026-10-28.json` |
@@ -87,6 +89,22 @@ Branch evidence records the feature branch at the time it ran; claims that those
 branches were not yet integrated are historical, not the current main state.
 
 ## Canonical core integration
+
+**LIVE CHECK 0.10.0:** canonical main merging MC and W3 passed **811 offline/headless
+tests** (real local SDK MCP child and isolated headless Chrome included; three
+existing deprecation warnings). Fresh `claude_2026-10-29-canonical-mcp-live.json`
+on cloud worker 2.1.312 repeats MC: dynamic set replaced in the owned session,
+direct replies `MCP_ECHO_OK`/`MCP_ENABLED_OK`/`MCP_RECONNECTED_OK`, disabled call
+rejected, model tool prompt count 1 then 0 after the session rule, 271-byte exact
+staged round trip, `output_conflict` preserving newer bytes, expired request with
+unchanged ledger and output 404, stdio REST PUT 400, remote result exclusion
+refused, child PID absent with zero signals. Fresh
+`claude_2026-10-29-canonical-queue-live.json` repeats W3: file `NEXT\nLATER\n`,
+own-result correlation skipping the other queued result, exact shell-task output
+and stop (`[killed]`), typed `send_task_message` rejection; send-now/v1 not
+advertised and not attempted. Both sessions GET 404 and both environments are
+excluded. `claude_2026-10-29-canonical-integration.json` indexes method and limits.
+This is scoped qualification, not full web API parity.
 
 **LIVE CHECK 0.9.0:** the final merged implementation passed **761 offline/headless
 tests** (three existing legacy deprecation warnings). Fresh

@@ -13,7 +13,7 @@ uses.
 > break at any time. Use your own account, at your own risk. Full protocol
 > writeup in [`API_REFERENCE.md`](./API_REFERENCE.md).
 
-## This fork (0.9.0): Claude Code on the web
+## This fork (0.10.0): Claude Code on the web
 
 `FarisHijazi/claude-rc-api` extends upstream 0.4.0 with cloud session
 lifecycle, environments, routines, typed model/mode/effort controls, question
@@ -30,9 +30,20 @@ OAuth helpers exist, but live enrollment/rotation remain unqualified.
 captured web menu from worker-advertised commands and host handlers, plus
 receipt-correlated queued-question collection. Genuine permission choices,
 native questions, cookie attachments, two-model inference and exact queue
-cancel/legacy interrupt effects are live-qualified. **Not full web API parity:**
-routine execution, MCP mutation effects, Files API staging, owned OAuth rotation
-and uncaptured contracts retain gaps. Optional panel/local CLI presentation
+cancel/legacy interrupt effects are live-qualified.
+
+0.10.0 adds `set_worker_mcp_servers(sid, servers, confirm=True)`: it replaces only
+that session's dynamic worker MCP set (never account connectors). Live cloud runs
+qualify connect/status, disable/re-enable/reconnect, direct and model tool calls,
+session permission-rule reuse, synced-file staged bytes, stale-CAS conflicts and
+expiry. Collection now also rejects results whose explicit `user_message_uuid(s)`
+name another queued message; next-before-later priority, shell-task output/stop
+and the cloud's typed `send_task_message` rejection are live-observed.
+`scripts/claude-rc-mcp-smoke` and `scripts/claude-rc-queue-smoke` repeat these.
+**Not full web API parity:** routine execution, permission-override enforcement,
+remote MCP REST config/approval effects, send-now/v1 receipts, in-flight control
+cancellation, Files API mounts, owned OAuth rotation and uncaptured contracts
+retain gaps; cloud agent task messaging is unsupported by the worker itself. Optional panel/local CLI presentation
 backlog is separate. [`docs/web-api.md`](./docs/web-api.md) distinguishes the
 requested API core, extended web APIs, presentation, live evidence and blockers.
 
@@ -239,6 +250,9 @@ rc.cancel_queued_message(sid, mid)          # True while it was still queued
 
 # any other control subtype (see API_REFERENCE.md §3.2)
 rc.request_control(sid, "mcp_status")
+
+# replace this session's dynamic worker MCP set ({} disconnects it); check reply["errors"]
+rc.set_worker_mcp_servers(sid, {"fixture": {"type": "stdio", "command": "uv", "args": [...]}}, confirm=True)
 ```
 
 The session object already carries the cheap answers, no round trip needed:

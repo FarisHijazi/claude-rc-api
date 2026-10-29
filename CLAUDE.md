@@ -10,7 +10,7 @@ dependency (its `pyproject.toml`), so there is no second copy to keep in sync.
 - `origin` = `git@github.com:FarisHijazi/claude-rc-api.git` (push here; `main`).
 - `upstream` = `ThatCrispyToast/claude-rc-api`, **read-only**: fetch and merge
   `upstream/main` into `main`; never push there, never open upstream PRs/issues.
-- Version: ours is `0.9.0` (upstream already used 0.4.0). Bump the minor for a
+- Version: ours is `0.10.0` (upstream already used 0.4.0). Bump the minor for a
   new surface.
 
 ## Layout
@@ -84,6 +84,10 @@ message and require a newer worker result when testing usability.
 ```bash
 uv run --extra test --extra web --extra cli pytest -q
 ```
+
+MCP SDK tests skip unless run `--with 'mcp==1.30.0'`. Under the tests' empty `$HOME`
+the mise `node` shim resolves versions over the network and can time out
+`test_panel_javascript_parses`; put the installed node `bin` first on `PATH`.
 
 On dev, uv needs the proxy CA plus the system bundle:
 `cat /etc/ssl/certs/ca-certificates.crt "$SSL_CERT_FILE" > /tmp/ca.pem` and
@@ -336,3 +340,9 @@ unqualified web operations must never be relabeled as presentation-only.
 Hatch owns the dynamic version in `claude_rc/_version.py`; use
 `uv run --with hatch hatch version minor` for a new surface. No new transport,
 shared grant refresh, persistent service or deployment was added.
+
+0.10.0 canonical integration: `docs/devlog/claude_2026-10-29-canonical-integration.json`
+indexes the MC/W3 merge, 811 offline/headless tests and fresh merged-main reruns of
+`scripts/claude-rc-mcp-smoke` and `scripts/claude-rc-queue-smoke` with exact cleanup.
+These paths are deliberately plain, not includes. New surface:
+`set_worker_mcp_servers` and explicit result-UUID ownership in collection.

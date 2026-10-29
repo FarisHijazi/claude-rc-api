@@ -1,0 +1,57 @@
+{
+  "date": "2026-10-29",
+  "scope": "Sequential merge of independently verified feat/protocol-mcp (65db45c) and feat/protocol-queue-receipts (35c5199) into canonical main 75a0f37; release 0.10.0",
+  "merges": {
+    "protocol_mcp": "34e40c9 (clean)",
+    "protocol_queue_receipts": "b98af53 (docs/web-api.md matrix/evidence rows conflict resolved by keeping both sides)"
+  },
+  "version": "0.10.0 via hatch version minor (new set_worker_mcp_servers surface)",
+  "tests": {
+    "command": "PATH=<installed-node-bin>:$PATH SSL_CERT_FILE=<combined-ca> uv run --extra test --extra web --extra cli --with playwright --with 'mcp==1.30.0' pytest -q",
+    "passed": 811, "failed": 0, "skipped": 0,
+    "warnings": "3 existing legacy fire_routine deprecations",
+    "environment_notes": [
+      "Without --with mcp, tests/mcp_worker_test.py skips (810 passed, 1 skipped)",
+      "With the mise node shim under the tests' empty HOME, test_panel_javascript_parses timed out (mise resolves node@22 over the network); not a code regression, panel static unchanged since 75a0f37"
+    ]
+  },
+  "live": {
+    "mcp": {
+      "evidence": "claude_2026-10-29-canonical-mcp-live.json",
+      "command": "uv run --extra web --extra cli --with 'mcp==1.30.0' python scripts/claude-rc-mcp-smoke --output <path>",
+      "worker": "2.1.312 anthropic_cloud at https://claude.ai",
+      "effects": [
+        "owned-session dynamic set replaced; generated server connected with echo and copy_bytes",
+        "direct replies MCP_ECHO_OK, MCP_ENABLED_OK, MCP_RECONNECTED_OK; disabled call rejected 'MCP server not connected'",
+        "model tool permission prompt_count 1 then 0 after session rule",
+        "271-byte staged round trip exact_match true; stale if_match -> output_conflict, newer bytes preserved",
+        "expired request: ledger unchanged, output GET 404",
+        "stdio REST PUT 400; remote result exclusion refused",
+        "bypass transition refused without --dangerously-skip-permissions startup flag (enforcement unqualified)",
+        "empty replacement removed server; child pid 338 absent, signals_sent 0"
+      ],
+      "cleanup": "session cse_0154EsXRqWtuVBxdri6bESC1 GET 404; environment env_017vZLc3K8e6UFvxYADBWoHt excluded from list",
+      "exit_code": 0
+    },
+    "queue": {
+      "evidence": "claude_2026-10-29-canonical-queue-live.json",
+      "command": "uv run --extra web --extra cli python scripts/claude-rc-queue-smoke --output <path>",
+      "effects": [
+        "held-question boundary: file NEXT\\nLATER\\n, execution order NEXT then LATER",
+        "own-result correlation skipped the other queued message's result",
+        "shell task output TASK_OUTPUT_MARKER (18 bytes); stop -> notification and 28-byte output ending [killed]",
+        "send_task_message: request-ID-correlated ControlRejected 'Unsupported control request subtype'",
+        "send-now and v1 interrupt receipts not advertised, not attempted; in-flight control cancel blocked_fixture"
+      ],
+      "cleanup": "session cse_0154EsXPfYZwyMvSEpMQ99kK GET 404; environment env_017zxec4R1EqUwiYFQShXsiF absent from list",
+      "exit_code": 0
+    }
+  },
+  "remaining": {
+    "unsupported_contract": ["cloud send_task_message (worker rejects)", "remote MCP result exclusion (local pipes only)", "permanent environment deletion", "standalone upload blob deletion (no captured contract)"],
+    "external_or_quota": ["routine execution (weekly limit observed)", "send-now/v1 interrupt receipts (not advertised by relay)"],
+    "human_required": ["owned OAuth enrollment/rotation (requires interactive consent)", "natural cookie/grant expiry (time)"],
+    "implementable_later_with_fixture": ["permission-override enforcement (environment launched with bypass flag)", "Chrome forced-ask", "remote-server MCP REST config/approvals", "live cross-session MCP isolation", "in-flight control cancellation", "natural MCP request expiry"]
+  },
+  "no_deployment": true
+}
