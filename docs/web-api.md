@@ -20,13 +20,13 @@ an unimplemented or unqualified web operation into a UI-only feature.
 | Models and commands | Haiku/Sonnet model-tagged inference; mode and flag readbacks; typed controls, advertised worker commands and captured 22-name web menu enumerated separately | Flag storage is not inference proof; not every advertised command was executed. Unsupported cloud controls fail closed |
 | Permissions and questions | Genuine allow/deny/exact session-rule reuse; choice and native text/number/follow-up tool results | Persistent/restart/redirection rule variants, actual dialogs/elicitation and hook continuation remain unqualified; tested cloud hooks returned `hooks_applied:false` |
 | Session MCP tools | `set_worker_mcp_servers(..., confirm=True)` replaces one session's dynamic set; connect/status, disable/re-enable/reconnect, direct and model tool calls, session-rule reuse, staged bytes, stale CAS and expiry effects (MC) | Permission-override enforcement needs a worker startup flag; Chrome forced-ask, remote-server REST config/approvals, natural expiry and live cross-session isolation remain unqualified; remote result exclusion is unsupported by the worker |
-| Lifecycle | Rename, archive, restore followed by a fresh reply, delete followed by GET 404 | Share/export writes not exercised; fork/grouping/SCM contracts uncaptured |
+| Lifecycle | Rename, archive, restore followed by a fresh reply, delete followed by GET 404 | Share/export writes not exercised; fork/grouping contracts uncaptured. SCM reads (compare/commit/file) qualified (S1); PR write actions captured but approval-gated, not implemented |
 
 **Extended web API surfaces remain API gaps, not presentation extras.** Routine
 worker execution/cron/cancellation (observed quota denial), MCP override/Chrome
 forced-ask enforcement and remote-server REST variants, Files API mount/seed,
 nonempty attachment prefetch, network/connector
-writes and uncaptured fork/SCM routes retain their exact matrix status below.
+writes, uncaptured fork routes and approval-gated SCM PR writes retain their exact matrix status below.
 Standalone org attachment deletion has no captured contract; session deletion
 was proven not to delete the uploaded blob.
 
@@ -89,6 +89,16 @@ Branch evidence records the feature branch at the time it ran; claims that those
 branches were not yet integrated are historical, not the current main state.
 
 ## Canonical core integration
+
+**LIVE CHECK S1 (0.11.0):** the read contracts were taken from the current
+claude.ai/code bundle in one owned, closed CDP tab. `scripts/claude-rc-scm-smoke
+--output PATH` (read-only, creates nothing) compares `compare_refs`, `get_commit`
+and `get_file_content` on `octocat/Hello-World` against GitHub's public API and a
+local blob SHA; missing refs map to `None`, a missing file raises 404. Two
+disposable public-repo sessions showed the browser only emits branch-status reads:
+the server suffixes every outcome branch, so compare-refs never fires without a
+pushed branch. Both sessions were deleted (fresh-client GET 404). Evidence:
+`docs/devlog/claude_2026-10-29-capture-scm.json` (plain path).
 
 **LIVE CHECK 0.10.0:** canonical main merging MC and W3 passed **811 offline/headless
 tests** (real local SDK MCP child and isolated headless Chrome included; three
@@ -218,7 +228,9 @@ neither cookie rereads nor isolated OAuth helpers can guarantee silent renewal.
 | Share GET/create/revoke/shared-session read | Implemented | Captured contracts/offline; create requires `confirm=True`; public sharing not exercised |
 | Secret scanning | Implemented | Rejected L: GET 404; explicit harmless fallback 403. Unavailable is not a clean scan |
 | Support-share and debug-export | Implemented | Offline/blocked approval; no transcript/log export submitted |
-| Fork, spaces/grouping/templates and SCM commit/PR actions | Unsupported | Contracts not captured; no guessed routes or action names |
+| SCM compare refs, get commit, get file content (`scm.py`) | Implemented | Live S1: public repo results equal GitHub's public REST API and a locally computed git blob SHA; compare/commit 404 → `None` |
+| SCM PR create/generate-content/subscribe/unsubscribe/mute | Captured, not implemented | Approval-gated outward writes; exact contracts in `docs/devlog/claude_2026-10-29-capture-scm.json`, no request sent. No commit-write route exists in the web bundle (commits are worker git actions) |
+| Fork, spaces/grouping/templates | Unsupported | Contracts not captured; no guessed routes or action names |
 | Teleport/bridge move-to-cloud | Implemented bridge-only | Offline; not a general cloud migration API |
 
 ### Chat, history and recovery
@@ -477,6 +489,8 @@ Matrix status above applies to every route; listing a route is not live proof.
 | Sharing | GET/POST/DELETE `S/{id}/share`; writes `{}`; GET `/v1/code/shared-sessions/{share_id}` |
 | Secret/support/debug | GET `…/share/secret-scan`; explicit POST `/api/organizations/{org}/code/shares/scan_secrets` `{text_content:[...]}`; POST/DELETE `…/support-share`; POST `…/debug-export` |
 | Repo/branch pickers | GET `/api/organizations/{org}/code/repos`; GET `/api/github/organizations/{org}/github/{owner}/{repo}/branches` |
+| SCM reads | POST `/v1/code/github/compare-refs` `{repo,base,head}`; `…/get-commit` `{repo,sha}`; `…/get-file-content` `{repo,path,ref?}`; `ghe_configuration_id` only when nonzero; no session id |
+| SCM PR writes (not implemented) | POST `/api/github/organizations/{org}/github_create_pr` `{repo,head,base,title,body,draft,session_id,ghe_configuration_id?}`; POST org `generate_pr_content`; POST `/v1/code/github/{subscribe,unsubscribe}-pull-request`, `…/set-pull-request-address-comments-muted` |
 | GitHub status/title | GET `/v1/code/github/org-connection/installations-status`; GET org sync GitHub auth; POST `/v1/code/github/get-batch-branch-status`; POST org `/dust/generate_title_and_branch` |
 | Models/policy | GET org `/model_selector/cc`; GET `/api/claude_code/organizations/{org}/permission_mode_policy` |
 | Environment CRUD | GET `E/environments[/{id}]`; POST `E/cloud/create`; POST `E/environments/{id}` full merged object; POST `…/{id}/archive` `{}` |
@@ -514,6 +528,7 @@ uv run --extra web python scripts/claude-rc-permission-smoke --output ./permissi
 uv run --extra web python scripts/claude-rc-question-smoke --output ./question-evidence.json
 uv run --extra web --with playwright python scripts/claude-rc-command-smoke --qualify-controls --capture-web-catalog --output ./command-evidence.json
 uv run --extra web python scripts/claude-rc-queue-smoke --output ./queue-evidence.json
+uv run --extra web python scripts/claude-rc-scm-smoke --output ./scm-evidence.json
 ```
 
 The permission smoke exits zero only after every permission/file assertion and
@@ -561,4 +576,5 @@ qualify a real worker.
    variants still need separate acceptance (P2/Q2 qualify their core API subset).
 7. Obtain explicit approval before public shares, support/debug exports (~2 hours after approval),
    feedback/log uploads, network bindings, tokens or webhook writes. Capture
-   unsupported fork/grouping/SCM/integration-fire contracts before implementation.
+   unsupported fork/grouping/integration-fire contracts before implementation; SCM PR
+   writes are captured and need approval plus an owned repository (~1 hour).
