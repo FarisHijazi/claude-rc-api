@@ -1,0 +1,304 @@
+{
+ "date": "2026-10-29",
+ "version": "0.11.0",
+ "merged": {
+  "feat/capture-lifecycle": "36af2be029a1f72f1f358de8993332d278296244",
+  "feat/capture-scm": "00b15913be756048916aa2722ed64b01939ef4a0",
+  "feat/capture-dialogs": "f74fbbe3c138c8040c704d8a99eebbf0c0d7a900"
+ },
+ "conflicts": "docs/web-api.md only (summary rows, gap sentence, live-check paragraphs, lifecycle matrix rows); both sides kept. Duplicate evidence key E (elicitation vs group06 environments) renamed to EL; FK and S1 keys added.",
+ "tests": {
+  "command": "PATH=<nvm node bin>:$PATH uv run --offline --extra test --extra web --extra cli --with playwright --with 'mcp==1.30.0' pytest -q",
+  "result": "839 passed, 0 skipped, 3 existing fire_routine deprecation warnings"
+ },
+ "live_reruns_on_merged_main": {
+  "scm": {
+   "repo": "octocat/Hello-World",
+   "mutations": "none",
+   "checks": {
+    "file_content": {
+     "ok": true,
+     "size": 13,
+     "sha": "980a0d5f19a64b4b30a87d4206aade58726b60e3",
+     "local_blob_sha": "980a0d5f19a64b4b30a87d4206aade58726b60e3",
+     "matches_raw_github": true
+    },
+    "compare_refs": {
+     "ok": true,
+     "ahead_by": 1,
+     "files": [
+      "CONTRIBUTING.md"
+     ],
+     "merge_base": "7fd1a60b01f91b314f59955a4e4d4e80d8edf11d"
+    },
+    "get_commit": {
+     "ok": true,
+     "parent": "553c2077f0edc3d5dc5d17262f6aa498e69d6f8e",
+     "files": [
+      "README"
+     ]
+    },
+    "compare_missing_ref_is_none": {
+     "ok": true
+    },
+    "missing_file_raises_404": {
+     "ok": true,
+     "status": 404
+    }
+   },
+   "passed": true
+  },
+  "lifecycle": {
+   "started_at": "2026-10-29T11:44:20.880317+00:00",
+   "checks": {
+    "project_templates": {
+     "http": 200,
+     "keys": [
+      "setup_templates",
+      "templates"
+     ],
+     "templates": 0,
+     "setup_templates": 0
+    },
+    "spaces": {
+     "status": 400,
+     "type": "invalid_request_error",
+     "reason": "spaces_disabled",
+     "message": "spaces are not available for this organization"
+    },
+    "session_grouping_get": {
+     "status": 404,
+     "type": null,
+     "reason": null,
+     "message": "404 page not found"
+    },
+    "session_grouping_settings_get": {
+     "status": 404,
+     "type": null,
+     "reason": null,
+     "message": "404 page not found"
+    },
+    "control_unknown_session_get": {
+     "status": 400,
+     "type": "invalid_request_error",
+     "reason": "",
+     "message": "invalid session ID: must be a cse_\u2026 or session_\u2026 tagged ID"
+    },
+    "base_turn": {
+     "contains_marker": true
+    },
+    "target_message_uuid_found": true,
+    "cloud_gate": {
+     "rejected_locally": true,
+     "error": "fork_conversation is not admitted by the cloud controller channel"
+    },
+    "raw_fork_conversation": {
+     "enqueue_ack_keys": [
+      "attestation_feedback",
+      "results"
+     ],
+     "verdict_received": true,
+     "verdict_subtype": "success",
+     "verdict_error": null,
+     "raw_response": {
+      "error": "unsupported",
+      "forked": false,
+      "reason": "unsupported"
+     },
+     "normalized": {
+      "status": "declined",
+      "reason": "unsupported"
+     }
+    },
+    "continuation_turn": {
+     "contains_marker": true
+    },
+    "no_fork_child": {
+     "children_with_parent": [],
+     "same_title_others": [],
+     "scanned": 50
+    }
+   },
+   "owned": {
+    "session": "session_0154EsXR4DbZjByA3RuCVyBv"
+   },
+   "auth_origin": "cookies:cdp",
+   "control_profile": "cloud",
+   "cleanup": {
+    "archived": true,
+    "deleted": true,
+    "get_after_delete": 404
+   },
+   "elapsed_s": 17.1
+  },
+  "elicitation": {
+   "run": "elicit-29157f7589",
+   "checks": [
+    {
+     "name": "worker",
+     "version": "2.1.312",
+     "pending_user_dialog_requests": 0
+    },
+    {
+     "name": "hook_registration",
+     "hooks_applied": false,
+     "cli_contract": "false = a joining client's hooks were ignored; the stdin owner configured the session"
+    },
+    {
+     "name": "fixture_bytes",
+     "sha256": "ab0cf1e58c307b471efb01a2ed9e10d1d8ef43a861b221c9e955d9f089665da6",
+     "tool_use_id": "toolu_015QAbPpQndjwSTHR97cfE7G"
+    },
+    {
+     "name": "mcp_servers",
+     "server_count": 13,
+     "own_fixture_present": true,
+     "chrome_server_present": false
+    },
+    {
+     "name": "elicitation_continuation",
+     "action": "accept",
+     "request": {
+      "mcp_server_name": "elicit-29157f7589",
+      "message": "Generated elicitation ELICIT_ACCEPT",
+      "mode": "form",
+      "requested_schema": {
+       "properties": {
+        "count": {
+         "title": "Count",
+         "type": "integer"
+        },
+        "name": {
+         "title": "Name",
+         "type": "string"
+        }
+       },
+       "required": [
+        "name",
+        "count"
+       ],
+       "title": "Reply",
+       "type": "object"
+      },
+      "property_order": [
+       "name",
+       "count"
+      ]
+     },
+     "child_tool_result": {
+      "content": [
+       {
+        "text": "{\n  \"marker\": \"ELICIT_ACCEPT\",\n  \"action\": \"accept\",\n  \"content\": {\n    \"name\": \"Ada\",\n    \"count\": 3\n  }\n}",
+        "type": "text"
+       }
+      ],
+      "tool_use_id": "toolu_018gFow1Vi8F8UNtSkjHAnQr",
+      "type": "tool_result"
+     },
+     "ledger_rows": 1,
+     "ledger_exact": true
+    },
+    {
+     "name": "elicitation_continuation",
+     "action": "decline",
+     "request": {
+      "mcp_server_name": "elicit-29157f7589",
+      "message": "Generated elicitation ELICIT_DECLINE",
+      "mode": "form",
+      "requested_schema": {
+       "properties": {
+        "count": {
+         "title": "Count",
+         "type": "integer"
+        },
+        "name": {
+         "title": "Name",
+         "type": "string"
+        }
+       },
+       "required": [
+        "name",
+        "count"
+       ],
+       "title": "Reply",
+       "type": "object"
+      },
+      "property_order": [
+       "name",
+       "count"
+      ]
+     },
+     "child_tool_result": {
+      "content": [
+       {
+        "text": "{\n  \"marker\": \"ELICIT_DECLINE\",\n  \"action\": \"decline\",\n  \"content\": null\n}",
+        "type": "text"
+       }
+      ],
+      "tool_use_id": "toolu_01TYUqZwNJ5ubWznsGfMiRRQ",
+      "type": "tool_result"
+     },
+     "ledger_rows": 2,
+     "ledger_exact": true
+    },
+    {
+     "name": "elicitation_continuation",
+     "action": "cancel",
+     "request": {
+      "mcp_server_name": "elicit-29157f7589",
+      "message": "Generated elicitation ELICIT_CANCEL",
+      "mode": "form",
+      "requested_schema": {
+       "properties": {
+        "count": {
+         "title": "Count",
+         "type": "integer"
+        },
+        "name": {
+         "title": "Name",
+         "type": "string"
+        }
+       },
+       "required": [
+        "name",
+        "count"
+       ],
+       "title": "Reply",
+       "type": "object"
+      },
+      "property_order": [
+       "name",
+       "count"
+      ]
+     },
+     "child_tool_result": {
+      "content": [
+       {
+        "text": "{\n  \"marker\": \"ELICIT_CANCEL\",\n  \"action\": \"cancel\",\n  \"content\": null\n}",
+        "type": "text"
+       }
+      ],
+      "tool_use_id": "toolu_01WXM8FtAX45jRxPmeozbWTL",
+      "type": "tool_result"
+     },
+     "ledger_rows": 3,
+     "ledger_exact": true
+    }
+   ],
+   "cleanup": [
+    {
+     "session_id": "cse_0154EsXStkPMoNkXscR77e3H",
+     "get_status": 404
+    },
+    {
+     "environment_id": "env_01DiEvAN7bVzk8cxJYQPdDQQ",
+     "excluded_from_list": true
+    }
+   ],
+   "complete": true,
+   "environment_id": "env_01DiEvAN7bVzk8cxJYQPdDQQ",
+   "session_id": "cse_0154EsXStkPMoNkXscR77e3H"
+  }
+ },
+ "limits": "Scoped qualification of the three merged surfaces only; earlier surfaces keep their own evidence. Bridge fork success, space writes, grouping settings, SCM PR writes, URL-mode elicitation and joining-client dialogs/hooks remain unqualified or unsupported as recorded in docs/web-api.md."
+}

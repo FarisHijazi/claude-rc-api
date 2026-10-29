@@ -270,11 +270,9 @@
       "id": "uncaptured_contracts",
       "status": "unsupported_until_contract_capture",
       "remaining": [
-        "Session fork",
-        "Spaces/grouping/templates",
         "Integration-fire route"
       ],
-      "evidence": "SCM reads (compare-refs/get-commit/get-file-content) captured from the 2026-10-29 bundle, implemented in scm.py and live-qualified against GitHub's public API (docs/devlog/claude_2026-10-29-capture-scm.json). PR create/generate-content/subscribe/unsubscribe/mute contracts are captured there but approval-gated and not implemented; no commit-write web route exists.",
+      "evidence": "SCM reads (compare-refs/get-commit/get-file-content) captured from the 2026-10-29 bundle, implemented in scm.py and live-qualified against GitHub's public API (docs/devlog/claude_2026-10-29-capture-scm.json). PR create/generate-content/subscribe/unsubscribe/mute contracts are captured there but approval-gated and not implemented; no commit-write web route exists. Fork (bridge-only fork_conversation), project templates, spaces and session groupings were captured from the 2026-10-29 bundle; fork/templates/spaces are implemented and FK-qualified (cloud fork declines unsupported, spaces_disabled, groupings unrouted 404), grouping settings/coordinator are documented only (docs/devlog/claude_2026-10-29-capture-lifecycle.md).",
       "next": "Capture exact method/body/readback from the browser before implementing. Keep permanent environment deletion and service-owned/cloud-rejected controls unsupported.",
       "estimate": "1 day of contract capture; write actions require approval"
     },

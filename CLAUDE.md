@@ -10,7 +10,7 @@ dependency (its `pyproject.toml`), so there is no second copy to keep in sync.
 - `origin` = `git@github.com:FarisHijazi/claude-rc-api.git` (push here; `main`).
 - `upstream` = `ThatCrispyToast/claude-rc-api`, **read-only**: fetch and merge
   `upstream/main` into `main`; never push there, never open upstream PRs/issues.
-- Version: ours is `0.10.0` (upstream already used 0.4.0). Bump the minor for a
+- Version: ours is `0.11.0` (upstream already used 0.4.0). Bump the minor for a
   new surface.
 
 ## Layout
@@ -373,3 +373,10 @@ is read-only and cross-checks GitHub's public API. PR write contracts are captur
 approval-gated, never implemented: `docs/devlog/claude_2026-10-29-capture-scm.json`
 (plain path, not an include). Outcome branches always get a server suffix, so a fresh
 public-repo session cannot make the browser emit compare-refs.
+
+0.11.0 canonical integration: `docs/devlog/claude_2026-10-29-capture-integration.json`
+(plain path, not an include) indexes the capture-lifecycle/scm/dialogs merge, 839
+offline/headless tests and fresh merged-main reruns of `claude-rc-scm-smoke`,
+`claude-rc-lifecycle-smoke` and `claude-rc-elicitation-smoke` with exact cleanup.
+New surface: `fork_session`/`fork_result`, `list_project_templates`, `list_spaces`,
+`ScmMixin` reads, MCP form elicitation qualification.
