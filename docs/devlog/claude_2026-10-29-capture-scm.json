@@ -1,0 +1,143 @@
+{
+  "date": "2026-10-29",
+  "base": "f0581dcb9bd64f5194acd278a7e0719606c37861",
+  "branch": "feat/capture-scm",
+  "source": {
+    "bundle_app": "https://claude.ai/code loaded in one owned dev-Chrome CDP tab (closed)",
+    "read_routes_bundle": "shared-m-4-B_HJGpmt.js",
+    "create_pr_bundle": "c5da7eb42-BIH9otEe.js",
+    "pr_subscription_bundle": "cbf215181-Bsof7uqE.js",
+    "issues_bundle": "cc43287c9-CXE7kHa2.js"
+  },
+  "read_contracts": {
+    "headers": "C4(org): Content-Type json, anthropic-version 2023-06-01, anthropic-beta ccr-byoc-2025-07-29, anthropic-client-feature ccr, x-organization-uuid",
+    "common_body": "{repo:'owner/name'} + ghe_configuration_id only when nonzero; no session id in body (sessionId only keys a client-side circuit breaker)",
+    "compare_refs": {
+      "method": "POST",
+      "path": "/v1/code/github/compare-refs",
+      "body": "{repo,base,head}",
+      "response": "{ahead_by,behind_by,total_commits,base_branch,head_branch,merge_base,diff_url,commits[{sha,short_sha,subject,author_name,author_email,date(epoch string)}],files[{filename,status,additions,deletions,changes,patch}]}",
+      "404": "browser returns null"
+    },
+    "get_commit": {
+      "method": "POST",
+      "path": "/v1/code/github/get-commit",
+      "body": "{repo,sha}",
+      "response": "compare shape; base_branch=parent sha, head_branch=sha",
+      "404": "browser returns null",
+      "observed_unknown_sha": "HTTP 500"
+    },
+    "get_file_content": {
+      "method": "POST",
+      "path": "/v1/code/github/get-file-content",
+      "body": "{repo,path,ref?}",
+      "response": "{name,path,sha,size,encoding:'base64',content}",
+      "observed": "missing file/repo 404, directory 400, ref omitted = default branch"
+    }
+  },
+  "browser_capture": {
+    "fixture": "disposable cloud session, source octocat/Hello-World@master, Haiku, archived+deleted (GET 404) in both runs",
+    "observed_github_requests": [
+      {
+        "method": "POST",
+        "query": "caller=epitaxy-repopr",
+        "status": 200,
+        "post": "{\"repo_branches\":[{\"repo\":\"octocat/Hello-World\",\"branch\":\"test-07vuqn\"}],\"discover_session_prs\":true,\"session_ids\":[\"session_0154EsXR6hg8KyPwrq6Zxubx\"]}",
+        "path": "/v1/code/github/get-batch-branch-status"
+      }
+    ],
+    "other_requests": "get-batch-branch-status for sidebar/discover callers and GET branches picker also fired; their bodies contain unrelated account repos/session ids and are omitted",
+    "compare_refs_not_emitted": "server suffixes every outcome branch (test -> test-07vuqn, claude/scm-capture-* -> *-gv4sgz); branch_exists stays false on a read-only public repo, and the web gates compare-refs on an existing pushed branch. Read routes were therefore qualified by direct client calls with the bundle's exact body.",
+    "cleanup": [
+      {
+        "session": "cse_0154EsXPWowfpUoqbuerKX8S",
+        "archive": true,
+        "delete": true,
+        "get_after": 404
+      },
+      {
+        "session": "cse_0154EsXR6hg8KyPwrq6Zxubx",
+        "archive": true,
+        "delete": true,
+        "get_after": 404
+      }
+    ]
+  },
+  "live_readback": {
+    "repo": "octocat/Hello-World",
+    "mutations": "none",
+    "checks": {
+      "file_content": {
+        "ok": true,
+        "size": 13,
+        "sha": "980a0d5f19a64b4b30a87d4206aade58726b60e3",
+        "local_blob_sha": "980a0d5f19a64b4b30a87d4206aade58726b60e3",
+        "matches_raw_github": true
+      },
+      "compare_refs": {
+        "ok": true,
+        "ahead_by": 1,
+        "files": [
+          "CONTRIBUTING.md"
+        ],
+        "merge_base": "7fd1a60b01f91b314f59955a4e4d4e80d8edf11d"
+      },
+      "get_commit": {
+        "ok": true,
+        "parent": "553c2077f0edc3d5dc5d17262f6aa498e69d6f8e",
+        "files": [
+          "README"
+        ]
+      },
+      "compare_missing_ref_is_none": {
+        "ok": true
+      },
+      "missing_file_raises_404": {
+        "ok": true,
+        "status": 404
+      }
+    },
+    "passed": true
+  },
+  "approval_gated_write_contracts_not_executed": {
+    "create_pr": {
+      "method": "POST",
+      "path": "/api/github/organizations/{org}/github_create_pr",
+      "headers": "cookie web headers ai(org)",
+      "body": "{repo (upstream repo when fork, else repo), head (fork: 'owner:branch'), base, title, body, draft, session_id, ghe_configuration_id?}",
+      "response_used": "{number,html_url,state,title}"
+    },
+    "generate_pr_content": {
+      "method": "POST",
+      "path": "/api/github/organizations/{org}/generate_pr_content",
+      "body": "not captured (mutation variables not traced)"
+    },
+    "subscribe_pull_request": {
+      "method": "POST",
+      "path": "/v1/code/github/subscribe-pull-request",
+      "body": "mutation variables minus branch/status_repo, gheConfigurationId renamed ghe_configuration_id; variable names seen: session_id, pr_number"
+    },
+    "unsubscribe_pull_request": {
+      "method": "POST",
+      "path": "/v1/code/github/unsubscribe-pull-request",
+      "body": "same transform as subscribe"
+    },
+    "set_pull_request_address_comments_muted": {
+      "method": "POST",
+      "path": "/v1/code/github/set-pull-request-address-comments-muted",
+      "body": "variables minus branch/status_repo: session_id, pr_number, muted, ghe_configuration_id?"
+    },
+    "status": "documented only; no implementation, no request sent"
+  },
+  "captured_read_routes_not_implemented": [
+    "POST /v1/code/github/list-issues {repos,query?,ghe_configuration_id}",
+    "POST /v1/code/github/get-issue {repo,number,ghe_configuration_id}",
+    "GET /v1/code/github/repo-skills",
+    "GET /v1/code/github/installation-repos",
+    "GET /api/organizations/{org}/sync/github/repo/{owner}/{repo}/tree/{ref}"
+  ],
+  "unsupported": [
+    "Commit creation/push: no /v1/code/github or /api/github commit-write route in the captured bundles; commits are worker git actions",
+    "Browser-emitted compare-refs on a public read-only repo (no existing outcome branch)"
+  ]
+}

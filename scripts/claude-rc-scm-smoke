@@ -1,0 +1,86 @@
+#!/usr/bin/env python3
+"""Live read-only SCM qualification against a public repository.
+
+Usage: uv run --extra web python scripts/claude-rc-scm-smoke --output proof.json
+Calls compare_refs / get_commit / get_file_content through claude.ai and checks
+each result against an independent source: GitHub's public REST API and a
+locally computed git blob SHA. Creates nothing, writes nothing.
+"""
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import sys
+from pathlib import Path
+
+import httpx
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from claude_rc import APIError, RemoteControlClient
+from claude_rc.scm import file_content_bytes
+
+REPO = "octocat/Hello-World"
+COMMIT = "7fd1a60b01f91b314f59955a4e4d4e80d8edf11d"
+
+
+def gh(path: str):
+    r = httpx.get(f"https://api.github.com/repos/{REPO}/{path}",
+                  headers={"Accept": "application/vnd.github+json"}, timeout=30)
+    r.raise_for_status()
+    return r
+
+
+def files_view(files):
+    return sorted((f["filename"], f["status"], f["additions"], f["deletions"], f.get("patch")) for f in files)
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--output", type=Path, required=True)
+    args = parser.parse_args()
+    checks: dict[str, dict] = {}
+
+    def check(name, ok, **detail):
+        checks[name] = {"ok": bool(ok), **detail}
+
+    with RemoteControlClient(direct=True) as rc:
+        f = rc.get_file_content(REPO, "README", ref="master")
+        data = file_content_bytes(f)
+        blob = hashlib.sha1(b"blob %d\0" % len(data) + data).hexdigest()
+        raw = httpx.get(f"https://raw.githubusercontent.com/{REPO}/master/README", timeout=30).content
+        check("file_content", data == raw and blob == f["sha"] and f["size"] == len(data),
+              size=len(data), sha=f["sha"], local_blob_sha=blob, matches_raw_github=data == raw)
+
+        c = rc.compare_refs(REPO, "master", "test")
+        g = gh("compare/master...test").json()
+        check("compare_refs", c and files_view(c["files"]) == files_view(g["files"])
+              and c["ahead_by"] == g["ahead_by"] and c["behind_by"] == g["behind_by"]
+              and c["merge_base"] == g["merge_base_commit"]["sha"]
+              and [x["sha"] for x in c["commits"]] == [x["sha"] for x in g["commits"]],
+              ahead_by=c and c["ahead_by"], files=c and [x["filename"] for x in c["files"]],
+              merge_base=c and c["merge_base"])
+
+        m = rc.get_commit(REPO, COMMIT)
+        g = gh(f"commits/{COMMIT}").json()
+        check("get_commit", m and files_view(m["files"]) == files_view(g["files"])
+              and m["base_branch"] == g["parents"][0]["sha"] and m["commits"][0]["sha"] == COMMIT,
+              parent=m and m["base_branch"], files=m and [x["filename"] for x in m["files"]])
+
+        check("compare_missing_ref_is_none", rc.compare_refs(REPO, "master", "no-such-ref-claude-rc") is None)
+        try:
+            rc.get_file_content(REPO, "NO-SUCH-FILE-claude-rc")
+            check("missing_file_raises_404", False)
+        except APIError as e:
+            check("missing_file_raises_404", e.status == 404, status=e.status)
+
+    proof = {"repo": REPO, "mutations": "none", "checks": checks,
+             "passed": all(v["ok"] for v in checks.values())}
+    args.output.write_text(json.dumps(proof, indent=2) + "\n")
+    print(json.dumps(proof, indent=2))
+    return 0 if proof["passed"] else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

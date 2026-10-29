@@ -36,6 +36,7 @@ module that owns the area, or a new mixin module plus one line in the
 | `commands.py` | cloud admission/direction gates, typed slash dispatch, browser model/policy discovery, captured MCP REST and staging contracts; CLI registration/dispatch helpers for integration |
 | `triggers.py` | scheduled tasks (routines); CLI job updates must preserve unspecified nested configuration |
 | `interaction.py` | pending prompts, permission + AskUserQuestion answers, slash commands, generic controls, `stream_session` (keeps meta frames), account `watch` feed |
+| `scm.py` | read-only GitHub compare refs / get commit / get file content (`/v1/code/github/*`); PR writes deliberately absent |
 | `files.py` | chat attachments, inline images, Files API staging, controller file reads and CAS sync writes |
 | `tts.py` | claude.ai text-to-speech websocket + Ogg muxer |
 | `dictation.py` | generated-audio transcription over the captured cookie websocket; no microphone; pre-audio redial only |
@@ -352,3 +353,12 @@ indexes the MC/W3 merge, 811 offline/headless tests and fresh merged-main reruns
 `scripts/claude-rc-mcp-smoke` and `scripts/claude-rc-queue-smoke` with exact cleanup.
 These paths are deliberately plain, not includes. New surface:
 `set_worker_mcp_servers` and explicit result-UUID ownership in collection.
+
+0.11.0 SCM reads: `ScmMixin` (`claude_rc/scm.py`) owns `compare_refs`, `get_commit`,
+`get_file_content` with the exact bundle bodies; it is importable from
+`claude_rc.scm`, not re-exported (keep `__init__.py` unchanged). Compare/commit 404
+returns `None`; unknown SHAs return HTTP 500. `scripts/claude-rc-scm-smoke --output PATH`
+is read-only and cross-checks GitHub's public API. PR write contracts are captured but
+approval-gated, never implemented: `docs/devlog/claude_2026-10-29-capture-scm.json`
+(plain path, not an include). Outcome branches always get a server suffix, so a fresh
+public-repo session cannot make the browser emit compare-refs.

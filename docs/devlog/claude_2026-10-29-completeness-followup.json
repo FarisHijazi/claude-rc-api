@@ -260,7 +260,8 @@
         "Feedback/rating/survey",
         "Network profile/binding/credential writes",
         "Routine tokens/webhooks",
-        "Connector changes"
+        "Connector changes",
+        "SCM PR create/subscribe/mute (captured contracts, needs an owned repository)"
       ],
       "next": "After explicit authorization, test only harmless generated data and exact disposable resources, revoke any issued access, and verify cleanup.",
       "estimate": "2-4 hours after authorization"
@@ -271,10 +272,9 @@
       "remaining": [
         "Session fork",
         "Spaces/grouping/templates",
-        "SCM commit/PR actions",
         "Integration-fire route"
       ],
-      "evidence": "Read-only source strings compare-refs/get-commit/get-file-content were noticed in public bundle 29.js; exact request/response application contracts were not captured or implemented in this follow-up.",
+      "evidence": "SCM reads (compare-refs/get-commit/get-file-content) captured from the 2026-10-29 bundle, implemented in scm.py and live-qualified against GitHub's public API (docs/devlog/claude_2026-10-29-capture-scm.json). PR create/generate-content/subscribe/unsubscribe/mute contracts are captured there but approval-gated and not implemented; no commit-write web route exists.",
       "next": "Capture exact method/body/readback from the browser before implementing. Keep permanent environment deletion and service-owned/cloud-rejected controls unsupported.",
       "estimate": "1 day of contract capture; write actions require approval"
     },

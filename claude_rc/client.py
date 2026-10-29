@@ -55,6 +55,7 @@ from .files import FilesMixin
 from .interaction import InteractionMixin
 from .commands import validate_control_request
 from .lifecycle import LifecycleMixin
+from .scm import ScmMixin
 from .triggers import TriggersMixin
 from .tts import TTSMixin
 from .events import (
@@ -344,7 +345,8 @@ class ControlTimeout(TimeoutError):
 # OAuth (Remote Control) client
 # ---------------------------------------------------------------------------
 class RemoteControlClient(
-    LifecycleMixin, EnvironmentsMixin, AccountMixin, TriggersMixin, InteractionMixin, FilesMixin, TTSMixin
+    LifecycleMixin, EnvironmentsMixin, AccountMixin, TriggersMixin, InteractionMixin, FilesMixin, TTSMixin,
+    ScmMixin,
 ):
     """Controller-side client for Remote Control sessions (``/v1/code/sessions``).
 
