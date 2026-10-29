@@ -1,0 +1,148 @@
+{
+  "run": "commands-612135cb4e37",
+  "checks": [
+    {
+      "name": "read_file",
+      "path": "/mnt/user-data/working/commands-612135cb4e37.txt",
+      "tool_use_id": "toolu_01GxjYSYe83S5n6W6UoNdFVA",
+      "exact_bytes": true
+    },
+    {
+      "name": "current_web_composer",
+      "url": "https://claude.ai/code/session_0154EsXR4AstR4Y7N9T1JKvh",
+      "menu_text": "btw\nrewind\nfeedback\nmodel\neffort\nfast\nplan\npermissions\nskills\nrename\ndiff\ntasks\nworkflows\nstatus\nusage\nusage-credits\nautocompact\nconfig\nsandbox\ntheme\nadvisor\nlogin",
+      "option_texts": []
+    },
+    {
+      "name": "seed_read_state",
+      "mtime": 1793236977.0,
+      "worker_verdict": {},
+      "limitation": "No seed-state getter; edit-without-Read continuation below proves worker read state"
+    },
+    {
+      "name": "seeded_edit_continuation",
+      "tool_use_id": "toolu_01SKQDRjvkVf3XX6eRUZ5diR",
+      "exact_bytes": true
+    },
+    {
+      "name": "file_suggestions",
+      "paths": [],
+      "nonempty": false
+    },
+    {
+      "name": "genuine_question_boundary",
+      "request_id": "97a0cb0b-a197-4040-8ec5-7abe5f6a5d45",
+      "tool_use_id": "toolu_017A9iG7m8CNYQo59LsMrk7Q"
+    },
+    {
+      "name": "queued_before_cancel",
+      "message_uuid": "2e42ff29-5e61-4595-b174-2ddf2f5ebc52",
+      "event_id": "2e42ff29-5e61-4595-b174-2ddf2f5ebc52",
+      "processing_at": null,
+      "processed_at": null
+    },
+    {
+      "name": "cancel_async_message",
+      "message_uuid": "2e42ff29-5e61-4595-b174-2ddf2f5ebc52",
+      "cancelled": true
+    },
+    {
+      "name": "question_continuation",
+      "request_id": "97a0cb0b-a197-4040-8ec5-7abe5f6a5d45",
+      "tool_use_id": "toolu_017A9iG7m8CNYQo59LsMrk7Q",
+      "result_ids": [
+        "b1b03c3d-77ad-44c3-8b41-74903816e770"
+      ]
+    },
+    {
+      "name": "cancel_outcome",
+      "message_uuid": "2e42ff29-5e61-4595-b174-2ddf2f5ebc52",
+      "event_id": "2e42ff29-5e61-4595-b174-2ddf2f5ebc52",
+      "processing_at": [
+        "2026-10-29T01:23:24.202246Z"
+      ],
+      "processed_at": [
+        "2026-10-29T01:23:24.202246Z"
+      ],
+      "cancellation_marker_absent": true,
+      "subsequent_turn_completed": true
+    },
+    {
+      "name": "legacy_interrupt_at_question",
+      "request_id": "1fd276bf-6f55-4db9-bf75-108dc2e4c70b",
+      "tool_use_id": "toolu_01YBYmDDP3cpwwkdegin4SZF",
+      "worker_verdict": {
+        "still_queued": []
+      },
+      "receipt_v1": false
+    },
+    {
+      "name": "legacy_interrupt_outcome",
+      "message_uuid": "7f3090e1-0199-4081-b16c-f3808037e6bc",
+      "request_id": "1fd276bf-6f55-4db9-bf75-108dc2e4c70b",
+      "cancellation_ids": [],
+      "tool_result_error_flags": [
+        true
+      ],
+      "post_question_file_status": 404,
+      "subsequent_turn_completed": true
+    },
+    {
+      "name": "advanced_queue_and_tasks",
+      "capabilities": [
+        "start_shell_task_v1"
+      ],
+      "send_now": "not qualified: worker does not advertise support",
+      "interrupt_receipts": "not qualified: interrupt_receipt_v1 absent",
+      "task_messaging": "not qualified: no advertised agent task messaging fixture"
+    }
+  ],
+  "cleanup": [
+    {
+      "session_id": "cse_0154EsXR4AstR4Y7N9T1JKvh",
+      "get_status": 404
+    },
+    {
+      "environment_id": "env_01WgEfGUukj8PxbFF5QaMzXV",
+      "excluded_from_list": true
+    }
+  ],
+  "complete": true,
+  "environment_id": "env_01WgEfGUukj8PxbFF5QaMzXV",
+  "session_id": "cse_0154EsXR4AstR4Y7N9T1JKvh",
+  "catalog_summary": {
+    "worker_version": "2.1.312",
+    "capabilities": [
+      "start_shell_task_v1"
+    ],
+    "web_catalog": [
+      "autocompact",
+      "btw",
+      "config",
+      "diff",
+      "effort",
+      "fast",
+      "feedback",
+      "login",
+      "model",
+      "permissions",
+      "plan",
+      "rename",
+      "rewind",
+      "sandbox",
+      "skills",
+      "status",
+      "tasks",
+      "theme",
+      "usage",
+      "usage-credits",
+      "workflows"
+    ],
+    "worker_command_count": 55,
+    "omitted_route_rows": 79
+  },
+  "evidence_redaction": {
+    "original_sha256": "8113e5cad82fa287926fc3d2bfd56006a65974e2c3391d72bfbca43eac960d3e",
+    "removed": "Repeated route tables or worker descriptions only; checks, exact resource IDs and cleanup unchanged"
+  }
+}

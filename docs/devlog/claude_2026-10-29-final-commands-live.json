@@ -1,0 +1,677 @@
+{
+  "session_id": "cse_0154EsXRcuNDDdv5zdiJaoyX",
+  "worker": {
+    "session_id": "cse_0154EsXRcuNDDdv5zdiJaoyX",
+    "version": "2.1.312",
+    "capabilities": [
+      "start_shell_task_v1"
+    ],
+    "commands": [
+      {
+        "name": "startup-hook-skill",
+        "aliases": [
+          "session-start-hook"
+        ]
+      },
+      {
+        "name": "deep-research",
+        "builtin": true
+      },
+      {
+        "name": "design",
+        "builtin": true
+      },
+      {
+        "name": "slides",
+        "builtin": true
+      },
+      {
+        "name": "design-sync",
+        "builtin": true
+      },
+      {
+        "name": "dataviz",
+        "builtin": true
+      },
+      {
+        "name": "artifact-diagramming",
+        "builtin": true
+      },
+      {
+        "name": "artifact-capabilities",
+        "builtin": true
+      },
+      {
+        "name": "update-config",
+        "builtin": true
+      },
+      {
+        "name": "verify",
+        "builtin": true
+      },
+      {
+        "name": "debug",
+        "builtin": true
+      },
+      {
+        "name": "code-review",
+        "aliases": [
+          "review"
+        ],
+        "builtin": true
+      },
+      {
+        "name": "simplify",
+        "builtin": true
+      },
+      {
+        "name": "batch",
+        "builtin": true
+      },
+      {
+        "name": "fewer-permission-prompts",
+        "builtin": true
+      },
+      {
+        "name": "doctor",
+        "aliases": [
+          "checkup"
+        ],
+        "builtin": true
+      },
+      {
+        "name": "loop",
+        "aliases": [
+          "proactive"
+        ],
+        "builtin": true
+      },
+      {
+        "name": "claude-api",
+        "builtin": true
+      },
+      {
+        "name": "workflow-authoring",
+        "builtin": true
+      },
+      {
+        "name": "run",
+        "builtin": true
+      },
+      {
+        "name": "run-skill-generator",
+        "builtin": true
+      },
+      {
+        "name": "plugin-authoring",
+        "builtin": true
+      },
+      {
+        "name": "add-dir",
+        "builtin": true
+      },
+      {
+        "name": "advisor",
+        "builtin": true
+      },
+      {
+        "name": "agents",
+        "builtin": true
+      },
+      {
+        "name": "autocompact",
+        "builtin": true
+      },
+      {
+        "name": "clear",
+        "aliases": [
+          "reset",
+          "new"
+        ],
+        "builtin": true
+      },
+      {
+        "name": "color",
+        "builtin": true
+      },
+      {
+        "name": "compact",
+        "builtin": true
+      },
+      {
+        "name": "config",
+        "aliases": [
+          "settings"
+        ],
+        "builtin": true
+      },
+      {
+        "name": "output-style",
+        "builtin": true
+      },
+      {
+        "name": "context",
+        "builtin": true
+      },
+      {
+        "name": "effort",
+        "builtin": true
+      },
+      {
+        "name": "fast",
+        "builtin": true
+      },
+      {
+        "name": "focus",
+        "builtin": true
+      },
+      {
+        "name": "heapdump",
+        "builtin": true
+      },
+      {
+        "name": "init",
+        "builtin": true
+      },
+      {
+        "name": "mcp",
+        "builtin": true
+      },
+      {
+        "name": "import",
+        "builtin": true
+      },
+      {
+        "name": "model",
+        "builtin": true
+      },
+      {
+        "name": "__remote-workflow",
+        "builtin": true
+      },
+      {
+        "name": "workflow-launch-exec",
+        "builtin": true
+      },
+      {
+        "name": "reload-plugins",
+        "builtin": true
+      },
+      {
+        "name": "reload-skills",
+        "builtin": true
+      },
+      {
+        "name": "rename",
+        "aliases": [
+          "name"
+        ],
+        "builtin": true
+      },
+      {
+        "name": "security-review",
+        "builtin": true
+      },
+      {
+        "name": "usage",
+        "aliases": [
+          "cost",
+          "stats"
+        ],
+        "builtin": true
+      },
+      {
+        "name": "insights",
+        "builtin": true
+      },
+      {
+        "name": "recap",
+        "builtin": true
+      },
+      {
+        "name": "skill-doctor",
+        "builtin": true
+      },
+      {
+        "name": "goal",
+        "builtin": true
+      },
+      {
+        "name": "design-consent",
+        "builtin": true
+      },
+      {
+        "name": "design-revoke",
+        "builtin": true
+      },
+      {
+        "name": "list-agents",
+        "aliases": [
+          "peers"
+        ],
+        "builtin": true
+      },
+      {
+        "name": "team-onboarding",
+        "builtin": true
+      }
+    ],
+    "init_keys": [
+      "account",
+      "agents",
+      "analytics_disabled",
+      "available_output_styles",
+      "capabilities",
+      "claude_code_version",
+      "commands",
+      "current_permission_mode",
+      "fast_mode_disabled_reason",
+      "fast_mode_state",
+      "feedback_mode",
+      "ide_rc_auto_enable_gate",
+      "models",
+      "output_style",
+      "pid",
+      "remote_control_auto_connect_default",
+      "remote_control_auto_enable",
+      "remote_control_auto_on_by_default",
+      "remote_control_available",
+      "session_state",
+      "user_output_styles_dir",
+      "pending_permission_requests",
+      "pending_user_dialog_requests"
+    ]
+  },
+  "checks": [
+    {
+      "name": "model_inference",
+      "model": "claude-haiku-5-5",
+      "applied": "claude-haiku-5-5",
+      "assistant_models": [
+        "claude-haiku-5-5"
+      ],
+      "completed": true,
+      "message_uuid": "15ba64f0-bafc-4b76-97cb-6623aed61fb1",
+      "processing_at": "2026-10-29T01:11:06.588002Z"
+    },
+    {
+      "name": "model_inference",
+      "model": "claude-sonnet-5-5",
+      "applied": "claude-sonnet-5-5",
+      "assistant_models": [
+        "claude-sonnet-5-5"
+      ],
+      "completed": true,
+      "message_uuid": "251a22e3-10bc-466d-8dea-31373b4d1c36",
+      "processing_at": "2026-10-29T01:11:13.720700Z"
+    },
+    {
+      "name": "permission_mode",
+      "mode": "plan",
+      "verdict": {
+        "mode": "plan"
+      },
+      "readback": "plan"
+    },
+    {
+      "name": "permission_mode",
+      "mode": "acceptEdits",
+      "verdict": {
+        "mode": "acceptEdits"
+      },
+      "readback": "acceptEdits"
+    },
+    {
+      "name": "permission_mode",
+      "mode": "default",
+      "verdict": {
+        "mode": "default"
+      },
+      "readback": "default"
+    },
+    {
+      "name": "flag",
+      "requested": {
+        "effortLevel": "low"
+      },
+      "verdict": {},
+      "readback": {
+        "applied": {
+          "advisor": null,
+          "effort": "low",
+          "model": "claude-haiku-5-5",
+          "ultracode": false,
+          "ultracodeAvailable": true,
+          "ultracodeRequested": false
+        },
+        "effective": {
+          "effortLevel": "low"
+        },
+        "sources": [
+          {
+            "settings": {
+              "effortLevel": "low"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "flag",
+      "requested": {
+        "fastMode": true
+      },
+      "verdict": {},
+      "readback": {
+        "applied": {
+          "advisor": null,
+          "effort": "low",
+          "model": "claude-haiku-5-5",
+          "ultracode": false,
+          "ultracodeAvailable": true,
+          "ultracodeRequested": false
+        },
+        "effective": {
+          "effortLevel": "low",
+          "fastMode": true
+        },
+        "sources": [
+          {
+            "settings": {
+              "effortLevel": "low",
+              "fastMode": true
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "flag",
+      "requested": {
+        "fastMode": false
+      },
+      "verdict": {},
+      "readback": {
+        "applied": {
+          "advisor": null,
+          "effort": "low",
+          "model": "claude-haiku-5-5",
+          "ultracode": false,
+          "ultracodeAvailable": true,
+          "ultracodeRequested": false
+        },
+        "effective": {
+          "effortLevel": "low",
+          "fastMode": false
+        },
+        "sources": [
+          {
+            "settings": {
+              "effortLevel": "low",
+              "fastMode": false
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "flag",
+      "requested": {
+        "advisorModel": "claude-sonnet-5-5"
+      },
+      "verdict": {},
+      "readback": {
+        "applied": {
+          "advisor": "claude-sonnet-5-5",
+          "effort": "low",
+          "model": "claude-haiku-5-5",
+          "ultracode": false,
+          "ultracodeAvailable": true,
+          "ultracodeRequested": false
+        },
+        "effective": {
+          "advisorModel": "claude-sonnet-5-5",
+          "effortLevel": "low",
+          "fastMode": false
+        },
+        "sources": [
+          {
+            "settings": {
+              "advisorModel": "claude-sonnet-5-5",
+              "effortLevel": "low",
+              "fastMode": false
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "flag",
+      "requested": {
+        "advisorModel": null
+      },
+      "verdict": {},
+      "readback": {
+        "applied": {
+          "advisor": null,
+          "effort": "low",
+          "model": "claude-haiku-5-5",
+          "ultracode": false,
+          "ultracodeAvailable": true,
+          "ultracodeRequested": false
+        },
+        "effective": {
+          "effortLevel": "low",
+          "fastMode": false
+        },
+        "sources": [
+          {
+            "settings": {
+              "effortLevel": "low",
+              "fastMode": false
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "flag",
+      "requested": {
+        "alwaysThinkingEnabled": false
+      },
+      "verdict": {},
+      "readback": {
+        "applied": {
+          "advisor": null,
+          "effort": "low",
+          "model": "claude-haiku-5-5",
+          "ultracode": false,
+          "ultracodeAvailable": true,
+          "ultracodeRequested": false
+        },
+        "effective": {
+          "alwaysThinkingEnabled": false,
+          "effortLevel": "low",
+          "fastMode": false
+        },
+        "sources": [
+          {
+            "settings": {
+              "alwaysThinkingEnabled": false,
+              "effortLevel": "low",
+              "fastMode": false
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "flag",
+      "requested": {
+        "alwaysThinkingEnabled": true
+      },
+      "verdict": {},
+      "readback": {
+        "applied": {
+          "advisor": null,
+          "effort": "low",
+          "model": "claude-haiku-5-5",
+          "ultracode": false,
+          "ultracodeAvailable": true,
+          "ultracodeRequested": false
+        },
+        "effective": {
+          "alwaysThinkingEnabled": true,
+          "effortLevel": "low",
+          "fastMode": false
+        },
+        "sources": [
+          {
+            "settings": {
+              "alwaysThinkingEnabled": true,
+              "effortLevel": "low",
+              "fastMode": false
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "flag",
+      "requested": {
+        "viewMode": "verbose"
+      },
+      "verdict": {},
+      "readback": {
+        "applied": {
+          "advisor": null,
+          "effort": "low",
+          "model": "claude-haiku-5-5",
+          "ultracode": false,
+          "ultracodeAvailable": true,
+          "ultracodeRequested": false
+        },
+        "effective": {
+          "alwaysThinkingEnabled": true,
+          "effortLevel": "low",
+          "fastMode": false,
+          "viewMode": "verbose"
+        },
+        "sources": [
+          {
+            "settings": {
+              "alwaysThinkingEnabled": true,
+              "effortLevel": "low",
+              "fastMode": false,
+              "viewMode": "verbose"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "flag",
+      "requested": {
+        "viewMode": "normal"
+      },
+      "verdict": {},
+      "readback": {
+        "applied": {
+          "advisor": null,
+          "effort": "low",
+          "model": "claude-haiku-5-5",
+          "ultracode": false,
+          "ultracodeAvailable": true,
+          "ultracodeRequested": false
+        },
+        "effective": {
+          "alwaysThinkingEnabled": true,
+          "effortLevel": "low",
+          "fastMode": false
+        },
+        "sources": [
+          {
+            "settings": {
+              "alwaysThinkingEnabled": true,
+              "effortLevel": "low",
+              "fastMode": false
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "get_session_cost",
+      "response_type": "dict",
+      "keys": [
+        "text"
+      ]
+    },
+    {
+      "name": "get_plan",
+      "response_type": "dict",
+      "keys": [
+        "exists"
+      ]
+    },
+    {
+      "name": "get_settings",
+      "response_type": "dict",
+      "keys": [
+        "applied",
+        "effective",
+        "sources"
+      ]
+    },
+    {
+      "name": "get_hooks_listing",
+      "response_type": "dict",
+      "keys": [
+        "eventCatalog",
+        "events",
+        "hooks",
+        "policy"
+      ]
+    },
+    {
+      "name": "list_permission_rules",
+      "response_type": "dict",
+      "keys": [
+        "state"
+      ]
+    },
+    {
+      "name": "get_binary_version",
+      "response_type": "dict",
+      "keys": [
+        "buildTime",
+        "version"
+      ],
+      "version": {
+        "buildTime": "2026-10-27T16:53:02Z",
+        "version": "2.1.312"
+      }
+    },
+    {
+      "name": "read_state_setup",
+      "tool_use_id": "toolu_01WguC2KsozoQXn9QvEEkLgP",
+      "content": "1793236297"
+    },
+    {
+      "name": "aborted",
+      "error_class": "ControlRejected",
+      "detail": "read denied: /mnt/user-data/working/final-commands-proof.txt"
+    }
+  ],
+  "cleanup": [
+    {
+      "session_id": "cse_0154EsXRcuNDDdv5zdiJaoyX",
+      "get_status": 404
+    }
+  ],
+  "full_parity": false,
+  "evidence_redaction": {
+    "original_sha256": "59114330e2a7e7135f9de9799164893f8e3f6096093f6d93968c2b2521c4a061",
+    "removed": "Repeated route tables or worker descriptions only; checks, exact resource IDs and cleanup unchanged"
+  }
+}

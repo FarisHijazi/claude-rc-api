@@ -1,0 +1,255 @@
+#!/usr/bin/env python3
+"""Opt-in command/read-state/queue proof on exact disposable cloud resources.
+
+Only tiny prompts and session-scoped controls run. No connector, feedback,
+authentication or public-sharing writes. Evidence contains IDs and generated
+fixture data only. Unadvertised send-now/interrupt receipts remain unqualified.
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import runpy
+import sys
+import time
+import uuid
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from claude_rc import APIError, RemoteControlClient
+
+helpers = runpy.run_path(str(Path(__file__).with_name("claude-rc-permission-smoke")))
+collect = helpers["collect"]
+tool_results = helpers["tool_results"]
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--qualify-controls", action="store_true", help="also qualify two models, modes and flag readback")
+    parser.add_argument("--capture-web-catalog", action="store_true",
+                        help="open/close one owned dev CDP tab; requires playwright")
+    args = parser.parse_args()
+    proof = {"run": "commands-" + uuid.uuid4().hex[:12], "checks": [], "cleanup": [], "complete": False}
+    sid = eid = None
+
+    def save():
+        args.output.write_text(json.dumps(proof, indent=2) + "\n")
+
+    def record(name, **details):
+        row = {"name": name, **details}
+        proof["checks"].append(row)
+        save()
+        print(json.dumps(row), flush=True)
+
+    with RemoteControlClient(direct=True, timeout=25) as client:
+        try:
+            client.list_sessions(limit=1)
+            client.list_environments()
+            env = client.create_cloud_environment(proof["run"], cwd="/mnt/user-data/working",
+                                                  description="Disposable command and queue fixture")
+            eid = env["environment_id"]
+            proof["environment_id"] = eid
+            save()
+            sid = client.create_session(eid, title=proof["run"], model="claude-haiku-5-5",
+                                        permission_mode="default")["id"]
+            proof["session_id"] = sid
+            save()
+            snapshot = client.command_capabilities(sid, timeout=60)
+            proof["catalog"] = snapshot
+            save()
+
+            def reject(request):
+                client.deny_permission(sid, request, "Unexpected fixture operation; do not retry.", interrupt=True)
+                raise AssertionError("unexpected permission")
+
+            if args.qualify_controls:
+                for model in ("claude-haiku-5-5", "claude-sonnet-5-5"):
+                    client.run_command(sid, "model", model)
+                    assert client.get_settings(sid)["applied"]["model"] == model
+                    events, _ = collect(client, sid, "Reply exactly MODEL_PROOF_OK. No tools.", reject)
+                    assistants = [e for e in events if e.role == "assistant"]
+                    assert any(e.text() == "MODEL_PROOF_OK" for e in assistants)
+                    assert any(e.payload.get("message", {}).get("model") == model for e in assistants)
+                    record("model_inference", model=model, applied_model=model,
+                           result_ids=[e.event_id for e in events if e.is_turn_end],
+                           assistant_models=[e.payload.get("message", {}).get("model") for e in assistants])
+                client.run_command(sid, "model", "claude-haiku-5-5")
+                for mode in ("plan", "acceptEdits", "default"):
+                    client.request_control(sid, "set_permission_mode", mode=mode)
+                    assert client.initialize(sid)["current_permission_mode"] == mode
+                    record("permission_mode", mode=mode, readback_matched=True)
+                for key, value in (("effortLevel", "low"), ("fastMode", True), ("fastMode", False),
+                                   ("advisorModel", "claude-sonnet-5-5"), ("advisorModel", None),
+                                   ("alwaysThinkingEnabled", False), ("alwaysThinkingEnabled", True),
+                                   ("viewMode", "verbose"), ("viewMode", "normal")):
+                    client.apply_flag_settings(sid, {key: value})
+                    settings = client.get_settings(sid)
+                    default = "normal" if key == "viewMode" else None
+                    assert settings["effective"].get(key, default) == value
+                    if key == "advisorModel":
+                        assert settings["applied"]["advisor"] == value
+                    record("flag_layer_readback", key=key, requested=value,
+                           effective=settings["effective"].get(key, default),
+                           limitation="stored flag state, not fast/advisor/thinking inference or rendered view proof")
+                for method in ("get_session_cost", "get_plan", "get_hooks_listing", "list_permission_rules", "get_binary_version"):
+                    result = getattr(client, method)(sid)
+                    assert isinstance(result, dict)
+                    record(method, response_keys=sorted(result))
+
+            path = "/mnt/user-data/working/" + proof["run"] + ".txt"
+            seed_path = path + ".seed"
+            events, _ = collect(client, sid,
+                f"Use Bash exactly once: printf READ_STATE_OK > {path}; printf READ_STATE_OK > {seed_path}; stat -c %Y {seed_path}. No other tools.", reject)
+            results = tool_results(events, "Bash")
+            assert len(results) == 1 and not results[0].get("is_error")
+            mtime = float(str(results[0]["content"]).strip())
+            read = client.read_file(sid, path)
+            assert read["contents"] == "READ_STATE_OK"
+            record("read_file", path=path, tool_use_id=results[0]["tool_use_id"], exact_bytes=True)
+            if args.capture_web_catalog:
+                from playwright.sync_api import sync_playwright
+                from claude_rc.lifecycle import session_web_url
+                with sync_playwright() as playwright:
+                    browser = playwright.chromium.connect_over_cdp("http://127.0.0.1:9222")
+                    page = browser.contexts[0].new_page()
+                    try:
+                        page.goto(session_web_url(sid), wait_until="domcontentloaded", timeout=60000)
+                        composer = page.get_by_role("textbox")
+                        composer.wait_for(timeout=45000)
+                        composer.fill("/")
+                        menu = page.locator('[role="listbox"], [role="menu"]').first
+                        menu.wait_for(timeout=15000)
+                        menu_text = menu.inner_text()
+                        record("current_web_composer", url=page.url,
+                               menu_text=menu_text,
+                               option_texts=page.get_by_role("option").all_text_contents())
+                        assert set(menu_text.splitlines()) == set(snapshot["web_catalog"]), "web catalog changed or has not loaded"
+                        composer.fill("")
+                    finally:
+                        page.close()
+                        browser.close()
+            seed = client.seed_read_state(sid, seed_path, mtime)
+            record("seed_read_state", mtime=mtime, worker_verdict=seed,
+                   limitation="No seed-state getter; edit-without-Read continuation below proves worker read state")
+            events, _ = collect(client, sid,
+                f"Use Edit exactly once on {seed_path}, replacing READ_STATE_OK with SEEDED_EDIT_OK. "
+                "Do not Read or use any other tool. Then reply EDIT_FINISHED.", reject)
+            edits = tool_results(events, "Edit")
+            assert len(edits) == 1 and not edits[0].get("is_error")
+            assert not [t for e in events for t in e.tool_uses() if t.get("name") == "Read"]
+            assert client.read_file(sid, seed_path)["contents"] == "SEEDED_EDIT_OK"
+            record("seeded_edit_continuation", tool_use_id=edits[0]["tool_use_id"], exact_bytes=True)
+            suggestions = client.file_suggestions(sid, proof["run"])
+            record("file_suggestions", paths=suggestions, nonempty=bool(suggestions))
+
+            queued_id = str(uuid.uuid4())
+            queued_event = None
+
+            def boundary(request):
+                nonlocal queued_event
+                assert request.kind == "question"
+                record("genuine_question_boundary", request_id=request.request_id, tool_use_id=request.tool_use_id)
+                ack = client.queue_message(sid, "Reply exactly CANCELLED_SHOULD_NOT_RUN.", message_uuid=queued_id)
+                queued_event = ack["results"][0]["event_id"]
+                row = next(e for e in client.iter_history(sid) if e.event_id == queued_event)
+                record("queued_before_cancel", message_uuid=queued_id, event_id=queued_event,
+                       processing_at=row.raw.get("processing_at"), processed_at=row.raw.get("processed_at"))
+                cancelled = client.cancel_queued_message(sid, queued_id)
+                record("cancel_async_message", message_uuid=queued_id, cancelled=cancelled)
+                assert cancelled, "worker did not cancel the exact queued UUID"
+                client.answer_questions(sid, request, {request.questions[0].question: "Continue"})
+
+            events, pending = collect(client, sid,
+                'Call AskUserQuestion exactly once: question "Continue queue fixture?", header "Fixture", '
+                'options Continue and Stop with descriptions, multiSelect false. '
+                'After answer reply BOUNDARY_FINISHED. No other tools.', boundary)
+            assert len(pending) == 1 and tool_results(events, "AskUserQuestion")
+            record("question_continuation", request_id=pending[0].request_id,
+                   tool_use_id=tool_results(events, "AskUserQuestion")[0]["tool_use_id"],
+                   result_ids=[e.event_id for e in events if e.is_turn_end])
+            events, _ = collect(client, sid, "Reply exactly AFTER_CANCEL_OK. No tools.", reject)
+            assert any("AFTER_CANCEL_OK" in e.text() for e in events if e.role == "assistant")
+            history = list(client.iter_history(sid))
+            queued = [e for e in history if e.event_id == queued_event]
+            marker_absent = not any("CANCELLED_SHOULD_NOT_RUN" in e.text() for e in history if e.role == "assistant")
+            assert marker_absent
+            record("cancel_outcome", message_uuid=queued_id, event_id=queued_event,
+                   processing_at=[e.raw.get("processing_at") for e in queued],
+                   processed_at=[e.raw.get("processed_at") for e in queued],
+                   cancellation_marker_absent=marker_absent, subsequent_turn_completed=True)
+            interrupted_path = path + ".interrupted"
+
+            def interrupt_boundary(request):
+                assert request.kind == "question"
+                verdict = client.stop_turn(sid, timeout=30)
+                record("legacy_interrupt_at_question", request_id=request.request_id,
+                       tool_use_id=request.tool_use_id, worker_verdict=verdict,
+                       receipt_v1=False)
+
+            # An interrupted turn need not emit a successful result. Inspect its
+            # exact prompt cancellation and the next completed turn independently.
+            newest = client.list_events(sid, limit=1, sort_order="desc")
+            start = max((e.sequence_num or 0 for e in newest), default=0)
+            message_id = str(uuid.uuid4())
+            events = client.send_and_collect(sid,
+                'Call AskUserQuestion exactly once: question "Interrupt this fixture?", header "Fixture", '
+                'options Continue and Stop with descriptions, multiSelect false. Only after an answer, '
+                f'use Bash to write SHOULD_NOT_EXIST into {interrupted_path}.',
+                message_uuid=message_id, timeout=120)
+            from claude_rc.prompts import PendingRequest
+            request = next((PendingRequest.from_payload(e.payload, e) for e in events if e.is_blocking_control), None)
+            assert request is not None
+            interrupt_boundary(request)
+            events, _ = collect(client, sid, "Reply exactly AFTER_INTERRUPT_OK. No tools.", reject)
+            assert any("AFTER_INTERRUPT_OK" in e.text() for e in events if e.role == "assistant")
+            history = list(client.iter_history(sid, after_sequence_num=start))
+            cancellations = [e for e in history if e.type == "control_cancel_request" and e.request_id == request.request_id]
+            interrupted_results = [b for e in history for b in e._content_blocks()
+                                   if isinstance(b, dict) and b.get("type") == "tool_result"
+                                   and b.get("tool_use_id") == request.tool_use_id]
+            directory = client.list_directory(sid)
+            assert directory["absPath"] == "/mnt/user-data/working"
+            assert Path(path).name in json.dumps(directory["entries"])
+            assert Path(interrupted_path).name not in json.dumps(directory["entries"])
+            try:
+                client.get_session_file(sid, interrupted_path)
+                raise AssertionError("interrupted post-question write executed")
+            except APIError as error:
+                assert error.status == 404
+            assert cancellations or any(b.get("is_error") for b in interrupted_results)
+            record("legacy_interrupt_outcome", message_uuid=message_id, request_id=request.request_id,
+                   cancellation_ids=[e.event_id for e in cancellations],
+                   tool_result_error_flags=[b.get("is_error") for b in interrupted_results],
+                   post_question_file_status=404, subsequent_turn_completed=True)
+            capabilities = snapshot["capabilities"]
+            record("advanced_queue_and_tasks", capabilities=capabilities,
+                   send_now="not qualified: worker does not advertise support",
+                   interrupt_receipts="not qualified: interrupt_receipt_v1 absent",
+                   task_messaging="not qualified: no advertised agent task messaging fixture")
+            proof["complete"] = True
+            save()
+        except Exception as error:
+            record("aborted", error_class=type(error).__name__)
+            raise
+        finally:
+            if sid:
+                client.archive_session(sid)
+                client.delete_session(sid)
+                try:
+                    client.get_session(sid)
+                    raise AssertionError("deleted session remains readable")
+                except APIError as error:
+                    assert error.status == 404
+                    proof["cleanup"].append({"session_id": sid, "get_status": 404})
+                    save()
+            if eid:
+                client.archive_environment(eid)
+                environments = client.list_environments()
+                assert not any(e.get("environment_id", e.get("id")) == eid for e in environments)
+                proof["cleanup"].append({"environment_id": eid, "excluded_from_list": True})
+                save()
+
+
+if __name__ == "__main__":
+    main()

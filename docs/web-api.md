@@ -30,6 +30,7 @@ Evidence files are deliberately plain paths, not force-loaded includes:
 | P2 | `claude_2026-10-29-core-permissions-qualified.json` (genuine cloud allow/deny/exact-rule reuse); `claude_2026-10-29-core-permissions-summary.json` (method, source provenance and retained failures) |
 | Q2 | `claude_2026-10-29-core-questions-qualified.json` (native cloud text/number/follow-up; hook registration explicitly not applied) |
 | W | `claude_2026-10-28-group05-independent-summary.json` and its linked task/rerun evidence |
+| W2 | `claude_2026-10-29-final-commands-summary.json`; `claude_2026-10-29-final-commands-qualified-rerun.json` (current web catalog, controls, seed-state and queue/interrupt effects; earlier failures retained) |
 | E | `claude_2026-10-28-group06-independent-evidence.json`, `claude_2026-10-28-group06-contracts.json` |
 | F | `group07-independent-2026-10-28.json` |
 | R | `claude_2026-10-28-group08-independent-evidence.json` |
@@ -165,7 +166,7 @@ neither cookie rereads nor isolated OAuth helpers can guarantee silent renewal.
 | Ephemeral MCP liveReply correlation | Implemented | Live S; merged `mcp_status(live_reply=True)` uses this correlator. Missed ephemeral replies cannot be replayed |
 | Account watch mint/resume/rename/archive | Implemented | Live S; notifications may be `added` snapshots, not always `changed` |
 | Watch 410/remint/resync | Implemented | Offline; natural 410 not observed |
-| Priorities, cancellation, send-now and interrupt receipts | Implemented | Offline; genuine queue outcomes and capability-matched receipts still unqualified live |
+| Priorities, cancellation, send-now and interrupt receipts | Implemented subset qualified | Live W2: exact UUID queued at a genuine question, `cancelled:true`, no cancelled response and a fresh completed turn; legacy interrupt produces the exact question's error tool-result and prevents its post-question write. Send-now/priority races and v1 receipts remain unqualified; only `start_shell_task_v1` was advertised |
 
 The server's `control_only=1` suppresses ephemeral responses. `stream_control`
 therefore filters the full stream locally by default. `server_filter=True` is an
@@ -220,13 +221,13 @@ Q2 also archives its environment and verifies list exclusion.
 
 | Capability | Implementation | Verification / boundary |
 |---|---|---|
-| Initialize commands/capabilities | Implemented | Live I/W |
+| Initialize commands/capabilities | Implemented | Live I/W/W2; `command_capabilities` / CLI `dispatch SESSION --capabilities` distinguish 22 observed Code menu names, worker advertisements and API extensions |
 | Authoritative pre-session model catalog and permission policy | Implemented | Live I/W/P; panel create form selects environment/pool, repository, revision, outcome branch, model, effort and initial mode. Optional auto/bypass choices require policy `allowed: true`; unavailable policy disables selection. Full repo paging/pool execution remain unqualified |
-| Model/mode changes and `/model`, `/plan` | Implemented | Live I/W worker verdicts and settings/initialize readback; alternative model restored before inference |
-| Effort / `/effort` | Implemented | Live I/W settings readback |
-| Fast/advisor/thinking/view flags | Implemented | Fast-off/advisor-off worker verdicts W; independent flag readback and other variants remain offline |
+| Model/mode changes and `/model`, `/plan` | Implemented | Live W2 Haiku/Sonnet settings equality plus actual model-tagged marker inference; plan/acceptEdits/default initialize readback |
+| Effort / `/effort` | Implemented | Live I/W/W2 settings readback |
+| Fast/advisor/thinking/view flags | Implemented | Live W2 true/false, advisor model/off and verbose/normal flag-layer readback; not fast/advisor/thinking inference or rendered-view proof |
 | Context/usage/btw typed dispatch | Implemented | Live I/W, exact btw response; no ordinary-text fallback |
-| Cost, plan, settings, hooks, permission rules, version, suggestions/read state | Implemented | Mixed W query evidence; full method-specific live response qualification remains incomplete |
+| Cost, plan, settings, hooks, permission rules, version, suggestions/read state | Implemented | Live W2 method-specific shapes; seed on an unread fixture followed by successful Edit without Read and exact worker file readback. Suggestions returned an empty list; nonempty search and nonempty plan remain unqualified |
 | Worker-advertised prompt commands | Implemented | Live W `/recap` actual completion; unadvertised names rejected |
 | Local `/help` and panel `/theme light|dark` | Implemented local | Help live CLI process I; theme and menus tested against local fixtures, no worker turn |
 | Host-local account/settings/skills/workflow/usage presentation | Implemented subset | Panel passes local handlers for `/login` auth status, `/config`/`settings` effective worker settings, `/skills` account discovery, `/workflows` advertised workflow names and `/usage-credits` account usage; `/copy` copies loaded transcript and `/logout` detaches this panel without revoking browser/shared auth. This is not PKCE enrollment or browser logout parity; unimplemented sandbox/design/slides/other menus still fail closed |
@@ -242,6 +243,19 @@ Q2 also archives its environment and verifies list exclusion.
 | Worker hosting, shared memory, SCM service and runner registry | Outside scope | Existing service owner must implement these, not a second controller-side service |
 
 `command_table()` lists routing, not proof that every local renderer exists.
+**LIVE CHECK W2:** the current signed-in Code composer offered 22 names, exactly
+matching `command_capabilities().web_catalog` in the final acceptance run. This
+is not the shared chat/desktop command registry or the worker's 55-name harness
+catalog. Design/slides are advertised by this worker but not in this web menu;
+no new artifact renderer is required for this API qualification. Status uses a
+host presentation and autocompact has no admitted cloud setting control; both
+fail locally without an explicit handler, never falling through to chat.
+Cancelled event envelopes can later have transport processing timestamps:
+`cancelled:true` plus absent generated output and successful subsequent inference
+qualify cancellation, not timestamp absence alone. The collection fix also
+requires its own processing receipt before accepting a blocking prompt, with
+live-receipt and recovered-history ordering regressions.
+
 `run_command()` returns `via=local|control|worker`; worker results are queue
 acknowledgements until the stream proves execution. `set_model` and
 `set_permission_mode` retain legacy enqueue behavior without `wait=...`; CLI
@@ -365,6 +379,7 @@ uv run --extra web --with playwright python scripts/claude-rc-management-smoke -
 uv run --extra web python scripts/claude-rc-upload-smoke --evidence ./upload-evidence.json
 uv run --extra web python scripts/claude-rc-permission-smoke --output ./permission-evidence.json
 uv run --extra web python scripts/claude-rc-question-smoke --output ./question-evidence.json
+uv run --extra web --with playwright python scripts/claude-rc-command-smoke --qualify-controls --capture-web-catalog --output ./command-evidence.json
 ```
 
 The permission smoke exits zero only after every permission/file assertion and

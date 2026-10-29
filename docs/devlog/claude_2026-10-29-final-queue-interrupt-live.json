@@ -1,0 +1,142 @@
+{
+  "run": "commands-842333cf9ab3",
+  "checks": [
+    {
+      "name": "read_file",
+      "path": "/mnt/user-data/working/commands-842333cf9ab3.txt",
+      "tool_use_id": "toolu_011rDfoxxvA9Zy1Nq7Y5mV74",
+      "exact_bytes": true
+    },
+    {
+      "name": "seed_read_state",
+      "mtime": 1793236714.0,
+      "worker_verdict": {},
+      "limitation": "No seed-state getter; edit-without-Read continuation below proves worker read state"
+    },
+    {
+      "name": "seeded_edit_continuation",
+      "tool_use_id": "toolu_019M76gdvcgUsmbdTYURFzod",
+      "exact_bytes": true
+    },
+    {
+      "name": "file_suggestions",
+      "paths": [],
+      "nonempty": false
+    },
+    {
+      "name": "genuine_question_boundary",
+      "request_id": "aa1a5211-6374-4f08-8b05-395231e93e9a",
+      "tool_use_id": "toolu_01T3tKmUiXBa5HEDU5ZWzwQa"
+    },
+    {
+      "name": "queued_before_cancel",
+      "message_uuid": "ce0d25e2-2505-4e3f-9a15-881c7702c639",
+      "event_id": "ce0d25e2-2505-4e3f-9a15-881c7702c639",
+      "processing_at": null,
+      "processed_at": null
+    },
+    {
+      "name": "cancel_async_message",
+      "message_uuid": "ce0d25e2-2505-4e3f-9a15-881c7702c639",
+      "cancelled": true
+    },
+    {
+      "name": "question_continuation",
+      "request_id": "aa1a5211-6374-4f08-8b05-395231e93e9a",
+      "tool_use_id": "toolu_01T3tKmUiXBa5HEDU5ZWzwQa",
+      "result_ids": [
+        "59376ca4-15b4-4244-b457-6720597e42b1"
+      ]
+    },
+    {
+      "name": "cancel_outcome",
+      "message_uuid": "ce0d25e2-2505-4e3f-9a15-881c7702c639",
+      "event_id": "ce0d25e2-2505-4e3f-9a15-881c7702c639",
+      "processing_at": [
+        "2026-10-29T01:18:52.862114Z"
+      ],
+      "processed_at": [
+        "2026-10-29T01:18:52.862114Z"
+      ],
+      "cancellation_marker_absent": true,
+      "subsequent_turn_completed": true
+    },
+    {
+      "name": "legacy_interrupt_at_question",
+      "request_id": "aaa42e24-716d-487c-ae1c-1dc20e56724c",
+      "tool_use_id": "toolu_01XWM3sa9jMQRLjHguATnTWd",
+      "worker_verdict": {
+        "still_queued": []
+      },
+      "receipt_v1": false
+    },
+    {
+      "name": "legacy_interrupt_outcome",
+      "message_uuid": "425c428b-64de-43c3-8f6d-b8142960efec",
+      "request_id": "aaa42e24-716d-487c-ae1c-1dc20e56724c",
+      "cancellation_ids": [],
+      "tool_result_error_flags": [
+        true
+      ],
+      "post_question_file_status": 404,
+      "subsequent_turn_completed": true
+    },
+    {
+      "name": "advanced_queue_and_tasks",
+      "capabilities": [
+        "start_shell_task_v1"
+      ],
+      "send_now": "not qualified: worker does not advertise support",
+      "interrupt_receipts": "not qualified: interrupt_receipt_v1 absent",
+      "task_messaging": "not qualified: no advertised agent task messaging fixture"
+    }
+  ],
+  "cleanup": [
+    {
+      "session_id": "cse_0154EsXStHMz3yt5eyjCX5on",
+      "get_status": 404
+    },
+    {
+      "environment_id": "env_01JZZUoK3gRefHVxXnLJyRLb",
+      "excluded_from_list": true
+    }
+  ],
+  "complete": true,
+  "environment_id": "env_01JZZUoK3gRefHVxXnLJyRLb",
+  "session_id": "cse_0154EsXStHMz3yt5eyjCX5on",
+  "catalog_summary": {
+    "worker_version": "2.1.312",
+    "capabilities": [
+      "start_shell_task_v1"
+    ],
+    "web_catalog": [
+      "autocompact",
+      "btw",
+      "config",
+      "diff",
+      "effort",
+      "fast",
+      "feedback",
+      "login",
+      "model",
+      "permissions",
+      "plan",
+      "rename",
+      "rewind",
+      "sandbox",
+      "skills",
+      "status",
+      "tasks",
+      "theme",
+      "usage",
+      "usage-credits",
+      "workflows"
+    ],
+    "worker_command_count": 55,
+    "omitted_route_rows": 79
+  },
+  "evidence_redaction": {
+    "original_sha256": "a6b7de71816af5e007c209df639f4c4cab09b0ab7d4196fc8c7ba524aa81a45a",
+    "removed": "Repeated route tables or worker descriptions only; checks, exact resource IDs and cleanup unchanged"
+  }
+}

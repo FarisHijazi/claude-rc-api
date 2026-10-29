@@ -1,0 +1,122 @@
+{
+  "run": "commands-aecb511b648a",
+  "checks": [
+    {
+      "name": "read_file",
+      "path": "/mnt/user-data/working/commands-aecb511b648a.txt",
+      "tool_use_id": "toolu_01KUaw7asdWqBnMPR1nn4fpX",
+      "exact_bytes": true
+    },
+    {
+      "name": "seed_read_state",
+      "mtime": 1793236610.0,
+      "worker_verdict": {},
+      "limitation": "No seed-state getter; edit-without-Read continuation below proves worker read state"
+    },
+    {
+      "name": "seeded_edit_continuation",
+      "tool_use_id": "toolu_015qGgWpb9xnAX2dQwRYfmVe",
+      "exact_bytes": true
+    },
+    {
+      "name": "file_suggestions",
+      "paths": [],
+      "nonempty": false
+    },
+    {
+      "name": "genuine_question_boundary",
+      "request_id": "aafdbe99-1f80-4034-8e32-2d6618fc2654",
+      "tool_use_id": "toolu_018V1YbZ9rK2mtDSNoJ721Tc"
+    },
+    {
+      "name": "queued_before_cancel",
+      "message_uuid": "f31bb0c8-1b23-4305-a6c9-5acd6fbaf8fa",
+      "event_id": "f31bb0c8-1b23-4305-a6c9-5acd6fbaf8fa",
+      "processing_at": null,
+      "processed_at": null
+    },
+    {
+      "name": "cancel_async_message",
+      "message_uuid": "f31bb0c8-1b23-4305-a6c9-5acd6fbaf8fa",
+      "cancelled": true
+    },
+    {
+      "name": "question_continuation",
+      "request_id": "aafdbe99-1f80-4034-8e32-2d6618fc2654",
+      "tool_use_id": "toolu_018V1YbZ9rK2mtDSNoJ721Tc",
+      "result_ids": [
+        "2515fbba-e3cc-4ab8-8911-699de394931c"
+      ]
+    },
+    {
+      "name": "cancel_outcome",
+      "message_uuid": "f31bb0c8-1b23-4305-a6c9-5acd6fbaf8fa",
+      "event_id": "f31bb0c8-1b23-4305-a6c9-5acd6fbaf8fa",
+      "processing_at": [
+        "2026-10-29T01:17:10.361855Z"
+      ],
+      "processed_at": [
+        "2026-10-29T01:17:10.361855Z"
+      ],
+      "cancellation_marker_absent": true,
+      "subsequent_turn_completed": true
+    },
+    {
+      "name": "advanced_queue_and_tasks",
+      "capabilities": [
+        "start_shell_task_v1"
+      ],
+      "send_now": "not qualified: worker does not advertise support",
+      "interrupt_receipts": "not qualified: interrupt_receipt_v1 absent",
+      "task_messaging": "not qualified: no advertised agent task messaging fixture"
+    }
+  ],
+  "cleanup": [
+    {
+      "session_id": "cse_0154EsXS3avJyohKm8Yf8ES1",
+      "get_status": 404
+    },
+    {
+      "environment_id": "env_013fQ9fQJZhLGXEzsbXs4hw6",
+      "excluded_from_list": true
+    }
+  ],
+  "complete": true,
+  "environment_id": "env_013fQ9fQJZhLGXEzsbXs4hw6",
+  "session_id": "cse_0154EsXS3avJyohKm8Yf8ES1",
+  "catalog_summary": {
+    "worker_version": "2.1.312",
+    "capabilities": [
+      "start_shell_task_v1"
+    ],
+    "web_catalog": [
+      "autocompact",
+      "btw",
+      "config",
+      "diff",
+      "effort",
+      "fast",
+      "feedback",
+      "login",
+      "model",
+      "permissions",
+      "plan",
+      "rename",
+      "rewind",
+      "sandbox",
+      "skills",
+      "status",
+      "tasks",
+      "theme",
+      "usage",
+      "usage-credits",
+      "workflows"
+    ],
+    "worker_command_count": 55,
+    "omitted_route_rows": 79
+  },
+  "evidence_redaction": {
+    "original_sha256": "ad73f1dca01dbe82d5050bee0854f396b4cd0ed6bddc8b5b596d685e3a8911cb",
+    "removed": "Repeated route tables or worker descriptions only; checks, exact resource IDs and cleanup unchanged"
+  }
+}

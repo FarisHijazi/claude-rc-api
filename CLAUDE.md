@@ -105,6 +105,20 @@ On dev, uv needs the proxy CA plus the system bundle:
   `via=local|control|worker`; the CLI/panel owner must render its result rather
   than print a misleading "sent" receipt. `command_table(commands)` supplies
   routing/availability, not a claim that a host renderer already exists.
+- `command_capabilities(session_id)` and `claude-rc dispatch SESSION --capabilities`
+  separate the captured 22-name Code web menu, session-advertised worker commands
+  and API-only routes. Availability means dispatchable, not live-qualified.
+  `/status` and `/autocompact` require explicit host handlers; advertised harness
+  names never bypass that gate. Design/slides are not in the captured Code menu.
+- Final command/queue acceptance is indexed by
+  `docs/devlog/claude_2026-10-29-final-commands-summary.json` (plain path, not an
+  include). `scripts/claude-rc-command-smoke --qualify-controls --capture-web-catalog`
+  needs `--output PATH` and optional playwright. It owns and closes one dev CDP
+  tab, creates a disposable environment/session, and verifies cleanup. Legacy
+  cancel/interrupt effects are qualified; send-now/v1 receipts/task messaging are
+  not. Cancelled events can later have transport processing timestamps without
+  model execution. Collection gates blocking prompts on its own message receipt,
+  just like results, so an earlier queued turn's question cannot end collection.
 - Group05 live evidence, per-capability limitations and integration contracts
   are in `docs/devlog/claude_2026-10-28-group05-live.json` (deliberately a plain
   path, not an include). Ephemeral MCP replies remain unverified live; the

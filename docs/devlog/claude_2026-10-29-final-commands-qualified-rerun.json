@@ -1,0 +1,1232 @@
+{
+  "run": "commands-eece413d2348",
+  "checks": [
+    {
+      "name": "model_inference",
+      "model": "claude-haiku-5-5",
+      "applied_model": "claude-haiku-5-5",
+      "result_ids": [
+        "247a239f-5958-419d-9e04-75b86a331c0d"
+      ],
+      "assistant_models": [
+        "claude-haiku-5-5"
+      ]
+    },
+    {
+      "name": "model_inference",
+      "model": "claude-sonnet-5-5",
+      "applied_model": "claude-sonnet-5-5",
+      "result_ids": [
+        "9f445e6e-0de7-4d33-bdf2-9217469460ab"
+      ],
+      "assistant_models": [
+        "claude-sonnet-5-5"
+      ]
+    },
+    {
+      "name": "permission_mode",
+      "mode": "plan",
+      "readback_matched": true
+    },
+    {
+      "name": "permission_mode",
+      "mode": "acceptEdits",
+      "readback_matched": true
+    },
+    {
+      "name": "permission_mode",
+      "mode": "default",
+      "readback_matched": true
+    },
+    {
+      "name": "flag_layer_readback",
+      "key": "effortLevel",
+      "requested": "low",
+      "effective": "low",
+      "limitation": "stored flag state, not fast/advisor/thinking inference or rendered view proof"
+    },
+    {
+      "name": "flag_layer_readback",
+      "key": "fastMode",
+      "requested": true,
+      "effective": true,
+      "limitation": "stored flag state, not fast/advisor/thinking inference or rendered view proof"
+    },
+    {
+      "name": "flag_layer_readback",
+      "key": "fastMode",
+      "requested": false,
+      "effective": false,
+      "limitation": "stored flag state, not fast/advisor/thinking inference or rendered view proof"
+    },
+    {
+      "name": "flag_layer_readback",
+      "key": "advisorModel",
+      "requested": "claude-sonnet-5-5",
+      "effective": "claude-sonnet-5-5",
+      "limitation": "stored flag state, not fast/advisor/thinking inference or rendered view proof"
+    },
+    {
+      "name": "flag_layer_readback",
+      "key": "advisorModel",
+      "requested": null,
+      "effective": null,
+      "limitation": "stored flag state, not fast/advisor/thinking inference or rendered view proof"
+    },
+    {
+      "name": "flag_layer_readback",
+      "key": "alwaysThinkingEnabled",
+      "requested": false,
+      "effective": false,
+      "limitation": "stored flag state, not fast/advisor/thinking inference or rendered view proof"
+    },
+    {
+      "name": "flag_layer_readback",
+      "key": "alwaysThinkingEnabled",
+      "requested": true,
+      "effective": true,
+      "limitation": "stored flag state, not fast/advisor/thinking inference or rendered view proof"
+    },
+    {
+      "name": "flag_layer_readback",
+      "key": "viewMode",
+      "requested": "verbose",
+      "effective": "verbose",
+      "limitation": "stored flag state, not fast/advisor/thinking inference or rendered view proof"
+    },
+    {
+      "name": "flag_layer_readback",
+      "key": "viewMode",
+      "requested": "normal",
+      "effective": "normal",
+      "limitation": "stored flag state, not fast/advisor/thinking inference or rendered view proof"
+    },
+    {
+      "name": "get_session_cost",
+      "response_keys": [
+        "text"
+      ]
+    },
+    {
+      "name": "get_plan",
+      "response_keys": [
+        "exists"
+      ]
+    },
+    {
+      "name": "get_hooks_listing",
+      "response_keys": [
+        "eventCatalog",
+        "events",
+        "hooks",
+        "policy"
+      ]
+    },
+    {
+      "name": "list_permission_rules",
+      "response_keys": [
+        "state"
+      ]
+    },
+    {
+      "name": "get_binary_version",
+      "response_keys": [
+        "buildTime",
+        "version"
+      ]
+    },
+    {
+      "name": "read_file",
+      "path": "/mnt/user-data/working/commands-eece413d2348.txt",
+      "tool_use_id": "toolu_01P2ZzJCtJrq5JkVBFPynBKr",
+      "exact_bytes": true
+    },
+    {
+      "name": "current_web_composer",
+      "url": "https://claude.ai/code/session_0154EsXPt1ewy4Szx75QFAiQ",
+      "menu_text": "btw\nrewind\nfeedback\nmodel\neffort\nfast\nplan\npermissions\nskills\nrename\ndiff\ntasks\nworkflows\nstatus\nusage\nusage-credits\nautocompact\nconfig\nsandbox\ntheme\nadvisor\nlogin",
+      "option_texts": []
+    },
+    {
+      "name": "seed_read_state",
+      "mtime": 1793237262.0,
+      "worker_verdict": {},
+      "limitation": "No seed-state getter; edit-without-Read continuation below proves worker read state"
+    },
+    {
+      "name": "seeded_edit_continuation",
+      "tool_use_id": "toolu_016SrMxhfvQ9ABgxrVcaa5sU",
+      "exact_bytes": true
+    },
+    {
+      "name": "file_suggestions",
+      "paths": [],
+      "nonempty": false
+    },
+    {
+      "name": "genuine_question_boundary",
+      "request_id": "bd0b3b41-e8d2-4845-bad5-0bf95fe26e4f",
+      "tool_use_id": "toolu_01SPXJgTtiNg7SjydEfLj8C6"
+    },
+    {
+      "name": "queued_before_cancel",
+      "message_uuid": "3f51ca8b-189d-47fd-9c48-ceda9649a250",
+      "event_id": "3f51ca8b-189d-47fd-9c48-ceda9649a250",
+      "processing_at": null,
+      "processed_at": null
+    },
+    {
+      "name": "cancel_async_message",
+      "message_uuid": "3f51ca8b-189d-47fd-9c48-ceda9649a250",
+      "cancelled": true
+    },
+    {
+      "name": "question_continuation",
+      "request_id": "bd0b3b41-e8d2-4845-bad5-0bf95fe26e4f",
+      "tool_use_id": "toolu_01SPXJgTtiNg7SjydEfLj8C6",
+      "result_ids": [
+        "886a756c-43a8-4264-bc79-93e546af2b71"
+      ]
+    },
+    {
+      "name": "cancel_outcome",
+      "message_uuid": "3f51ca8b-189d-47fd-9c48-ceda9649a250",
+      "event_id": "3f51ca8b-189d-47fd-9c48-ceda9649a250",
+      "processing_at": [
+        "2026-10-29T01:28:05.509265Z"
+      ],
+      "processed_at": [
+        "2026-10-29T01:28:05.509265Z"
+      ],
+      "cancellation_marker_absent": true,
+      "subsequent_turn_completed": true
+    },
+    {
+      "name": "legacy_interrupt_at_question",
+      "request_id": "d75470e3-081f-41fd-9e4c-21200d9ed29b",
+      "tool_use_id": "toolu_01Ph423df8DT1rWYapZUg4Ac",
+      "worker_verdict": {
+        "still_queued": []
+      },
+      "receipt_v1": false
+    },
+    {
+      "name": "legacy_interrupt_outcome",
+      "message_uuid": "3cda7995-d4d8-451a-a339-5b03596596bd",
+      "request_id": "d75470e3-081f-41fd-9e4c-21200d9ed29b",
+      "cancellation_ids": [],
+      "tool_result_error_flags": [
+        true
+      ],
+      "post_question_file_status": 404,
+      "subsequent_turn_completed": true
+    },
+    {
+      "name": "advanced_queue_and_tasks",
+      "capabilities": [
+        "start_shell_task_v1"
+      ],
+      "send_now": "not qualified: worker does not advertise support",
+      "interrupt_receipts": "not qualified: interrupt_receipt_v1 absent",
+      "task_messaging": "not qualified: no advertised agent task messaging fixture"
+    }
+  ],
+  "cleanup": [
+    {
+      "session_id": "cse_0154EsXPt1ewy4Szx75QFAiQ",
+      "get_status": 404
+    },
+    {
+      "environment_id": "env_015YNcQ6G9p6nFUnJryY3Dtj",
+      "excluded_from_list": true
+    }
+  ],
+  "complete": true,
+  "environment_id": "env_015YNcQ6G9p6nFUnJryY3Dtj",
+  "session_id": "cse_0154EsXPt1ewy4Szx75QFAiQ",
+  "catalog": {
+    "worker_version": "2.1.312",
+    "capabilities": [
+      "start_shell_task_v1"
+    ],
+    "web_catalog": [
+      "advisor",
+      "autocompact",
+      "btw",
+      "config",
+      "diff",
+      "effort",
+      "fast",
+      "feedback",
+      "login",
+      "model",
+      "permissions",
+      "plan",
+      "rename",
+      "rewind",
+      "sandbox",
+      "skills",
+      "status",
+      "tasks",
+      "theme",
+      "usage",
+      "usage-credits",
+      "workflows"
+    ],
+    "commands": [
+      {
+        "name": "__remote-workflow",
+        "route": "unsupported",
+        "target": "service-owned workflow entry point",
+        "web_catalog": false,
+        "worker_advertised": true,
+        "available": false,
+        "reason": "service-owned workflow entry point"
+      },
+      {
+        "name": "add-dir",
+        "route": "unsupported",
+        "target": "add_directory is rejected in cloud sessions",
+        "web_catalog": false,
+        "worker_advertised": true,
+        "available": false,
+        "reason": "add_directory is rejected in cloud sessions"
+      },
+      {
+        "name": "advisor",
+        "route": "control",
+        "target": "apply_flag_settings",
+        "web_catalog": true,
+        "worker_advertised": true,
+        "available": true,
+        "reason": null
+      },
+      {
+        "name": "agents",
+        "route": "local",
+        "target": "host renderer required",
+        "web_catalog": false,
+        "worker_advertised": true,
+        "available": false,
+        "reason": "host renderer required"
+      },
+      {
+        "name": "artifact-capabilities",
+        "route": "worker",
+        "target": "post-text",
+        "web_catalog": false,
+        "worker_advertised": true,
+        "available": true,
+        "reason": null
+      },
+      {
+        "name": "artifact-diagramming",
+        "route": "worker",
+        "target": "post-text",
+        "web_catalog": false,
+        "worker_advertised": true,
+        "available": true,
+        "reason": null
+      },
+      {
+        "name": "autocompact",
+        "route": "local",
+        "target": "web configuration presentation; no admitted cloud autocompact-setting control",
+        "web_catalog": true,
+        "worker_advertised": true,
+        "available": false,
+        "reason": "web configuration presentation; no admitted cloud autocompact-setting control"
+      },
+      {
+        "name": "batch",
+        "route": "worker",
+        "target": "post-text",
+        "web_catalog": false,
+        "worker_advertised": true,
+        "available": true,
+        "reason": null
+      },
+      {
+        "name": "btw",
+        "route": "control",
+        "target": "side_question",
+        "web_catalog": true,
+        "worker_advertised": false,
+        "available": true,
+        "reason": null
+      },
+      {
+        "name": "channels",
+        "route": "local",
+        "target": "host renderer required",
+        "web_catalog": false,
+        "worker_advertised": false,
+        "available": false,
+        "reason": "host renderer required"
+      },
+      {
+        "name": "claude-api",
+        "route": "worker",
+        "target": "post-text",
+        "web_catalog": false,
+        "worker_advertised": true,
+        "available": true,
+        "reason": null
+      },
+      {
+        "name": "clear",
+        "route": "unsupported",
+        "target": "session creation belongs to lifecycle, not post-text",
+        "web_catalog": false,
+        "worker_advertised": true,
+        "available": false,
+        "reason": "session creation belongs to lifecycle, not post-text"
+      },
+      {
+        "name": "code-review",
+        "route": "worker",
+        "target": "post-text",
+        "web_catalog": false,
+        "worker_advertised": true,
+        "available": true,
+        "reason": null
+      },
+      {
+        "name": "color",
+        "route": "unsupported",
+        "target": "set_color is rejected in cloud sessions",
+        "web_catalog": false,
+        "worker_advertised": true,
+        "available": false,
+        "reason": "set_color is rejected in cloud sessions"
+      },
+      {
+        "name": "compact",
+        "route": "worker",
+        "target": "post-text",
+        "web_catalog": false,
+        "worker_advertised": true,
+        "available": true,
+        "reason": null
+      },
+      {
+        "name": "config",
+        "route": "local",
+        "target": "host renderer required",
+        "web_catalog": true,
+        "worker_advertised": true,
+        "available": false,
+        "reason": "host renderer required"
+      },
+      {
+        "name": "context",
+        "route": "control",
+        "target": "get_context_usage",
+        "web_catalog": false,
+        "worker_advertised": true,
+        "available": true,
+        "reason": null
+      },
+      {
+        "name": "copy",
+        "route": "local",
+        "target": "host renderer required",
+        "web_catalog": false,
+        "worker_advertised": false,
+        "available": false,
+        "reason": "host renderer required"
+      },
+      {
+        "name": "cost",
+        "route": "control",
+        "target": "get_session_cost",
+        "web_catalog": false,
+        "worker_advertised": false,
+        "available": true,
+        "reason": null
+      },
+      {
+        "name": "dataviz",
+        "route": "worker",
+        "target": "post-text",
+        "web_catalog": false,
+        "worker_advertised": true,
+        "available": true,
+        "reason": null
+      },
+      {
+        "name": "debug",
+        "route": "worker",
+        "target": "post-text",
+        "web_catalog": false,
+        "worker_advertised": true,
+        "available": true,
+        "reason": null
+      },
+      {
+        "name": "deep-research",
+        "route": "worker",
+        "target": "post-text",
+        "web_catalog": false,
+        "worker_advertised": true,
+        "available": true,
+        "reason": null
+      },
+      {
+        "name": "design",
+        "route": "local",
+        "target": "not in the captured Code web catalog; host artifact workflow required",
+        "web_catalog": false,
+        "worker_advertised": true,
+        "available": false,
+        "reason": "not in the captured Code web catalog; host artifact workflow required"
+      },
+      {
+        "name": "design-consent",
+        "route": "local",
+        "target": "host renderer required",
+        "web_catalog": false,
+        "worker_advertised": true,
+        "available": false,
+        "reason": "host renderer required"
+      },
+      {
+        "name": "design-revoke",
+        "route": "local",
+        "target": "host renderer required",
+        "web_catalog": false,
+        "worker_advertised": true,
+        "available": false,
+        "reason": "host renderer required"
+      },
+      {
+        "name": "design-sync",
+        "route": "worker",
+        "target": "post-text",
+        "web_catalog": false,
+        "worker_advertised": true,
+        "available": true,
+        "reason": null
+      },
+      {
+        "name": "diff",
+        "route": "control",
+        "target": "get_workspace_diff",
+        "web_catalog": true,
+        "worker_advertised": false,
+        "available": true,
+        "reason": null
+      },
+      {
+        "name": "doctor",
+        "route": "local",
+        "target": "host renderer required",
+        "web_catalog": false,
+        "worker_advertised": true,
+        "available": false,
+        "reason": "host renderer required"
+      },
+      {
+        "name": "effort",
+        "route": "control",
+        "target": "apply_flag_settings",
+        "web_catalog": true,
+        "worker_advertised": true,
+        "available": true,
+        "reason": null
+      },
+      {
+        "name": "fast",
+        "route": "control",
+        "target": "apply_flag_settings",
+        "web_catalog": true,
+        "worker_advertised": true,
+        "available": true,
+        "reason": null
+      },
+      {
+        "name": "feedback",
+        "route": "unsupported",
+        "target": "requires explicit feedback submission",
+        "web_catalog": true,
+        "worker_advertised": false,
+        "available": false,
+        "reason": "requires explicit feedback submission"
+      },
+      {
+        "name": "fewer-permission-prompts",
+        "route": "worker",
+        "target": "post-text",
+        "web_catalog": false,
+        "worker_advertised": true,
+        "available": true,
+        "reason": null
+      },
+      {
+        "name": "focus",
+        "route": "local",
+        "target": "host renderer required",
+        "web_catalog": false,
+        "worker_advertised": true,
+        "available": false,
+        "reason": "host renderer required"
+      },
+      {
+        "name": "fork",
+        "route": "unsupported",
+        "target": "cloud fork contract not captured",
+        "web_catalog": false,
+        "worker_advertised": false,
+        "available": false,
+        "reason": "cloud fork contract not captured"
+      },
+      {
+        "name": "goal",
+        "route": "local",
+        "target": "host renderer required",
+        "web_catalog": false,
+        "worker_advertised": true,
+        "available": false,
+        "reason": "host renderer required"
+      },
+      {
+        "name": "heapdump",
+        "route": "local",
+        "target": "host renderer required",
+        "web_catalog": false,
+        "worker_advertised": true,
+        "available": false,
+        "reason": "host renderer required"
+      },
+      {
+        "name": "help",
+        "route": "local",
+        "target": "command_table",
+        "web_catalog": false,
+        "worker_advertised": false,
+        "available": true,
+        "reason": null
+      },
+      {
+        "name": "hooks",
+        "route": "control",
+        "target": "get_hooks_listing",
+        "web_catalog": false,
+        "worker_advertised": false,
+        "available": true,
+        "reason": null
+      },
+      {
+        "name": "import",
+        "route": "local",
+        "target": "host renderer required",
+        "web_catalog": false,
+        "worker_advertised": true,
+        "available": false,
+        "reason": "host renderer required"
+      },
+      {
+        "name": "init",
+        "route": "worker",
+        "target": "post-text",
+        "web_catalog": false,
+        "worker_advertised": true,
+        "available": true,
+        "reason": null
+      },
+      {
+        "name": "insights",
+        "route": "local",
+        "target": "host renderer required",
+        "web_catalog": false,
+        "worker_advertised": true,
+        "available": false,
+        "reason": "host renderer required"
+      },
+      {
+        "name": "list-agents",
+        "route": "worker",
+        "target": "post-text",
+        "web_catalog": false,
+        "worker_advertised": true,
+        "available": true,
+        "reason": null
+      },
+      {
+        "name": "login",
+        "route": "local",
+        "target": "host authentication flow; slash dispatch never changes browser credentials",
+        "web_catalog": true,
+        "worker_advertised": false,
+        "available": false,
+        "reason": "host authentication flow; slash dispatch never changes browser credentials"
+      },
+      {
+        "name": "logout",
+        "route": "local",
+        "target": "host authentication flow; slash dispatch never revokes browser credentials",
+        "web_catalog": false,
+        "worker_advertised": false,
+        "available": false,
+        "reason": "host authentication flow; slash dispatch never revokes browser credentials"
+      },
+      {
+        "name": "loop",
+        "route": "worker",
+        "target": "post-text",
+        "web_catalog": false,
+        "worker_advertised": true,
+        "available": true,
+        "reason": null
+      },
+      {
+        "name": "mcp",
+        "route": "control",
+        "target": "mcp_status",
+        "web_catalog": false,
+        "worker_advertised": true,
+        "available": true,
+        "reason": null
+      },
+      {
+        "name": "model",
+        "route": "control",
+        "target": "set_model",
+        "web_catalog": true,
+        "worker_advertised": true,
+        "available": true,
+        "reason": null
+      },
+      {
+        "name": "new",
+        "route": "unsupported",
+        "target": "use lifecycle to create a session",
+        "web_catalog": false,
+        "worker_advertised": false,
+        "available": false,
+        "reason": "use lifecycle to create a session"
+      },
+      {
+        "name": "output-style",
+        "route": "local",
+        "target": "host renderer required",
+        "web_catalog": false,
+        "worker_advertised": true,
+        "available": false,
+        "reason": "host renderer required"
+      },
+      {
+        "name": "permissions",
+        "route": "control",
+        "target": "list_permission_rules",
+        "web_catalog": true,
+        "worker_advertised": false,
+        "available": true,
+        "reason": null
+      },
+      {
+        "name": "plan",
+        "route": "control",
+        "target": "set_permission_mode",
+        "web_catalog": true,
+        "worker_advertised": false,
+        "available": true,
+        "reason": null
+      },
+      {
+        "name": "plugin-authoring",
+        "route": "worker",
+        "target": "post-text",
+        "web_catalog": false,
+        "worker_advertised": true,
+        "available": true,
+        "reason": null
+      },
+      {
+        "name": "recap",
+        "route": "worker",
+        "target": "post-text",
+        "web_catalog": false,
+        "worker_advertised": true,
+        "available": true,
+        "reason": null
+      },
+      {
+        "name": "reload-plugins",
+        "route": "control",
+        "target": "reload_plugins",
+        "web_catalog": false,
+        "worker_advertised": true,
+        "available": true,
+        "reason": null
+      },
+      {
+        "name": "reload-skills",
+        "route": "control",
+        "target": "reload_skills",
+        "web_catalog": false,
+        "worker_advertised": true,
+        "available": true,
+        "reason": null
+      },
+      {
+        "name": "rename",
+        "route": "control",
+        "target": "rename_session",
+        "web_catalog": true,
+        "worker_advertised": true,
+        "available": true,
+        "reason": null
+      },
+      {
+        "name": "reset",
+        "route": "unsupported",
+        "target": "use lifecycle to create a session",
+        "web_catalog": false,
+        "worker_advertised": false,
+        "available": false,
+        "reason": "use lifecycle to create a session"
+      },
+      {
+        "name": "rewind",
+        "route": "control",
+        "target": "rewind_conversation",
+        "web_catalog": true,
+        "worker_advertised": false,
+        "available": true,
+        "reason": null
+      },
+      {
+        "name": "run",
+        "route": "worker",
+        "target": "post-text",
+        "web_catalog": false,
+        "worker_advertised": true,
+        "available": true,
+        "reason": null
+      },
+      {
+        "name": "run-skill-generator",
+        "route": "worker",
+        "target": "post-text",
+        "web_catalog": false,
+        "worker_advertised": true,
+        "available": true,
+        "reason": null
+      },
+      {
+        "name": "sandbox",
+        "route": "local",
+        "target": "host sandbox configuration; get_sandbox_dialog is rejected in cloud sessions",
+        "web_catalog": true,
+        "worker_advertised": false,
+        "available": false,
+        "reason": "host sandbox configuration; get_sandbox_dialog is rejected in cloud sessions"
+      },
+      {
+        "name": "security-review",
+        "route": "worker",
+        "target": "post-text",
+        "web_catalog": false,
+        "worker_advertised": true,
+        "available": true,
+        "reason": null
+      },
+      {
+        "name": "settings",
+        "route": "local",
+        "target": "host renderer required",
+        "web_catalog": false,
+        "worker_advertised": false,
+        "available": false,
+        "reason": "host renderer required"
+      },
+      {
+        "name": "simplify",
+        "route": "worker",
+        "target": "post-text",
+        "web_catalog": false,
+        "worker_advertised": true,
+        "available": true,
+        "reason": null
+      },
+      {
+        "name": "skill-doctor",
+        "route": "local",
+        "target": "host renderer required",
+        "web_catalog": false,
+        "worker_advertised": true,
+        "available": false,
+        "reason": "host renderer required"
+      },
+      {
+        "name": "skills",
+        "route": "local",
+        "target": "host renderer required",
+        "web_catalog": true,
+        "worker_advertised": false,
+        "available": false,
+        "reason": "host renderer required"
+      },
+      {
+        "name": "slides",
+        "route": "local",
+        "target": "not in the captured Code web catalog; host artifact workflow required",
+        "web_catalog": false,
+        "worker_advertised": true,
+        "available": false,
+        "reason": "not in the captured Code web catalog; host artifact workflow required"
+      },
+      {
+        "name": "startup-hook-skill",
+        "route": "worker",
+        "target": "post-text",
+        "web_catalog": false,
+        "worker_advertised": true,
+        "available": true,
+        "reason": null
+      },
+      {
+        "name": "status",
+        "route": "local",
+        "target": "web status presentation; inspect initialize/get_settings through the API",
+        "web_catalog": true,
+        "worker_advertised": false,
+        "available": false,
+        "reason": "web status presentation; inspect initialize/get_settings through the API"
+      },
+      {
+        "name": "tasks",
+        "route": "control",
+        "target": "task_menu",
+        "web_catalog": true,
+        "worker_advertised": false,
+        "available": true,
+        "reason": null
+      },
+      {
+        "name": "team-onboarding",
+        "route": "local",
+        "target": "host renderer required",
+        "web_catalog": false,
+        "worker_advertised": true,
+        "available": false,
+        "reason": "host renderer required"
+      },
+      {
+        "name": "theme",
+        "route": "local",
+        "target": "host renderer required",
+        "web_catalog": true,
+        "worker_advertised": false,
+        "available": false,
+        "reason": "host renderer required"
+      },
+      {
+        "name": "update-config",
+        "route": "worker",
+        "target": "post-text",
+        "web_catalog": false,
+        "worker_advertised": true,
+        "available": true,
+        "reason": null
+      },
+      {
+        "name": "usage",
+        "route": "control",
+        "target": "get_usage",
+        "web_catalog": true,
+        "worker_advertised": true,
+        "available": true,
+        "reason": null
+      },
+      {
+        "name": "usage-credits",
+        "route": "local",
+        "target": "host renderer required",
+        "web_catalog": true,
+        "worker_advertised": false,
+        "available": false,
+        "reason": "host renderer required"
+      },
+      {
+        "name": "verify",
+        "route": "worker",
+        "target": "post-text",
+        "web_catalog": false,
+        "worker_advertised": true,
+        "available": true,
+        "reason": null
+      },
+      {
+        "name": "workflow-authoring",
+        "route": "worker",
+        "target": "post-text",
+        "web_catalog": false,
+        "worker_advertised": true,
+        "available": true,
+        "reason": null
+      },
+      {
+        "name": "workflow-launch-exec",
+        "route": "unsupported",
+        "target": "service-owned workflow entry point",
+        "web_catalog": false,
+        "worker_advertised": true,
+        "available": false,
+        "reason": "service-owned workflow entry point"
+      },
+      {
+        "name": "workflows",
+        "route": "local",
+        "target": "host renderer required",
+        "web_catalog": true,
+        "worker_advertised": false,
+        "available": false,
+        "reason": "host renderer required"
+      }
+    ],
+    "worker_commands": [
+      {
+        "name": "startup-hook-skill",
+        "aliases": [
+          "session-start-hook"
+        ]
+      },
+      {
+        "name": "deep-research",
+        "aliases": []
+      },
+      {
+        "name": "design",
+        "aliases": []
+      },
+      {
+        "name": "slides",
+        "aliases": []
+      },
+      {
+        "name": "design-sync",
+        "aliases": []
+      },
+      {
+        "name": "dataviz",
+        "aliases": []
+      },
+      {
+        "name": "artifact-diagramming",
+        "aliases": []
+      },
+      {
+        "name": "artifact-capabilities",
+        "aliases": []
+      },
+      {
+        "name": "update-config",
+        "aliases": []
+      },
+      {
+        "name": "verify",
+        "aliases": []
+      },
+      {
+        "name": "debug",
+        "aliases": []
+      },
+      {
+        "name": "code-review",
+        "aliases": [
+          "review"
+        ]
+      },
+      {
+        "name": "simplify",
+        "aliases": []
+      },
+      {
+        "name": "batch",
+        "aliases": []
+      },
+      {
+        "name": "fewer-permission-prompts",
+        "aliases": []
+      },
+      {
+        "name": "doctor",
+        "aliases": [
+          "checkup"
+        ]
+      },
+      {
+        "name": "loop",
+        "aliases": [
+          "proactive"
+        ]
+      },
+      {
+        "name": "claude-api",
+        "aliases": []
+      },
+      {
+        "name": "workflow-authoring",
+        "aliases": []
+      },
+      {
+        "name": "run",
+        "aliases": []
+      },
+      {
+        "name": "run-skill-generator",
+        "aliases": []
+      },
+      {
+        "name": "plugin-authoring",
+        "aliases": []
+      },
+      {
+        "name": "add-dir",
+        "aliases": []
+      },
+      {
+        "name": "advisor",
+        "aliases": []
+      },
+      {
+        "name": "agents",
+        "aliases": []
+      },
+      {
+        "name": "autocompact",
+        "aliases": []
+      },
+      {
+        "name": "clear",
+        "aliases": [
+          "reset",
+          "new"
+        ]
+      },
+      {
+        "name": "color",
+        "aliases": []
+      },
+      {
+        "name": "compact",
+        "aliases": []
+      },
+      {
+        "name": "config",
+        "aliases": [
+          "settings"
+        ]
+      },
+      {
+        "name": "output-style",
+        "aliases": []
+      },
+      {
+        "name": "context",
+        "aliases": []
+      },
+      {
+        "name": "effort",
+        "aliases": []
+      },
+      {
+        "name": "fast",
+        "aliases": []
+      },
+      {
+        "name": "focus",
+        "aliases": []
+      },
+      {
+        "name": "heapdump",
+        "aliases": []
+      },
+      {
+        "name": "init",
+        "aliases": []
+      },
+      {
+        "name": "mcp",
+        "aliases": []
+      },
+      {
+        "name": "import",
+        "aliases": []
+      },
+      {
+        "name": "model",
+        "aliases": []
+      },
+      {
+        "name": "__remote-workflow",
+        "aliases": []
+      },
+      {
+        "name": "workflow-launch-exec",
+        "aliases": []
+      },
+      {
+        "name": "reload-plugins",
+        "aliases": []
+      },
+      {
+        "name": "reload-skills",
+        "aliases": []
+      },
+      {
+        "name": "rename",
+        "aliases": [
+          "name"
+        ]
+      },
+      {
+        "name": "security-review",
+        "aliases": []
+      },
+      {
+        "name": "usage",
+        "aliases": [
+          "cost",
+          "stats"
+        ]
+      },
+      {
+        "name": "insights",
+        "aliases": []
+      },
+      {
+        "name": "recap",
+        "aliases": []
+      },
+      {
+        "name": "skill-doctor",
+        "aliases": []
+      },
+      {
+        "name": "goal",
+        "aliases": []
+      },
+      {
+        "name": "design-consent",
+        "aliases": []
+      },
+      {
+        "name": "design-revoke",
+        "aliases": []
+      },
+      {
+        "name": "list-agents",
+        "aliases": [
+          "peers"
+        ]
+      },
+      {
+        "name": "team-onboarding",
+        "aliases": []
+      }
+    ]
+  }
+}
