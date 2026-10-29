@@ -334,8 +334,12 @@ class PromptsMixin:
         """Answer an MCP ``elicitation``: ``accept`` (with form ``content``),
         ``decline`` or ``cancel``. Cloud workers relay a stdio MCP child's
         ``elicitation/create`` as this request; ``content`` must satisfy the
-        request's ``requested_schema``."""
-        rid, _ = _as_request(request, "elicitation")
+        request's ``requested_schema``. A ``mode: "url"`` request (``url``,
+        ``elicitation_id``, no schema) takes no content: the web answers it
+        ``{action: accept}`` once the user opened the URL, or ``decline``."""
+        rid, pending = _as_request(request, "elicitation")
+        if pending is not None and pending.request.get("mode") == "url" and content is not None:
+            raise ValueError("URL-mode elicitation takes no content")
         return self.send_events(session_id, [cli_elicitation_response(rid, action, content)])
 
     def answer_hook_callback(self, session_id: str, request: PendingRequest | str, output: Mapping[str, Any]) -> dict:

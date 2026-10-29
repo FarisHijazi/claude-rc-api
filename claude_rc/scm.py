@@ -72,6 +72,7 @@ class ScmMixin:
     ) -> dict:
         """One file blob: ``{name, path, sha, size, encoding: "base64", content}``
         (decode with :func:`file_content_bytes`). ``ref`` defaults to the repo's
-        default branch. Raises on 404 (missing file/repo) and 400 (directory)."""
+        default branch; like the bundle (``...ref ? {ref} : {}``) an empty
+        ``ref`` is omitted. Raises on 404 (missing file/repo) and 400 (directory)."""
         return self._scm_post(
-            GET_FILE_CONTENT, scm_body(repo, ghe_configuration_id, path=path, ref=ref), none_on_404=False)
+            GET_FILE_CONTENT, scm_body(repo, ghe_configuration_id, path=path, ref=ref or None), none_on_404=False)

@@ -36,7 +36,7 @@ def tool_results(events, tool_name):
             if isinstance(b, dict) and b.get("type") == "tool_result" and b.get("tool_use_id") in ids]
 
 
-def collect(client, session_id, prompt, respond, *, timeout=120):
+def collect(client, session_id, prompt, respond, *, timeout=120, allow_error=False):
     newest = client.list_events(session_id, limit=1, sort_order="desc")
     seq = max((e.sequence_num or 0 for e in newest), default=0)
     start = seq
@@ -62,7 +62,7 @@ def collect(client, session_id, prompt, respond, *, timeout=120):
                                           <= datetime.fromisoformat(created.replace("Z", "+00:00"))
                                           for stamp in stamps):
                     raise AssertionError("no own-message processing receipt before worker result")
-                if event.payload.get("is_error") or event.subtype != "success":
+                if (event.payload.get("is_error") or event.subtype != "success") and not allow_error:
                     raise RuntimeError("worker turn failed")
                 return events, pending
         time.sleep(1)

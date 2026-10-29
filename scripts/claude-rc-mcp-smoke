@@ -10,6 +10,7 @@ import argparse
 import base64
 import hashlib
 import json
+import re
 import runpy
 import sys
 import uuid
@@ -22,6 +23,25 @@ from claude_rc.client import ControlRejected
 
 helpers = runpy.run_path(str(Path(__file__).with_name("claude-rc-permission-smoke")))
 collect, tool_results = helpers["collect"], helpers["tool_results"]
+
+
+def fixture_install_prompt(source, path):
+    """Write the fixture and warm uv's cache in the same Bash call: a cold
+    ``uv run --with mcp`` download can outlast the CLI's 30 s MCP_TIMEOUT."""
+    return (f"Use Bash exactly once: printf %s {base64.b64encode(source).decode()} | base64 -d > {path}; "
+            f"sha256sum {path}; s=$(date +%s); uv run --with mcp==1.30.0 python -c 'import mcp.server.fastmcp' "
+            "&& echo MCP_WARM_SECONDS=$(( $(date +%s) - s )). No other tools.")
+
+
+def warm_seconds(content):
+    text = content if isinstance(content, str) else "".join(b.get("text", "") for b in content)
+    found = re.search(r"MCP_WARM_SECONDS=(\d+)", text)
+    assert found, "uv cache warm-up did not finish"
+    return int(found.group(1))
+
+
+def fixture_server(path):
+    return {"type": "stdio", "command": "uv", "args": ["run", "--offline", "--with", "mcp==1.30.0", "python", path]}
 
 
 def cleanup_resources(client, sid, eid, proof, save):
@@ -89,24 +109,21 @@ def main():
                    capabilities=init.get("capabilities"), environment_kind="anthropic_cloud")
             fixture = Path(__file__).resolve().parent.parent / "tests/fixtures/mcp_generated.py"
             source = fixture.read_bytes()
-            encoded = base64.b64encode(source).decode()
             worker_path = "/mnt/user-data/working/" + proof["run"] + ".py"
 
             def reject(request):
                 client.deny_permission(sid, request, "Unexpected fixture operation; stop.", interrupt=True)
                 raise AssertionError("unexpected permission")
 
-            events, _ = collect(client, sid,
-                f"Use Bash exactly once: printf %s {encoded} | base64 -d > {worker_path}; "
-                f"sha256sum {worker_path}. No other tools.", reject)
+            events, _ = collect(client, sid, fixture_install_prompt(source, worker_path), reject)
             results = tool_results(events, "Bash")
             digest = hashlib.sha256(source).hexdigest()
             assert len(results) == 1 and not results[0].get("is_error") and digest in results[0]["content"]
-            record("fixture_bytes", sha256=digest, tool_use_id=results[0]["tool_use_id"])
+            record("fixture_bytes", sha256=digest, tool_use_id=results[0]["tool_use_id"],
+                   uv_warm_seconds=warm_seconds(results[0]["content"]))
             server = proof["run"]
             tool = "mcp__" + server + "__echo"
-            config = {server: {"type": "stdio", "command": "uv",
-                      "args": ["run", "--with", "mcp==1.30.0", "python", worker_path]}}
+            config = {server: fixture_server(worker_path)}
             reply = client.set_worker_mcp_servers(sid, config, confirm=True, timeout=90)
             record("dynamic_server_set", added=reply.get("added"), errors=reply.get("errors"),
                    removed_count=len(reply.get("removed", [])), scope="owned session only")

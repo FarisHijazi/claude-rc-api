@@ -1,0 +1,37 @@
+[
+  {
+    "run": "elicit-f744baee65",
+    "session_id": "cse_0154EsXPW351ZvRFzzB3TmCN",
+    "session_get": 404,
+    "environment_id": "env_01WmQUGErhu42Agzaos8x14C",
+    "environment_excluded": true
+  },
+  {
+    "run": "elicit-777e88e95e",
+    "session_id": "cse_0154EsXSNWDMNKRWEGb9e6m3",
+    "session_get": 404,
+    "environment_id": "env_01RQ9gLYLpbSy5mxXhPvjvu9",
+    "environment_excluded": true
+  },
+  {
+    "run": "elicit-62f8b0cdf6",
+    "session_id": "cse_0154EsXQwwLFrh5DrzGc6vnZ",
+    "session_get": 404,
+    "environment_id": "env_01X1K2ViDZX7X1eviufVhSAP",
+    "environment_excluded": true
+  },
+  {
+    "run": "mcp-93ee9aa590",
+    "session_id": "cse_0154EsXQhQDDY1WDhAgUWJKH",
+    "session_get": 404,
+    "environment_id": "env_01NYSUsdh1swc8Hbf98UdRgN",
+    "environment_excluded": true
+  },
+  {
+    "run": "elicit-da2780f81e",
+    "session_id": "cse_0154EsXQd3XKtUe9Ygq7UT6S",
+    "session_get": 404,
+    "environment_id": "env_01SzuQUtLRfuCMZaFbNvFUs4",
+    "environment_excluded": true
+  }
+]

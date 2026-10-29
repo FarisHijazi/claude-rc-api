@@ -567,3 +567,17 @@ def test_watch_410_right_after_mint_ends_and_404_raises():
     with _client(not_enabled) as rc:
         with pytest.raises(APIError):
             list(rc.watch(resume_token="t"))
+
+
+def test_url_mode_elicitation_matches_web_answers():
+    url_request = PendingRequest.from_payload({
+        "type": "control_request", "request_id": "u-1",
+        "request": {"subtype": "elicitation", "mode": "url", "mcp_server_name": "s",
+                    "message": "Open it", "url": "https://example.com/x", "elicitation_id": "x"}})
+    fake = FakeSession()
+    with _client(fake.handler) as rc:
+        for action in ("accept", "decline", "cancel"):
+            rc.answer_elicitation(SID, url_request, action)
+            assert _response_of(fake) == {"subtype": "success", "request_id": "u-1", "response": {"action": action}}
+        with pytest.raises(ValueError, match="URL-mode"):
+            rc.answer_elicitation(SID, url_request, "accept", {"name": "x"})

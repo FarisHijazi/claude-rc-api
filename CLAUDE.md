@@ -79,8 +79,18 @@ hooks), and Chrome forced-ask needs a `claude-in-chrome` server the cloud worker
 lacks; do not retry those premises. Evidence:
 `docs/devlog/claude_2026-10-29-elicitation-summary.json` (plain path).
 Independent rerun: `docs/devlog/claude_2026-10-29-elicitation-independent.json`
-(plain path); one of two live runs failed at `mcp_set_servers`, so rerun once
-before treating a fixture install failure as a regression.
+(plain path); one of two historical live installs failed without saving its
+error. The harness now prewarms `mcp==1.30.0` during its existing fixture-copy
+Bash turn and uses `uv run --offline` for MCP startup. This removes the cold
+package-install work from the CLI's 30 s MCP connect deadline (one fresh import
+took 38 s). Require the warm marker; do not paper over startup errors by retrying.
+`scripts/claude-rc-mcp-smoke` owns these shared install helpers. URL-mode
+accept/decline/cancel, child timeout/cancel notification and host-interrupt abort
+are also live-qualified by this fixture. Evidence and limits:
+`docs/devlog/claude_2026-10-29-gaps-final.json` (plain path, not an include).
+`answer_elicitation` rejects form content on a parsed `mode:url` request; raw
+request-id calls retain the protocol escape hatch. Timeout qualification is an
+explicit child-side 15 s deadline, not a natural service TTL.
 
 Lifecycle integration contracts and per-capability live evidence are in
 `docs/devlog/claude_2026-10-28-group02-lifecycle.json` (deliberately a plain
@@ -380,3 +390,14 @@ offline/headless tests and fresh merged-main reruns of `claude-rc-scm-smoke`,
 `claude-rc-lifecycle-smoke` and `claude-rc-elicitation-smoke` with exact cleanup.
 New surface: `fork_session`/`fork_result`, `list_project_templates`, `list_spaces`,
 `ScmMixin` reads, MCP form elicitation qualification.
+
+0.11.0 gap follow-up: `get_file_content` omits both None and empty refs, as the
+current bundle does; fresh SCM readback matches the default branch. The full
+suite passes 844 tests with Playwright and MCP 1.30.0. Fresh URL/form, timeout,
+abort and MCP smokes verify real child effects and exact cleanup. The integration
+fire route remains uncaptured after a 1075-chunk current-bundle scan; the web
+only labels `origin:fire_routine` as API. Existing trigger reads/CRUD/run-history
+remain their owner's path; no classifier was added for fields absent from live
+session rows and no token/fire write was promoted from the deprecated legacy
+helper. `docs/devlog/claude_2026-10-29-gaps-final.json` is the plain-path evidence
+index and lists the unsupported items. Full web parity is not claimed.

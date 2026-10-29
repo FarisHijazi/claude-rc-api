@@ -1,0 +1,42 @@
+{
+  "repo": "octocat/Hello-World",
+  "mutations": "none",
+  "checks": {
+    "file_content": {
+      "ok": true,
+      "size": 13,
+      "sha": "980a0d5f19a64b4b30a87d4206aade58726b60e3",
+      "local_blob_sha": "980a0d5f19a64b4b30a87d4206aade58726b60e3",
+      "matches_raw_github": true
+    },
+    "empty_ref_uses_default": {
+      "ok": true,
+      "default_sha": "980a0d5f19a64b4b30a87d4206aade58726b60e3",
+      "empty_sha": "980a0d5f19a64b4b30a87d4206aade58726b60e3",
+      "explicit_master_sha": "980a0d5f19a64b4b30a87d4206aade58726b60e3"
+    },
+    "compare_refs": {
+      "ok": true,
+      "ahead_by": 1,
+      "files": [
+        "CONTRIBUTING.md"
+      ],
+      "merge_base": "7fd1a60b01f91b314f59955a4e4d4e80d8edf11d"
+    },
+    "get_commit": {
+      "ok": true,
+      "parent": "553c2077f0edc3d5dc5d17262f6aa498e69d6f8e",
+      "files": [
+        "README"
+      ]
+    },
+    "compare_missing_ref_is_none": {
+      "ok": true
+    },
+    "missing_file_raises_404": {
+      "ok": true,
+      "status": 404
+    }
+  },
+  "passed": true
+}

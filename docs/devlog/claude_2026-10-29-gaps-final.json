@@ -1,0 +1,118 @@
+{
+  "date": "2026-10-29",
+  "base": "7966dbcfde15477e18e75c78cb9f30523d46a12d",
+  "branch": "feat/gaps-final",
+  "version": "0.11.0 (bug fixes and qualification, no new public surface)",
+  "tests": {
+    "full": "844 passed, 0 skipped, 3 existing fire_routine deprecation warnings in 67.81s",
+    "command": "PATH=<real-node-bin>:$PATH uv run --offline --extra test --extra web --extra cli --with playwright --with 'mcp==1.30.0' pytest -q"
+  },
+  "capture": {
+    "origin": "https://claude.ai/code, signed-in dev Chrome localhost CDP; two owned read-only tabs closed",
+    "asset_base": "https://assets-proxy.anthropic.com/claude-ai/v2/assets/v1",
+    "chunks_saved": 1075,
+    "lazy_chunks_fetched": 721,
+    "unavailable_reference": "clarkdown_editor_bg.js",
+    "limit": "Loaded chunks plus one level of their lazy references, not a proof about all server routes.",
+    "sources": {
+      "shared-m-4-B_HJGpmt.js": {
+        "sha256": "abf1959a8eb74ea02605439dc3bd4ce3fc5e63e03fb26724d4516bceeae74c0e",
+        "bytes": 366610
+      },
+      "shared-1-BLl3UQ0r.js": {
+        "sha256": "d0b19f40ffe1eb0ba664504c5f0824d4d082e158a1327cb4e3dd846b5f7c8a71",
+        "bytes": 496034
+      },
+      "shared-2-DI03rGaY.js": {
+        "sha256": "c46af690e9bd1d0361062331e4e54ecf86e4b0387076e227957f1aed1057602c",
+        "bytes": 431463
+      },
+      "c720e81f4-BHTS9utY.js": {
+        "sha256": "6b45f8bf86a3fa6c99e3ce2d7087fcfe1e71a4ef4f6ab31650cfc4924f165dc5",
+        "bytes": 1707
+      },
+      "c62b4c3e1-B7R4GKLO.js": {
+        "sha256": "93a820f5a1c4d45fa65960395cc1995f8ceefcd2370db6d6da77f288ed42e13d",
+        "bytes": 5711
+      }
+    }
+  },
+  "get_file_content": {
+    "bundle": "shared-m-4-B_HJGpmt.js",
+    "exact_builder": "function P3(e){let{owner:t,repo:n,path:r,ref:i,gheConfigurationId:a}=e;return np(uu(t,n,{path:r,...i?{ref:i}:{}}),a)}",
+    "fix": "ref or None at get_file_content boundary; retain nonempty refs and generic scm_body semantics.",
+    "test": "tests/test_scm.py captured JSON parametrization includes ref empty/default/nonempty.",
+    "live": "claude_2026-10-29-gaps-final-scm-live.json: omitted/empty/master return identical blob bytes/sha; GitHub public raw cross-check."
+  },
+  "url_elicitation": {
+    "bundle_fields": "shared-1-BLl3UQ0r.js KC: subtype elicitation + mode url -> {serverName:mcp_server_name,url,message,elicitationId:elicitation_id}",
+    "web_response_builder": "shared-2-DI03rGaY.js qc: if r?.connectAsk!==void 0 -> {payload:{uuid:XT(),type:\"control_response\",response:{subtype:\"success\",request_id:t,response:{action:n===\"deny\"?\"decline\":\"accept\"}}}}",
+    "web_lifecycle": "c62b4c3e1-B7R4GKLO.js drops trailing URL elicitations on result; shared-3-De0ODwwr.js resolves connect requests on control_response or tool completion.",
+    "cancel": "CLI schema permits action cancel. Real cloud child observed cancel, not a claim a standalone URL cancel button was clicked.",
+    "guard": "answer_elicitation(PendingRequest mode=url) rejects non-None content, sends bare action; bare request-id escape hatch unchanged.",
+    "live": "claude_2026-10-29-gaps-final-elicitation-live.json and elicitation-rerun.json: all six form/URL actions match child tool_result and exact ledger.",
+    "url_opened": false,
+    "out_of_band_auth_or_connector_change": false,
+    "timeout": "SDK child explicitly times out at 15s (408) then sends notifications/cancelled. Cloud worker emits request-id-matched control_cancel_request, no pending request and successful timeout tool_result. Not a natural service TTL proof.",
+    "abort": "interrupt while form open -> correlated control_cancel_request, child tool_cancelled ledger row, tool error, turn error_during_execution/is_error:true, no pending request.",
+    "limitations": [
+      "Rendered form/URL UI not exercised",
+      "URL opened/completed side effects not tested",
+      "Natural service timeout remains unqualified",
+      "Joining-client dialogs/hooks unchanged unsupported"
+    ],
+    "strict_final_rerun": "claude_2026-10-29-gaps-final-elicitation-final.json: final fixture hash, explicit cancel/pending/abort-state assertions pass; final cleanup rechecked with a fresh client."
+  },
+  "fixture_install": {
+    "previous_failure": "Independent old run failed at mcp_set_servers but did not preserve its error; the exact historical root cause cannot be established retroactively.",
+    "identified_failure_mode": "Both harnesses bootstrapped uv --with mcp during MCP connection. CLI 2.1.312 bl() uses MCP_TIMEOUT or 30000ms; fresh elicitation rerun dependency import took 38s. Cold dependency setup can exceed connection deadline.",
+    "fix": "Shared helpers in claude-rc-mcp-smoke prewarm exactly mcp==1.30.0 in the existing Bash fixture-copy turn, require an explicit successful warm marker, then MCP launches uv run --offline --with mcp==1.30.0; no blind retry, no timeout increase, no duplicate install owner.",
+    "new_evidence": "Fresh warmed installs: elicitation 9s, 10s, 38s; MCP 3s. Every mcp_set_servers returned own server added/errors empty. All qualified runs cleaned up exactly.",
+    "first_new_run_failure": "Our early smoke used a global permission-once set; later tool calls legitimately asked permission again. Fixed per-call allowance (same behavior as original harness), rerun qualified. Early evidence retained in elicitation-early-failure.json; exact cleanup passed.",
+    "test": "tests/elicitation_fixture_test.py verifies warm-up marker failure is fatal, pinned prewarm command and offline launch; actual FastMCP URL/form/timeout child tests.",
+    "final_install": {
+      "name": "fixture_bytes",
+      "sha256": "9b3285913035dbc0f54673f41bc6d7b71b70484d9069a2eebaab87cf3fc0511d",
+      "tool_use_id": "toolu_019KN3Zp8eTZJ9nqkG9WuAcY",
+      "uv_warm_seconds": 9
+    }
+  },
+  "integration_fire": {
+    "status": "uncaptured; no route invented, no token issued, no fire submitted",
+    "scanned_strings": [
+      "/fire",
+      "fireIntegration",
+      "integrationFire",
+      "integration_fire",
+      "claude_code/routines",
+      "experimental-cc-routine",
+      "webhook-triggers",
+      "api-token",
+      "webhook_trigger"
+    ],
+    "found": "shared-1-BLl3UQ0r.js POST/DELETE /v1/code/triggers/{triggerId}/api-token {} and POST /v1/code/triggers/{triggerId}/run. All already owned by triggers.py. c720e81f4-BHTS9utY.js labels origin fire_routine api; github_webhook_trigger webhook; force_run_trigger manual; scheduled_trigger scheduled.",
+    "not_found": "Integration fire HTTP path/method/body/readback. Legacy fire_routine remains deprecated; its earlier path is not promoted to captured contract.",
+    "read_safe_scope": "Existing trigger reads, run history and manual-run owner reused; no additional read route discovered. Attempted origin-only classification was not retained: live /v1/code/sessions carries no origin/trigger_id (0 of 100 rows); zero existing routines, so run-history origin unavailable. Counts only retained.",
+    "live_origin_census": {
+      "sessions_read": 100,
+      "origins": {
+        "None": 100
+      },
+      "trigger_run_kinds": {},
+      "with_trigger_id": 0,
+      "origin_key_present": 0
+    },
+    "approval_gate": "Per-routine tokens/webhooks and integration fire execution require explicit separate approval and exact owned resources. No integration write implemented."
+  },
+  "cleanup": "claude_2026-10-29-gaps-final-cleanup-recheck.json: fresh client, all five owned sessions GET 404, all five environments excluded.",
+  "full_web_parity": false,
+  "safety": {
+    "shared_oauth_refreshes": 0,
+    "connectors_modified": 0,
+    "tokens_issued": 0,
+    "network_config_writes": 0,
+    "shares_or_feedback": 0,
+    "persistent_services": 0,
+    "existing_sessions_mutated": 0
+  }
+}

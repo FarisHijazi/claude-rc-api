@@ -53,6 +53,11 @@ def main() -> int:
         check("file_content", data == raw and blob == f["sha"] and f["size"] == len(data),
               size=len(data), sha=f["sha"], local_blob_sha=blob, matches_raw_github=data == raw)
 
+        default = rc.get_file_content(REPO, "README")
+        empty = rc.get_file_content(REPO, "README", ref="")
+        check("empty_ref_uses_default", default == empty and file_content_bytes(empty) == data,
+              default_sha=default["sha"], empty_sha=empty["sha"], explicit_master_sha=f["sha"])
+
         c = rc.compare_refs(REPO, "master", "test")
         g = gh("compare/master...test").json()
         check("compare_refs", c and files_view(c["files"]) == files_view(g["files"])

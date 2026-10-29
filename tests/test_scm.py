@@ -39,6 +39,8 @@ def test_scm_body_shapes_repo_and_ghe():
      {"repo": "o/r", "path": "README", "ref": "main"}),
     (lambda c: c.get_file_content("o/r", "README"), "/v1/code/github/get-file-content",
      {"repo": "o/r", "path": "README"}),
+    (lambda c: c.get_file_content("o/r", "README", ref=""), "/v1/code/github/get-file-content",
+     {"repo": "o/r", "path": "README"}),
 ])
 def test_requests_match_captured_contract(call, path, body):
     seen = []

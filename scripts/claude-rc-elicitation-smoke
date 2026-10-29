@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 """Opt-in MCP elicitation/dialog/hook qualification on owned disposable cloud resources.
 
-An SDK FastMCP 1.30.0 child calls ctx.elicit; the worker relays it as an
-``elicitation`` control_request. accept/decline/cancel are answered through
-``answer_elicitation`` and proven by the child's own tool result and ledger.
+An SDK FastMCP 1.30.0 child calls ctx.elicit / ctx.elicit_url; the worker relays
+each as an ``elicitation`` control_request. Form and URL accept/decline/cancel are
+answered through ``answer_elicitation`` and proven by the child's own tool result
+and ledger. Timeout (child gives up and sends MCP notifications/cancelled) and
+abort (host interrupts the turn while the elicitation is open) record what the
+worker and child actually did.
 Also records hook registration and the session's MCP server names (for the
 Chrome forced-ask premise). ``--capture-web`` opens and closes one owned dev CDP
 tab on the owned session and scans the loaded web bundle, without any input.
@@ -11,7 +14,6 @@ tab on the owned session and scans the loaded web bundle, without any input.
 from __future__ import annotations
 
 import argparse
-import base64
 import hashlib
 import json
 import runpy
@@ -24,7 +26,9 @@ from claude_rc import RemoteControlClient
 
 helpers = runpy.run_path(str(Path(__file__).with_name("claude-rc-permission-smoke")))
 collect, tool_results = helpers["collect"], helpers["tool_results"]
-cleanup_resources = runpy.run_path(str(Path(__file__).with_name("claude-rc-mcp-smoke")))["cleanup_resources"]
+mcp_smoke = runpy.run_path(str(Path(__file__).with_name("claude-rc-mcp-smoke")))
+cleanup_resources, fixture_install_prompt = mcp_smoke["cleanup_resources"], mcp_smoke["fixture_install_prompt"]
+warm_seconds, fixture_server = mcp_smoke["warm_seconds"], mcp_smoke["fixture_server"]
 
 WEB_PATTERNS = ["can_use_tool", "request_user_dialog", "supportedDialogKinds", "dialog_kind",
                 "requested_schema", "elicitation_id", "mcp_server_name", "hook_callback", "askForTools"]
@@ -106,37 +110,50 @@ def main():
 
             source = (Path(__file__).resolve().parent.parent / "tests/fixtures/mcp_elicitation.py").read_bytes()
             path = "/mnt/user-data/working/" + proof["run"] + ".py"
-            events, _ = collect(client, sid,
-                f"Use Bash exactly once: printf %s {base64.b64encode(source).decode()} | base64 -d > {path}; "
-                f"sha256sum {path}. No other tools.", reject)
+            events, _ = collect(client, sid, fixture_install_prompt(source, path), reject)
             digest = hashlib.sha256(source).hexdigest()
             results = tool_results(events, "Bash")
             assert len(results) == 1 and digest in results[0]["content"]
-            record("fixture_bytes", sha256=digest, tool_use_id=results[0]["tool_use_id"])
+            record("fixture_bytes", sha256=digest, tool_use_id=results[0]["tool_use_id"],
+                   uv_warm_seconds=warm_seconds(results[0]["content"]))
             server = proof["run"]
             tool = f"mcp__{server}__ask"
-            added = client.set_worker_mcp_servers(sid, {server: {"type": "stdio", "command": "uv",
-                "args": ["run", "--with", "mcp==1.30.0", "python", path]}}, confirm=True, timeout=90)
+            added = client.set_worker_mcp_servers(sid, {server: fixture_server(path)}, confirm=True, timeout=90)
+            record("mcp_set_servers", added=added.get("added"), errors=added.get("errors"))
             assert server in added.get("added", []) and not added.get("errors"), json.dumps(added)[:300]
             rows = client.mcp_status(sid, live_reply=True, timeout=40)
             names = [row.get("name") or "" for row in rows]
             record("mcp_servers", server_count=len(names), own_fixture_present=server in names,
                    chrome_server_present="claude-in-chrome" in names)
             ledger = []
-            for action, content in ANSWERS:
-                marker = f"ELICIT_{action.upper()}"
-                seen = []
+
+            def watch(name, answer):
+                seen, allowed = [], []
 
                 def respond(request):
-                    if request.kind == "permission" and request.tool_name == tool and not seen:
+                    if request.kind == "permission" and request.tool_name == name and not allowed:
+                        allowed.append(request.request_id)
                         client.allow_once(sid, request)
                         return
                     if request.kind != "elicitation" or request.request.get("mcp_server_name") != server:
                         reject(request)
                     seen.append({k: request.request.get(k) for k in
-                                 ("mcp_server_name", "message", "mode", "requested_schema", "property_order")})
-                    client.answer_elicitation(sid, request, action, content)
+                                 ("mcp_server_name", "message", "mode", "url", "elicitation_id", "requested_schema")})
+                    seen[-1]["request_id"] = request.request_id
+                    answer(request)
+                return seen, respond
 
+            def ledger_rows():
+                return [json.loads(line) for line in
+                        client.read_file(sid, path[:-3] + ".elicit")["contents"].splitlines()]
+
+            def cancels(events, request_id):
+                return [e.payload for e in events if e.payload.get("type") == "control_cancel_request"
+                        and e.payload.get("request_id") == request_id]
+
+            for action, content in ANSWERS:
+                marker = f"ELICIT_{action.upper()}"
+                seen, respond = watch(tool, lambda r, a=action, c=content: client.answer_elicitation(sid, r, a, c))
                 events, _ = collect(client, sid,
                     f"Call {tool} exactly once with marker {marker}. No other tools. Then reply DONE.", respond)
                 replies = tool_results(events, tool)
@@ -145,10 +162,56 @@ def main():
                 expected = {"marker": marker, "action": action, "content": content}
                 assert child_result(replies[0]) == expected
                 ledger.append(expected)
-                lines = client.read_file(sid, path[:-3] + ".elicit")["contents"].splitlines()
-                assert [json.loads(line) for line in lines] == ledger
+                assert ledger_rows() == ledger
                 record("elicitation_continuation", action=action, request=seen[0],
-                       child_tool_result=replies[0], ledger_rows=len(lines), ledger_exact=True)
+                       child_tool_result=replies[0], ledger_rows=len(ledger), ledger_exact=True)
+            url_tool = f"mcp__{server}__ask_url"
+            for action in ("accept", "decline", "cancel"):
+                marker = f"URL_{action.upper()}"
+                seen, respond = watch(url_tool, lambda r, a=action: client.answer_elicitation(sid, r, a))
+                events, _ = collect(client, sid,
+                    f"Call {url_tool} exactly once with marker {marker}. No other tools. Then reply DONE.", respond)
+                replies = tool_results(events, url_tool)
+                expected = {"marker": marker, "mode": "url", "action": action}
+                assert len(seen) == 1 and seen[0]["mode"] == "url" and seen[0]["elicitation_id"] == marker
+                assert seen[0]["url"] == f"https://example.com/claude-rc/{marker}" and not seen[0]["requested_schema"]
+                assert len(replies) == 1 and not replies[0].get("is_error") and child_result(replies[0]) == expected
+                ledger.append(expected)
+                assert ledger_rows() == ledger
+                record("url_elicitation_continuation", action=action, request=seen[0],
+                       answer={"action": action}, child_tool_result=replies[0], ledger_exact=True)
+            timeout_tool = f"mcp__{server}__ask_timeout"
+            seen, respond = watch(timeout_tool, lambda r: None)
+            events, _ = collect(client, sid, f"Call {timeout_tool} exactly once with marker ELICIT_TIMEOUT and "
+                                "seconds 15. No other tools. Then reply DONE.", respond, timeout=180)
+            replies = tool_results(events, timeout_tool)
+            expected = {"marker": "ELICIT_TIMEOUT", "action": "timeout", "code": 408}
+            assert len(seen) == 1 and len(replies) == 1 and child_result(replies[0]) == expected
+            ledger.append(expected)
+            assert ledger_rows() == ledger
+            still_pending = [r.request_id for r in client.pending_requests(sid, initialize=True) if r.request_id == seen[0]["request_id"]]
+            assert not still_pending and cancels(events, seen[0]["request_id"])
+            record("elicitation_timeout", request=seen[0], host_answered=False, child_tool_result=replies[0],
+                   worker_cancel_events=cancels(events, seen[0]["request_id"]), still_pending=still_pending,
+                   ledger_exact=True)
+            seen, respond = watch(tool, lambda r: client.interrupt(sid))
+            events, _ = collect(client, sid, f"Call {tool} exactly once with marker ELICIT_ABORT. No other tools. "
+                                "Then reply DONE.", respond, allow_error=True)
+            assert len(seen) == 1
+            rows = ledger_rows()
+            assert rows[:len(ledger)] == ledger
+            tail = rows[len(ledger):]
+            assert len(tail) == 1 and tail[0]["marker"] == "ELICIT_ABORT", tail
+            ledger.extend(tail)
+            still_pending = [r.request_id for r in client.pending_requests(sid, initialize=True) if r.request_id == seen[0]["request_id"]]
+            turn_end = next(e for e in reversed(events) if e.source == "worker" and e.is_turn_end)
+            record("elicitation_abort", request=seen[0], host_action="interrupt", child_ledger_row=tail[0],
+                   child_tool_results=tool_results(events, tool), worker_cancel_events=cancels(events, seen[0]["request_id"]),
+                   still_pending=still_pending, turn_end={"subtype": turn_end.subtype,
+                                                         "is_error": turn_end.payload.get("is_error")})
+            assert not still_pending and cancels(events, seen[0]["request_id"])
+            assert tail[0]["action"] == "tool_cancelled"
+            assert turn_end.payload.get("is_error") and turn_end.subtype == "error_during_execution"
             proof["complete"] = True
         except Exception as error:
             record("aborted", error_class=type(error).__name__, error=str(error)[:300])

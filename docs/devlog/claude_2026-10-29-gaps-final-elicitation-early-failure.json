@@ -1,0 +1,94 @@
+{
+  "run": "elicit-f744baee65",
+  "checks": [
+    {
+      "name": "worker",
+      "version": "2.1.312",
+      "pending_user_dialog_requests": 0
+    },
+    {
+      "name": "hook_registration",
+      "hooks_applied": false,
+      "cli_contract": "false = a joining client's hooks were ignored; the stdin owner configured the session"
+    },
+    {
+      "name": "fixture_bytes",
+      "sha256": "8a433e381d5a77a2eb439d80aae662cada735b10e577e4f26780e70f5de2fe8d",
+      "tool_use_id": "toolu_01V2DuH3C8BkkyZVRRTtGVmh",
+      "uv_warm_seconds": 9
+    },
+    {
+      "name": "mcp_set_servers",
+      "added": [
+        "elicit-f744baee65"
+      ],
+      "errors": {}
+    },
+    {
+      "name": "mcp_servers",
+      "server_count": 13,
+      "own_fixture_present": true,
+      "chrome_server_present": false
+    },
+    {
+      "name": "elicitation_continuation",
+      "action": "accept",
+      "request": {
+        "mcp_server_name": "elicit-f744baee65",
+        "message": "Generated elicitation ELICIT_ACCEPT",
+        "mode": "form",
+        "url": null,
+        "elicitation_id": null,
+        "requested_schema": {
+          "properties": {
+            "count": {
+              "title": "Count",
+              "type": "integer"
+            },
+            "name": {
+              "title": "Name",
+              "type": "string"
+            }
+          },
+          "required": [
+            "name",
+            "count"
+          ],
+          "title": "Reply",
+          "type": "object"
+        },
+        "request_id": "9b0c67ac-39a6-4353-b0e8-2033c2fd24e9"
+      },
+      "child_tool_result": {
+        "content": [
+          {
+            "text": "{\n  \"marker\": \"ELICIT_ACCEPT\",\n  \"action\": \"accept\",\n  \"content\": {\n    \"name\": \"Ada\",\n    \"count\": 3\n  }\n}",
+            "type": "text"
+          }
+        ],
+        "tool_use_id": "toolu_01HH43w262LxQACsoimRN6BG",
+        "type": "tool_result"
+      },
+      "ledger_rows": 1,
+      "ledger_exact": true
+    },
+    {
+      "name": "aborted",
+      "error_class": "AssertionError",
+      "error": "unexpected permission"
+    }
+  ],
+  "cleanup": [
+    {
+      "session_id": "cse_0154EsXPW351ZvRFzzB3TmCN",
+      "get_status": 404
+    },
+    {
+      "environment_id": "env_01WmQUGErhu42Agzaos8x14C",
+      "excluded_from_list": true
+    }
+  ],
+  "complete": false,
+  "environment_id": "env_01WmQUGErhu42Agzaos8x14C",
+  "session_id": "cse_0154EsXPW351ZvRFzzB3TmCN"
+}
