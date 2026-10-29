@@ -1,0 +1,118 @@
+#!/usr/bin/env python3
+"""Live cookie Code upload -> byte hash -> worker hash -> exact session deletion.
+
+Usage: uv run --extra web python scripts/claude-rc-upload-smoke --evidence proof.json
+Creates one repo-free Haiku session and one tiny generated attachment. No OAuth
+refresh, browser writes, public shares or guessed deletion routes. Org blob
+retention is explicitly reported: session deletion is not attachment deletion.
+"""
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import sys
+import uuid
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from claude_rc import APIError, RemoteControlClient, default_environment
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--evidence", type=Path, required=True)
+    parser.add_argument("--timeout", type=float, default=180)
+    args = parser.parse_args()
+    proof = {"contract": "Code cookie store_as_is upload", "checks": {}, "owned": {},
+             "standalone_attachment_delete": "unsupported: no captured contract"}
+    sid = None
+    failed = False
+    with RemoteControlClient(direct=True) as rc:
+        try:
+            if rc.cookie_jar is None:
+                raise RuntimeError("this acceptance harness requires cookie auth")
+            rc.get_account_profile()
+            rc.list_sessions(limit=1)
+            env = default_environment(rc.list_environments())
+            if not env:
+                raise RuntimeError("no usable cloud environment")
+            session = rc.create_session(env.get("environment_id") or env["id"],
+                                        model="claude-haiku-5-5", title="owned-upload-acceptance")
+            sid = session["id"]
+            proof["owned"]["session_id"] = sid
+            args.evidence.write_text(json.dumps(proof, indent=2) + "\n")
+            data = ("CORE_UPLOAD_" + uuid.uuid4().hex + "\r\n").encode() + b"\x00\xff"
+            name = "owned-upload-" + uuid.uuid4().hex[:12] + ".bin"
+            digest = hashlib.sha256(data).hexdigest()
+            upload = rc.upload_attachment(data, name, "application/octet-stream")
+            ident = upload["file_uuid"]
+            proof["owned"]["file_uuid"] = ident
+            proof["file"] = {"name": name, "sha256": digest, "size": len(data)}
+            downloaded = rc.download_attachment(ident)
+            assert downloaded == data, "download differs from original bytes"
+            proof["checks"]["download_byte_equality"] = True
+            ref = {k: upload[k] for k in ("file_uuid", "file_name", "mime_type", "is_image",
+                                          "sha256", "file_size") if k in upload}
+            frames = rc.send_and_collect(
+                sid, "Use Bash to run sha256sum on the attached " + name +
+                ". Use its exact path from the attachment system message. Do not write or modify any file.",
+                file_attachments=[ref], timeout=args.timeout,
+            )
+            uses = {}
+            results = []
+            terminals = []
+            for event in frames:
+                payload = event.payload
+                if event.type == "result":
+                    terminals.append(payload)
+                content = payload.get("message", {}).get("content", [])
+                for block in content if isinstance(content, list) else []:
+                    if block.get("type") == "tool_use" and block.get("name") == "Bash":
+                        uses[block["id"]] = block.get("input", {}).get("command", "")
+                    elif block.get("type") == "tool_result":
+                        results.append(block)
+            matches = [block for block in results if block.get("tool_use_id") in uses
+                       and "sha256sum" in uses[block["tool_use_id"]]
+                       and not block.get("is_error") and digest in str(block.get("content"))]
+            assert matches, "no correlated successful Bash result with original file hash"
+            assert terminals and not terminals[-1].get("is_error"), "worker did not finish successfully"
+            proof["checks"]["worker_hash_matches"] = True
+            proof["worker"] = {"tool_use_id": matches[0]["tool_use_id"], "sha256": digest,
+                               "result_uuid": terminals[-1].get("uuid"), "is_error": False}
+        except Exception as error:
+            failed = True
+            proof["error"] = {"type": type(error).__name__}
+            if isinstance(error, APIError):
+                proof["error"]["status"] = error.status
+        finally:
+            if sid:
+                try:
+                    rc.archive_session(sid)
+                    rc.delete_session(sid)
+                    try:
+                        rc.get_session(sid)
+                    except APIError as error:
+                        assert error.status == 404
+                        proof["checks"]["session_deleted_404"] = True
+                    else:
+                        raise AssertionError("deleted session still readable")
+                    ident = proof["owned"].get("file_uuid")
+                    if ident:
+                        try:
+                            retained = rc.download_attachment(ident)
+                            proof["checks"]["blob_retained_after_session_delete"] = bool(retained)
+                        except APIError as error:
+                            proof["blob_read_after_session_delete_status"] = error.status
+                except Exception as error:
+                    failed = True
+                    proof["cleanup_error"] = type(error).__name__
+            proof["passed"] = not failed
+            args.evidence.write_text(json.dumps(proof, indent=2) + "\n")
+    print(json.dumps(proof, indent=2))
+    return int(failed)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

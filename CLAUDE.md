@@ -174,8 +174,17 @@ Files/media integration contracts and redacted live evidence are in
 These are deliberately plain paths, not `@` includes. Controller GET uses
 `/mnt/user-data/working/<file>`; synced PUT uses `/working/<file>`. CAS must
 use the GET response's `content_sha256`, not the attachment digest. Cookie
-TTS/dictation and inline images worked live; OAuth attachment upload returned
-401 and Files API returned 404, so neither is advertised as cookie-supported.
+TTS/dictation and inline images worked live. Cookie Code attachment uploads now
+use `/api/{org}/upload?store_as_is=true` (multipart `file`), and download original
+bytes at `/api/organizations/{org}/files/{uuid}/contents`. Actual Code composer
+ZIP and client binary uploads were consumed by workers with matching Bash hashes:
+`docs/devlog/claude_2026-10-29-core-upload-browser.json` and
+`docs/devlog/claude_2026-10-29-core-upload-live.json` (plain paths, not includes).
+`scripts/claude-rc-upload-smoke --evidence <path>` repeats the client acceptance.
+No standalone org attachment deletion contract is captured: both test sessions
+were deleted (GET 404), but blobs remain readable. Do not claim session deletion
+cleans up uploads. Bearer OAuth upload and Files API routes remain distinct;
+their prior cookie 401/404 results do not apply to the qualified org route.
 Independent reruns and remaining gaps are recorded in
 `docs/devlog/group07-independent-2026-10-28.json`. Dictation rejects empty or
 whitespace-only final transcripts rather than reporting a successful empty result.
@@ -199,7 +208,7 @@ These are deliberately plain paths, not `@` includes.
   not. Never derive the token locally or retry a conflict as an overwrite.
 - Routine enqueue/terminal success is not execution: require the actual expected
   assistant marker. Genuine permission prompts, owned OAuth enrollment/refresh,
-  cookie uploads and full live-browser parity remain incomplete.
+  standalone upload deletion and full live-browser parity remain incomplete.
 - `tests/integration_adapters_test.py` covers merged boundaries;
   `tests/panel_browser_test.py` optionally runs isolated headless Chrome via
   `uv run --extra test --extra web --extra cli --with playwright pytest -q`.

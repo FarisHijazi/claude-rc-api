@@ -39,6 +39,7 @@ Evidence files are deliberately plain paths, not force-loaded includes:
 | G | `claude_2026-10-29-completeness-followup.json` (current gap/acceptance plan, 710 tests); `claude_2026-10-28-completeness-followup.json` (prior state retained) |
 | M | `claude_2026-10-29-management-rendered-create-rerun.json` (rendered metadata, disabled routine creation/edit/history, read-only network and binary CAS); `claude_2026-10-29-management-live.json` (initial pass), `claude_2026-10-29-management-rendered-create-live.json` (early unlocated assertion failure retained; cleanup verified) |
 | A2 | `claude_2026-10-29-auth-source-live.json` (isolated env/state loading and real 401 recovery; browser-derived test cookies, temporary files removed) |
+| U | `claude_2026-10-29-core-upload-browser.json` (actual Code composer contract, ZIP read and worker hash); `claude_2026-10-29-core-upload-live.json` (client binary upload/download/worker hash and exact session cleanup) |
 
 Branch evidence records the feature branch at the time it ran; claims that those
 branches were not yet integrated are historical, not the current main state.
@@ -180,10 +181,11 @@ and panel now wait for the worker verdict before reporting application.
 | Capability | Implementation | Verification / boundary |
 |---|---|---|
 | Inline image inference | Implemented | Live F actual worker reply |
-| Browser attachment multipart upload/download/reference | Implemented | Rejected F: cookie upload 401; no upload roundtrip acceptance |
-| Files API upload/download/delete | Implemented | Rejected F: upload 404; no accepted roundtrip/deletion |
-| Attachment prefetch | Implemented | Empty replacement acknowledged F; nonempty effect blocked by upload failure |
-| Mount/seed bundles | Implemented | Offline; file upload unavailable; not cookie-qualified |
+| Browser attachment multipart upload/download/reference | Implemented | Live U: actual Code composer deferred ZIP upload and client binary upload; independent byte downloads equal worker Bash SHA-256 results. Cookie route uses `store_as_is=true`, not the rejected OAuth route |
+| Standalone cookie attachment deletion | Unsupported | U: no captured deletion contract; both owned sessions return GET 404 after deletion, but both blobs remain downloadable. No invented DELETE or cleanup claim |
+| Files API upload/download/delete | Implemented | Rejected F: upload 404; org attachment UUIDs are not Files API IDs; no accepted Files API roundtrip/deletion |
+| Attachment prefetch | Implemented | Empty replacement acknowledged F; nonempty prefetch effect remains unqualified, independently of successful ordinary attachment consumption U |
+| Mount/seed bundles | Implemented | Offline; separate Files API staging remains unavailable; org uploads do not qualify Files API mount/seed |
 | Controller workspace GET/CAS PUT and stale-write protection | Implemented | Live C/F default workspace; P browser UTF-8 editor; M binary/base64 editing has exact 269-byte independent readback and real 409 retaining draft without overwrite. BOM preservation, CRLF-safe base64 selection and encoding conversion are fixtures. C2/M qualify explicit `/mnt/user-data/working` cwd; arbitrary mappings remain unqualified |
 | TTS/Ogg mux/CLI output | Implemented | Live F valid Opus/Ogg decoding and real CLI process; no playback required |
 | Cookie dictation final transcript | Implemented | Live F generated audio only; no microphone |
@@ -250,7 +252,8 @@ Matrix status above applies to every route; listing a route is not live proof.
 | Environment secrets | GET/POST `N/environment-credentials`; DELETE `…/{id}?environment_id=…` |
 | Account | GET `/api/account`, `/api/account_profile`, org `/usage`, `/subscription_details`, `/mcp/remote_servers_with_connection`, `/skills/list-skills`; code-org `/user_settings` |
 | Controller files | GET `S/{id}/file?path`; PUT `…/synced_file` `{path,content:base64,if_match_sha256?,...attestation}` |
-| Upload/mount | POST `/api/oauth/file_upload` multipart; `/v1/files` family; POST `S/{id}/files` captured mount body |
+| Cookie Code attachments | POST `/api/{org}/upload?store_as_is=true`, multipart `file`; GET `/api/organizations/{org}/files/{uuid}/contents`; message `file_attachments` contains `file_uuid,file_name,mime_type,is_image` (optional local digest/size). No standalone deletion contract |
+| CLI upload/mount | POST `/api/oauth/file_upload` multipart (bearer only); `/v1/files` family; POST `S/{id}/files` captured mount body |
 | MCP REST | PUT `S/{id}/mcp-servers` `{mcp_servers:[...]}`; POST `…/mcp-approvals` `{tool_name,scope,tool_use_id}` |
 | Routines | GET/POST `T`; GET/POST/DELETE `T/{id}`; POST `…/run` `{}` or `{text}`; POST `…/fork` `{}`; POST `…/runs/{session_id}/cancel` `{}`; POST/DELETE `…/api-token` `{}` |
 | Webhook create | POST `/v1/code/webhook-triggers`; captured builder only; integration fire route not known |
@@ -272,6 +275,7 @@ uv run --extra web python scripts/claude-rc-integration-smoke --output ./integra
 uv run --extra web python scripts/claude-rc-stream-smoke --direct --timeout 90
 uv run --extra web --with playwright python scripts/claude-rc-panel-smoke --output ./panel-evidence.json
 uv run --extra web --with playwright python scripts/claude-rc-management-smoke --output ./management-evidence.json
+uv run --extra web python scripts/claude-rc-upload-smoke --evidence ./upload-evidence.json
 ```
 
 The integration smoke returns nonzero for **any** unqualified check, including
@@ -290,8 +294,10 @@ qualify a real worker.
    active cancellation (~30 min plus waiting for service quota). D already
    diagnosed Haiku + weekly-limit output + `is_error:true`; terminal `success`
    must never substitute for execution.
-3. Capture a cookie-authorized upload contract (~2 hours); only then qualify attachment
-   roundtrip, nonempty prefetch, Files mount/seed/delete and staged MCP effects.
+3. Capture standalone org attachment deletion if exposed (~1 hour); U qualifies
+   ordinary upload/download/worker consumption, but session deletion leaves blobs
+   readable. Qualify nonempty prefetch separately (~30 min); Files mount/seed and
+   staged MCP require their own accepted Files API contract, not org upload UUIDs.
 4. Extend C2 to arbitrary custom cwd mappings (~30 min). Its explicit
    `/mnt/user-data/working` environment passed byte readback and stale-write 409;
    do not assume that proves every environment's namespace.

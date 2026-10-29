@@ -1,0 +1,109 @@
+{
+  "browser": "dev existing signed-in Chrome over localhost CDP; only new owned tab driven",
+  "uploader": "Claude Code composer; upload deferred until Send",
+  "request": {
+    "method": "POST",
+    "path": "/api/{org}/upload?store_as_is=true",
+    "multipart_field": "file",
+    "status": 200
+  },
+  "response": {
+    "success": true,
+    "path": null,
+    "sanitized_name": null,
+    "file_kind": "blob",
+    "file_uuid": "119626d6-0831-48d9-92e7-0262a4b8f7b0",
+    "file_name": "core-upload-proof.zip",
+    "created_at": "2026-10-29T00:28:52.642555Z",
+    "user_uuid": null,
+    "size_bytes": 139,
+    "media_type": "application/zip",
+    "uuid": "119626d6-0831-48d9-92e7-0262a4b8f7b0"
+  },
+  "code_event": {
+    "type": "user",
+    "uuid": "e6dfc13e-fa78-4874-81a4-aeeb950398b3",
+    "session_id": "session_0154EsXR7PMMbHra4xFyNsW5",
+    "parent_tool_use_id": null,
+    "message": {
+      "role": "user",
+      "content": "Use Bash to find the attached core-upload-proof files under /mnt/user-data and show their sha256sum. Do not modify anything. Reply CORE_UPLOAD_SEEN after reading them."
+    },
+    "file_attachments": [
+      {
+        "file_uuid": "119626d6-0831-48d9-92e7-0262a4b8f7b0",
+        "file_name": "core-upload-proof.zip",
+        "mime_type": "application/zip",
+        "is_image": false
+      }
+    ]
+  },
+  "owned_session": "cse_0154EsXR7PMMbHra4xFyNsW5",
+  "tools": [
+    {
+      "id": "toolu_01CjQseZyYS1mUbYZQ9oCqsj",
+      "command": "ls -la /mnt/user-data 2>&1 | head -50; echo \"---\"; sha256sum /root/.claude/uploads/c6ee712c-8eca-5455-9fc7-4d47a02f80f1/119626d6-core-upload-proof.zip; echo \"---\"; unzip -l /root/.claude/uploads/c6ee712c-8eca-5455-9fc7-4d47a02f80f1/119626d6-core-upload-proof.zip 2>&1",
+      "result": "total 20\ndrwxr-xr-x 5 root root 4096 Oct 29 00:28 .\ndrwxr-xr-x 6 root root 4096 Oct 29 00:27 ..\ndrwxr-xr-x 2 root root 4096 Oct 29 00:28 outputs\ndrwxr-xr-x 2 root root 4096 Oct 29 00:28 uploads\ndrwxr-xr-x 2 root root 4096 Oct 29 00:27 working\n---\n14ba8887120ebf9e94070cb9eb3b40cd1fe8f9a63a4a42699ec5ba1abb35ffbe  /root/.claude/uploads/c6ee712c-8eca-5455-9fc7-4d47a02f80f1/119626d6-core-upload-proof.zip\n---\nArchive:  /root/.claude/uploads/c6ee712c-8eca-5455-9fc7-4d47a02f80f1/119626d6-core-upload-proof.zip\n  Length      Date    Time    Name\n---------  ---------- -----   ----\n       23  2026-10-29 00:27   proof.txt\n---------                     -------\n       23                     1 file",
+      "is_error": false
+    },
+    {
+      "id": "toolu_01SrCWdQCzy8WudZRBUiZjNk",
+      "command": "unzip -p /root/.claude/uploads/c6ee712c-8eca-5455-9fc7-4d47a02f80f1/119626d6-core-upload-proof.zip proof.txt",
+      "result": "CORE_UPLOAD_PROOF_7b13",
+      "is_error": false
+    }
+  ],
+  "cleanup": {
+    "session_get_status": 404,
+    "blob_retained": true
+  },
+  "limitations": [
+    "No captured standalone org attachment deletion route; no guessed DELETE sent.",
+    "Session deletion does not delete the uploaded blob."
+  ],
+  "worker_result": {
+    "uuid": "23b29bc6-0642-401d-af4a-1bda33597dcd",
+    "is_error": false,
+    "subtype": "success",
+    "user_message_uuid": "e6dfc13e-fa78-4874-81a4-aeeb950398b3"
+  },
+  "download": {
+    "status": 200,
+    "size": 139,
+    "sha256": "14ba8887120ebf9e94070cb9eb3b40cd1fe8f9a63a4a42699ec5ba1abb35ffbe"
+  },
+  "source_lineage": [
+    {
+      "url": "https://assets-proxy.anthropic.com/claude-ai/v2/assets/v1/shared-m-0-Bgj2_xmE.js",
+      "sha256": "7fb7f4e3cd2c1fa422112adc5208f1843a4d6f2b7b6108e404d8ffac96299381",
+      "symbols": [
+        "function Os",
+        "async function ip"
+      ],
+      "excerpts": [
+        "function Os(e,t){return n=>rj(n)?KS(n.nativeFile.size,r=>{let i=sH(n.nativeFile);return i!==void 0&&u7(`/api/${t}/upload`,\"POST\",i),e(n.nativeFile,t,r)}).then(e=>({...e,file_uuid:n.file_uuid,serverFileUuid:e.file_uuid,nativeFile:n.nativeFile,localPath:n.localPath,derivedFor:\"org\",derivedOrgUuid:t})):Promise.reject(ph(Error(\"no nativeFile\"),\"no nativeFile\",\"literal\"))}async function hM(e,t,n){let r=e=>e!==void 0&&(Array.isArray(t)?t.includes(e):e===t),i=new Map,a=(e,t)=>{t!==void 0&&!i.has(e.file_uuid)&&i.set(e.file_uuid,t)},o=await Promise.all(e.map(async e=>{if(r(e.derivedFor))return e;if(e.cloudRefPromise){let t=await e.cloudRefPromise.catch(t=>(a(e,t),t instanceof jB?t:void 0));if(t instanceof jB)return;if(r(t?.derivedFor))return t}if(n){let t=await n(e).catch(t=>{a(e,t)});if(r(t?.derivedFor))return t}a(e,e.cloudRefError)}));return{resolved:o.filter(e=>e!==void 0),unresolved:e.filter(",
+        "async function ip(e,t,n,r,i,a){if(e.files.length===0)return hl(t);let o=e.files.filter(yV),s=e.files.filter(e=>!yV(e)),{resolved:c,unresolved:l,causes:u}=await hM(n===\"remote\"?e.files:s,\"org\",i),d=c.filter(e=>e.file_uuid),f=new Set(d.map(e=>e.file_uuid)),p=await DQ([...n===\"remote\"&&a&&d.length<=16&&o.every(e=>f.has(e.file_uuid))?[]:o,...l.filter(e=>!yV(e))],n===\"local\"),m=p.rejectedImages.length+p.unmaterializable.length;if(m>0){let t=p.gateFailures.map(e=>{if(e.fileUuid===void 0||e.cause!==hQ||!u.has(e.fileUuid))return e;let t=u.get(e.fileUuid),n=t instanceof Error&&b1(t),r=qm(t);if(r===\"client_side\")return n?{...e,upstreamUserFault:!0}:e;let i=t?.statusCode;return{...e,upstream:r,...typeof i==\"number\"&&{upstreamStatus:i},...n&&{upstreamUserFault:!0}}});throw ng(\"send\",t,e.files.length,n),Ag(\"failure\",r,\"attachment_unmaterializable_at_send\",t),f6(e.files,t,m)}let h=ez().inlineImageBudg"
+      ]
+    },
+    {
+      "url": "https://assets-proxy.anthropic.com/claude-ai/v2/assets/v1/shared-3-D4jkJ5gU.js",
+      "sha256": "10127a8fc58dfb2f16deb407bd0df827abb9176a8323ad267709dc9e035425d7",
+      "symbols": [
+        "function ltK"
+      ],
+      "excerpts": [
+        "function ltK(){let $=J9(3),e=WL(),t=zom();return J2($,0,t,e)?K2($,0,t,e,async(n,r,i,a)=>{Fn(n);let o=new FormData;o.append(\"file\",n);let s=i?`/api/organizations/${r}/projects/${i}/upload`:`/api/${r}/upload`,c=await e(s,{method:\"POST\",body:o,signal:a});if(!c.ok)throw await kn(c,s);let l=await $H(c,n.name);return i&&t.invalidateQueries({queryKey:[XB,{orgUuid:r,projectUuid:i}]}),l}):$[2]}function ed(){let $=J9(2),e=WL();return J1($,0,e)?K1($,0,e,async(t,n,r)=>{Fn(t);let i=new FormData;i.append(\"file\",t);let a=`/api/organizations/${n}/cowork/attachments`,o=await e(a,{method:\"POST\",body:i,signal:r});if(!o.ok)throw await kn(o,a);return await $H(o,t.name)}):$[1]}function sb(e){let t=[],n=[],r=[];for(let r of e.successful){let e=r.data;r.type===\"attachment\"?\"extracted_content\"in e&&t.push(e):\"file_kind\"in e&&n.push(e)}for(let t of e.failed)r.push({file:t.file,error:t.error});return{attachments:t"
+      ]
+    },
+    {
+      "url": "https://assets-proxy.anthropic.com/claude-ai/v2/assets/v1/shared-m-2-hogfZoEn.js",
+      "sha256": "8cb2c49127dbe57e1e7a02d56ae684c892b8e6951cf159587bcf367c954c805e",
+      "symbols": [
+        "function r$("
+      ],
+      "excerpts": [
+        "function r$(e,t){return`/api/organizations/${e}/files/${encodeURIComponent(t)}/contents`}function JL(e,t){return Ki(t)?`/api/organizations/${e}/files/${t}/content_preview`:null}function NV(e,t){return`/api/${e}/files/${encodeURIComponent(t)}/preview`}function pk(e,t){return`/api/${e}/files/${encodeURIComponent(t)}/thumbnail`}var uG=18e5,hl=[\"pointerdown\",\"keydown\"];function PP(){return wt(vi.NEXT_PUBLIC_BUILD_ID)??\"\"}function Jr(e){let t=\"undecided\",n=null,r=new Set;function i(e){if(t!==e){t=e;for(let e of r)e()}}function a(e){return r.add(e),()=>{r.delete(e)}}function o(){return t}function s(){try{return sessionStorage.setItem(e,`${PP()}|${Date.now()}`),!0}catch{return!1}}function c(){try{sessionStorage.removeItem(e)}catch{}}function l(){let t;try{t=sessionStorage.getItem(e)}catch{return\"no_storage\"}if(t!==null){let[e,n]=t.split(\"|\");if(e===PP()||Date.now()-Number(n)<uG)return\"already_a"
+      ]
+    }
+  ]
+}
