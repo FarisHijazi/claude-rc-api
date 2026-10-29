@@ -77,6 +77,9 @@ attached client owns `supportedDialogKinds`; only the stdin owner registers
 hooks), and Chrome forced-ask needs a `claude-in-chrome` server the cloud worker
 lacks; do not retry those premises. Evidence:
 `docs/devlog/claude_2026-10-29-elicitation-summary.json` (plain path).
+Independent rerun: `docs/devlog/claude_2026-10-29-elicitation-independent.json`
+(plain path); one of two live runs failed at `mcp_set_servers`, so rerun once
+before treating a fixture install failure as a regression.
 
 Lifecycle integration contracts and per-capability live evidence are in
 `docs/devlog/claude_2026-10-28-group02-lifecycle.json` (deliberately a plain

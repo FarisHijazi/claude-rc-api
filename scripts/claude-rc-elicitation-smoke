@@ -117,7 +117,7 @@ def main():
             tool = f"mcp__{server}__ask"
             added = client.set_worker_mcp_servers(sid, {server: {"type": "stdio", "command": "uv",
                 "args": ["run", "--with", "mcp==1.30.0", "python", path]}}, confirm=True, timeout=90)
-            assert server in added.get("added", []) and not added.get("errors")
+            assert server in added.get("added", []) and not added.get("errors"), json.dumps(added)[:300]
             rows = client.mcp_status(sid, live_reply=True, timeout=40)
             names = [row.get("name") or "" for row in rows]
             record("mcp_servers", server_count=len(names), own_fixture_present=server in names,

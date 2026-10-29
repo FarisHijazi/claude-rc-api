@@ -1,0 +1,208 @@
+{
+  "verifier": "independent, base 0453010025b6045b3eedd0cd6688bdb2b8237d30",
+  "offline": "813 passed (uv --offline, mcp==1.30.0 + playwright, real node bin first on PATH)",
+  "cli_contract_rechecked": "local 2.1.312 binary contains the quoted supportedDialogKinds first-attached-wins text, the hooks_applied joining-client text, the elicitation request schema (mode form|url, requested_schema, property_order) and response action accept|decline|cancel + optional content, matching cli_elicitation_response",
+  "run_1_failed": {
+    "checks": [
+      {
+        "name": "worker",
+        "version": "2.1.312",
+        "pending_user_dialog_requests": 0
+      },
+      {
+        "name": "hook_registration",
+        "hooks_applied": false,
+        "cli_contract": "false = a joining client's hooks were ignored; the stdin owner configured the session"
+      },
+      {
+        "name": "fixture_bytes",
+        "sha256": "ab0cf1e58c307b471efb01a2ed9e10d1d8ef43a861b221c9e955d9f089665da6",
+        "tool_use_id": "toolu_01UXb3xETDuEhvwbhJ7m5xy2"
+      },
+      {
+        "name": "aborted",
+        "error_class": "AssertionError",
+        "error": ""
+      }
+    ],
+    "cleanup": [
+      {
+        "session_id": "cse_0154EsXPdhBrya11XF3jKu1W",
+        "get_status": 404
+      },
+      {
+        "environment_id": "env_01UWgkHJeFJKfMah6ZRXdVJ8",
+        "excluded_from_list": true
+      }
+    ],
+    "note": "set_worker_mcp_servers reply failed the added/errors assertion; the reply was not recorded, so the assertion now includes it. Cleanup was exact."
+  },
+  "run_2_passed": {
+    "run": "elicit-2508265c40",
+    "checks": [
+      {
+        "name": "worker",
+        "version": "2.1.312",
+        "pending_user_dialog_requests": 0
+      },
+      {
+        "name": "hook_registration",
+        "hooks_applied": false,
+        "cli_contract": "false = a joining client's hooks were ignored; the stdin owner configured the session"
+      },
+      {
+        "name": "fixture_bytes",
+        "sha256": "ab0cf1e58c307b471efb01a2ed9e10d1d8ef43a861b221c9e955d9f089665da6",
+        "tool_use_id": "toolu_013Cn2zzsDqBsQqQfZDJnxb4"
+      },
+      {
+        "name": "mcp_servers",
+        "server_count": 13,
+        "own_fixture_present": true,
+        "chrome_server_present": false
+      },
+      {
+        "name": "elicitation_continuation",
+        "action": "accept",
+        "request": {
+          "mcp_server_name": "elicit-2508265c40",
+          "message": "Generated elicitation ELICIT_ACCEPT",
+          "mode": "form",
+          "requested_schema": {
+            "properties": {
+              "count": {
+                "title": "Count",
+                "type": "integer"
+              },
+              "name": {
+                "title": "Name",
+                "type": "string"
+              }
+            },
+            "required": [
+              "name",
+              "count"
+            ],
+            "title": "Reply",
+            "type": "object"
+          },
+          "property_order": [
+            "name",
+            "count"
+          ]
+        },
+        "child_tool_result": {
+          "content": [
+            {
+              "text": "{\n  \"marker\": \"ELICIT_ACCEPT\",\n  \"action\": \"accept\",\n  \"content\": {\n    \"name\": \"Ada\",\n    \"count\": 3\n  }\n}",
+              "type": "text"
+            }
+          ],
+          "tool_use_id": "toolu_01LgNea86JsEj3B3bR6ofBqu",
+          "type": "tool_result"
+        },
+        "ledger_rows": 1,
+        "ledger_exact": true
+      },
+      {
+        "name": "elicitation_continuation",
+        "action": "decline",
+        "request": {
+          "mcp_server_name": "elicit-2508265c40",
+          "message": "Generated elicitation ELICIT_DECLINE",
+          "mode": "form",
+          "requested_schema": {
+            "properties": {
+              "count": {
+                "title": "Count",
+                "type": "integer"
+              },
+              "name": {
+                "title": "Name",
+                "type": "string"
+              }
+            },
+            "required": [
+              "name",
+              "count"
+            ],
+            "title": "Reply",
+            "type": "object"
+          },
+          "property_order": [
+            "name",
+            "count"
+          ]
+        },
+        "child_tool_result": {
+          "content": [
+            {
+              "text": "{\n  \"marker\": \"ELICIT_DECLINE\",\n  \"action\": \"decline\",\n  \"content\": null\n}",
+              "type": "text"
+            }
+          ],
+          "tool_use_id": "toolu_01UhCkFSBjmWMohq6ZUEJzPh",
+          "type": "tool_result"
+        },
+        "ledger_rows": 2,
+        "ledger_exact": true
+      },
+      {
+        "name": "elicitation_continuation",
+        "action": "cancel",
+        "request": {
+          "mcp_server_name": "elicit-2508265c40",
+          "message": "Generated elicitation ELICIT_CANCEL",
+          "mode": "form",
+          "requested_schema": {
+            "properties": {
+              "count": {
+                "title": "Count",
+                "type": "integer"
+              },
+              "name": {
+                "title": "Name",
+                "type": "string"
+              }
+            },
+            "required": [
+              "name",
+              "count"
+            ],
+            "title": "Reply",
+            "type": "object"
+          },
+          "property_order": [
+            "name",
+            "count"
+          ]
+        },
+        "child_tool_result": {
+          "content": [
+            {
+              "text": "{\n  \"marker\": \"ELICIT_CANCEL\",\n  \"action\": \"cancel\",\n  \"content\": null\n}",
+              "type": "text"
+            }
+          ],
+          "tool_use_id": "toolu_01RtMF4CPhereeYBGwYvX8nr",
+          "type": "tool_result"
+        },
+        "ledger_rows": 3,
+        "ledger_exact": true
+      }
+    ],
+    "cleanup": [
+      {
+        "session_id": "cse_0154EsXRPBsTcn7E9xkxhToe",
+        "get_status": 404
+      },
+      {
+        "environment_id": "env_01BEeSNUrufJhjDi1aJmQQCp",
+        "excluded_from_list": true
+      }
+    ],
+    "complete": true,
+    "environment_id": "env_01BEeSNUrufJhjDi1aJmQQCp",
+    "session_id": "cse_0154EsXRPBsTcn7E9xkxhToe"
+  }
+}
