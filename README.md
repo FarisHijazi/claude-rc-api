@@ -13,7 +13,7 @@ uses.
 > break at any time. Use your own account, at your own risk. Full protocol
 > writeup in [`API_REFERENCE.md`](./API_REFERENCE.md).
 
-## This fork (0.7.0): Claude Code on the web
+## This fork (0.8.0): Claude Code on the web
 
 `FarisHijazi/claude-rc-api` extends upstream 0.4.0 with cloud session
 lifecycle, environments, routines, typed model/mode/effort controls, question
@@ -152,12 +152,18 @@ claude-rc web --port 9000 --no-open
 The panel provides a policy-aware creation form (environment/pool, repository,
 revision, outcome branch, model, effort and initial mode), paged transcript and
 session-status navigation, question annotations/partial skips/dismissal, local
-pin/copy, and a UTF-8 Files editor with server-token CAS and conflict-safe drafts.
+pin/copy, and a UTF-8/base64 Files editor with server-token CAS and conflict-safe drafts.
 The rendered create/send/question/model/mode/Files/Changes/reconnect/archive/
 restore/delete flow is live-qualified on disposable resources. Native text/number
 forms remain fixture-tested, not emitted by the live cloud worker in acceptance.
-Environment/routine/network-management screens and several local slash menus
-remain incomplete; library coverage is not panel parity.
+Management screens edit environment names/descriptions without exposing variables,
+create disabled routines, edit their name/schedule/enabled state, inspect run history,
+and offer run/cancel/delete controls. Network profile inspection is read-only.
+Live acceptance covers environment metadata preservation, disabled routine edits,
+run-history reads, disabled routine creation, network inspection and binary CAS/
+conflict-safe drafts. Run/cancel execution and full configuration/slash-menu
+parity remain incomplete. See the per-capability matrix rather than assuming all
+visible controls have live execution proof.
 
 It's a standard-library `http.server` (no new dependencies) that proxies the
 `RemoteControlClient`. It speaks to the private API with *your* OAuth token and

@@ -1,4 +1,4 @@
-# Web controller: contracts and evidence (0.7.0)
+# Web controller: contracts and evidence (0.8.0)
 
 This is the canonical `claude_rc` implementation. All eight feature branches
 are merged. It is **not full browser parity**: a captured request builder,
@@ -36,7 +36,9 @@ Evidence files are deliberately plain paths, not force-loaded includes:
 | H | `claude_2026-10-28-panel-long-live-rerun.json` (233 real events, two panel pages); earlier `claude_2026-10-28-panel-long-live.json` retains rejected 105-event batch attempt |
 | D | `claude_2026-10-28-routine-diagnosis.json` (actual model, quota response and result error flag) |
 | C2 | `claude_2026-10-28-custom-workspace.json` (owned custom environment, exact namespace, CAS bytes and conflict) |
-| G | `claude_2026-10-28-completeness-followup.json` (all review gaps, terminal status and next acceptance step) |
+| G | `claude_2026-10-29-completeness-followup.json` (current gap/acceptance plan, 710 tests); `claude_2026-10-28-completeness-followup.json` (prior state retained) |
+| M | `claude_2026-10-29-management-rendered-create-rerun.json` (rendered metadata, disabled routine creation/edit/history, read-only network and binary CAS); `claude_2026-10-29-management-live.json` (initial pass), `claude_2026-10-29-management-rendered-create-live.json` (early unlocated assertion failure retained; cleanup verified) |
+| A2 | `claude_2026-10-29-auth-source-live.json` (isolated env/state loading and real 401 recovery; browser-derived test cookies, temporary files removed) |
 
 Branch evidence records the feature branch at the time it ran; claims that those
 branches were not yet integrated are historical, not the current main state.
@@ -50,7 +52,7 @@ branches were not yet integrated are historical, not the current main state.
 | Automatic browser authentication, no copied cookies | Implemented | Live I/A: `cookies:cdp`, recovery enabled by default |
 | Re-read after an authenticated 401; same account/org | Implemented | Live I: real 401 → account 200 → original GET 200; exactly one reread |
 | Initial stale-cookie 403 recovery | Implemented | Live A: account 403 `Invalid authorization` → 200; distinct from policy/Cloudflare |
-| Explicit env/state/Chrome DB sources and source-pinned recovery | Implemented | Offline source variants; CDP is the live-qualified default |
+| Explicit env/state/Chrome DB sources and source-pinned recovery | Implemented | Live A2 env/state with browser-derived cookies: each real 401 → account 200 → GET 200, exactly one reread, same account/org; temporary state mode 0600 and removed. Chrome DB extraction remains offline; no natural expiry/rotation claim |
 | Shared CLI/Keychain/cswap/proxy access-only credentials | Implemented | Live A: invalid bearer, zero refresh exchanges; 192 credential-file hashes unchanged; cswap reader never consumes backup grants |
 | Unidentified legacy bearer rotation | Fail-closed | Blocked: no reliable account lineage; a changed unidentified grant is not accepted silently |
 | Isolated PKCE login; owned refresh/restart/CAS locking | Implemented | Offline; no separately enrolled owned grant. Never borrow a shared refresh token |
@@ -182,7 +184,7 @@ and panel now wait for the worker verdict before reporting application.
 | Files API upload/download/delete | Implemented | Rejected F: upload 404; no accepted roundtrip/deletion |
 | Attachment prefetch | Implemented | Empty replacement acknowledged F; nonempty effect blocked by upload failure |
 | Mount/seed bundles | Implemented | Offline; file upload unavailable; not cookie-qualified |
-| Controller workspace GET/CAS PUT and stale-write protection | Implemented | Live C/F default workspace; P browser text editor saves UTF-8, verifies bytes, retains draft on actual 409 without overwrite. C2 also qualifies a fresh custom environment with explicit `/mnt/user-data/working` cwd; arbitrary custom cwd mappings remain unqualified |
+| Controller workspace GET/CAS PUT and stale-write protection | Implemented | Live C/F default workspace; P browser UTF-8 editor; M binary/base64 editing has exact 269-byte independent readback and real 409 retaining draft without overwrite. BOM preservation, CRLF-safe base64 selection and encoding conversion are fixtures. C2/M qualify explicit `/mnt/user-data/working` cwd; arbitrary mappings remain unqualified |
 | TTS/Ogg mux/CLI output | Implemented | Live F valid Opus/Ogg decoding and real CLI process; no playback required |
 | Cookie dictation final transcript | Implemented | Live F generated audio only; no microphone |
 | Dictation pre-audio reconnect | Implemented | Fault-injected live F, two attempts and nonzero backoff |
@@ -212,7 +214,7 @@ A 409 propagates; do not refetch-and-overwrite automatically.
 | Panel native question variants and loading guards | Implemented | Isolated headless browser T: single/multi/Other/text/number/defaults/unit/skip/notes/previews/dismiss/chat encodings; fixtures, not live native-form proof |
 | Panel Files inspection and lifecycle controls | Implemented | Rendered P: exact decoded file bytes, CAS save/conflict, archive, archived navigation, restore with a new worker reply, delete followed by GET 404 |
 | Panel stream reconnect, permission reuse and all-click coverage | Qualified subset | P closes only its own EventSource, reconnects and receives an actual fresh reply. Genuine permissions, dialog/native schemas and every menu variant remain unqualified |
-| Panel environment/routine/network-management menus | Not implemented | APIs/CLI cover portions; dedicated management screens remain development backlog G, not a platform limitation |
+| Panel environment/routine/network-management menus | Implemented subset | Live M: environment name/description editing preserves private config; disabled routine creation and name/disabled-state readback, run-history reads, read-only redacted network profiles. Run/cancel/delete adapters are fixtures; run execution remains quota-blocked D, active cancellation unqualified. Full environment config/secret forms, routine prompt/model editing, history paging and approved network write forms remain development backlog |
 | Browser-local pinning/copy and status/page navigation | Implemented subset | P verifies local pin, actual clipboard text and archived-session navigation; T covers selection controls. Pins are per-browser conveniences, not server grouping; full navigation parity is not claimed |
 | Managed Agents public API | Separate legacy client | Outside this web-controller acceptance; no paid-key test or parity claim |
 
@@ -269,6 +271,7 @@ uv run --extra test --extra web --extra cli --with playwright pytest -q
 uv run --extra web python scripts/claude-rc-integration-smoke --output ./integration-evidence.json
 uv run --extra web python scripts/claude-rc-stream-smoke --direct --timeout 90
 uv run --extra web --with playwright python scripts/claude-rc-panel-smoke --output ./panel-evidence.json
+uv run --extra web --with playwright python scripts/claude-rc-management-smoke --output ./management-evidence.json
 ```
 
 The integration smoke returns nonzero for **any** unqualified check, including
@@ -294,10 +297,11 @@ qualify a real worker.
    do not assume that proves every environment's namespace.
 5. Enroll an explicitly approved isolated OAuth grant (~1 hour after approval) and qualify refresh/restart,
    concurrent rotation and trusted-device recovery without touching shared grants.
-6. Complete environment/routine/network management screens and remaining local
-   slash renderers (development backlog, ~1–2 days). P now qualifies the rendered
-   core continuation/reconnect/lifecycle/CAS flow; fixture-only native dialogs,
-   permissions and additional menu variants still need separate acceptance.
+6. Complete full environment/routine configuration forms, run-history paging,
+   approved network-write forms and remaining local slash renderers (development
+   backlog, ~1–2 days). M qualifies metadata/routine/read-only network screens
+   and binary CAS; genuine permissions, native dialogs and additional variants
+   still need separate acceptance.
 7. Obtain explicit approval before public shares, support/debug exports (~2 hours after approval),
    feedback/log uploads, network bindings, tokens or webhook writes. Capture
    unsupported fork/grouping/SCM/integration-fire contracts before implementation.

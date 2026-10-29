@@ -47,6 +47,8 @@ HTTP surface (all JSON unless noted):
 
 from __future__ import annotations
 
+import base64
+import binascii
 import json
 import re
 import webbrowser
@@ -64,6 +66,8 @@ _PAGE = _STATIC / "index.html"
 
 # --- route patterns (path is matched against these, first hit wins) --------
 _SID = r"(?P<sid>[^/]+)"
+_R_ENVIRONMENT = re.compile(r"^/api/environments/(?P<eid>[^/]+)$")
+_R_ROUTINE = re.compile(r"^/api/routines/(?P<rid>[^/]+)(?:/(?P<action>runs|run|fork|delete|cancel))?$")
 _R_SESSION = re.compile(rf"^/api/sessions/{_SID}$")
 _R_EVENTS = re.compile(rf"^/api/sessions/{_SID}/events$")
 _R_STREAM = re.compile(rf"^/api/sessions/{_SID}/stream$")
@@ -203,6 +207,24 @@ class _Handler(BaseHTTPRequestHandler):
                 from .environments import redact_environment
 
                 return self._json({"environments": [redact_environment(e) for e in self.rc.list_environments()]})
+            if path == "/api/network-profiles":
+                from .environments import redact_network_material
+
+                return self._json(redact_network_material(self.rc.list_agent_proxy_profiles(include_bindings=True)))
+            if path == "/api/routines":
+                return self._json({"routines": self.rc.list_triggers()})
+            m = _R_ROUTINE.match(path)
+            if m:
+                if m["action"] == "runs":
+                    q = self._query()
+                    return self._json(self.rc.trigger_runs(m["rid"], cursor=q.get("cursor", [None])[0]))
+                if m["action"] is None:
+                    return self._json(self.rc.get_trigger(m["rid"]))
+            m = _R_ENVIRONMENT.match(path)
+            if m:
+                from .environments import redact_environment
+
+                return self._json(redact_environment(self.rc.get_environment(m["eid"])))
             if path == "/api/models":
                 return self._json(self.rc.browser_models())
             if path == "/api/permission-policy":
@@ -253,6 +275,35 @@ class _Handler(BaseHTTPRequestHandler):
         # desync the next request on this keep-alive connection.
         body = self._body()
         try:
+            m = _R_ENVIRONMENT.match(path)
+            if m:
+                from .environments import redact_environment
+
+                if set(body) - {"name", "description"}:
+                    raise ValueError("panel environment edits support name and description only")
+                return self._json(redact_environment(self.rc.update_environment(m["eid"], **body)))
+            if path == "/api/routines":
+                allowed = {"name", "environment_id", "prompt", "cron_expression", "run_once_at", "model"}
+                if set(body) - allowed:
+                    raise ValueError("unsupported routine creation field")
+                return self._json(self.rc.create_trigger(**body, enabled=False))
+            m = _R_ROUTINE.match(path)
+            if m:
+                rid, action = m["rid"], m["action"]
+                if action is None:
+                    if set(body) - {"name", "enabled", "cron_expression", "run_once_at"}:
+                        raise ValueError("unsupported routine update field")
+                    if "enabled" in body and not isinstance(body["enabled"], bool):
+                        raise ValueError("enabled must be boolean")
+                    return self._json(self.rc.update_trigger(rid, **body))
+                if action == "run":
+                    return self._json(self.rc.run_trigger(rid))
+                if action == "fork":
+                    return self._json(self.rc.fork_trigger(rid))
+                if action == "delete":
+                    return self._json(self.rc.delete_trigger(rid))
+                if action == "cancel":
+                    return self._json(self.rc.cancel_trigger_run(rid, body["session_id"]))
             if path == "/api/sessions":
                 return self._json(self._create(body))
             m = _R_WORKSPACE.match(path)
@@ -277,7 +328,17 @@ class _Handler(BaseHTTPRequestHandler):
                 if action == "sync_file":
                     if not body.get("if_match_sha256"):
                         raise ValueError("CAS hash from the file read is required")
-                    return self._json(self.rc.put_synced_file(sid, body["path"], body["content"].encode(),
+                    encoding = body.get("encoding", "utf-8")
+                    if encoding == "base64":
+                        try:
+                            content = base64.b64decode(body["content"], validate=True)
+                        except (binascii.Error, ValueError) as exc:
+                            raise ValueError("invalid base64 file content") from exc
+                    elif encoding == "utf-8":
+                        content = body["content"].encode("utf-8")
+                    else:
+                        raise ValueError("unsupported file encoding")
+                    return self._json(self.rc.put_synced_file(sid, body["path"], content,
                                          if_match_sha256=body["if_match_sha256"]))
             m = _R_ANSWER.match(path)
             if m:

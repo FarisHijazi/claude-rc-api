@@ -1,0 +1,82 @@
+{
+  "run": "management-8a8e2a56d81e",
+  "checks": [
+    {
+      "name": "automatic_auth_and_readonly_preflight",
+      "status": "passed",
+      "source": "cookies:cdp"
+    },
+    {
+      "name": "rendered_environment_metadata",
+      "status": "passed",
+      "configuration_preserved": true,
+      "independent_get": true
+    },
+    {
+      "name": "rendered_routine_create",
+      "status": "passed",
+      "independent_get": true,
+      "disabled": true,
+      "requested_model": "claude-haiku-5-5"
+    },
+    {
+      "name": "rendered_routine_edit",
+      "status": "passed",
+      "independent_get": true,
+      "disabled_preserved": true
+    },
+    {
+      "name": "rendered_routine_run_history",
+      "status": "passed",
+      "service_response": true
+    },
+    {
+      "name": "rendered_network_readonly",
+      "status": "passed",
+      "no_network_writes": true
+    },
+    {
+      "name": "rendered_binary_cas",
+      "status": "passed",
+      "independent_byte_readback": true,
+      "bytes": 269
+    },
+    {
+      "name": "rendered_binary_stale_cas",
+      "status": "passed",
+      "real_http_status": 409,
+      "draft_preserved": true,
+      "no_overwrite": true
+    },
+    {
+      "name": "browser_runtime",
+      "status": "passed",
+      "page_errors": []
+    }
+  ],
+  "created": {
+    "environments": [
+      "env_014eUmcoAeti66asvKqCZC7s"
+    ],
+    "sessions": [
+      "cse_0154EsXQMWPCUczk1fJaeta8"
+    ],
+    "routines": [
+      "trig_017JwMcfunDoPzs9mTD7Q7v6"
+    ]
+  },
+  "cleanup": [
+    {
+      "routine": "trig_017JwMcfunDoPzs9mTD7Q7v6",
+      "deleted_get_404": true
+    },
+    {
+      "session": "cse_0154EsXQMWPCUczk1fJaeta8",
+      "deleted_get_404": true
+    },
+    {
+      "environment": "env_014eUmcoAeti66asvKqCZC7s",
+      "archived_excluded": true
+    }
+  ]
+}

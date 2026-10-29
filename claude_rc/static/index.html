@@ -172,6 +172,9 @@
     <span class="logo">claude <span class="dot">●</span> remote control</span>
     <span class="chip" id="whoami">…</span>
     <span class="spacer"></span>
+    <button id="manage-environments">Environments</button>
+    <button id="manage-routines">Routines</button>
+    <button id="manage-network">Network profiles</button>
     <span class="chip" id="stream-state"><span class="status-dot dead"></span> idle</span>
   </header>
 
@@ -248,6 +251,7 @@
           <pre id="workspace-result" style="white-space:pre-wrap;overflow-wrap:anywhere"></pre>
           <div id="file-editor" hidden>
             <label>Synced write path <input id="file-write-path" placeholder="/working/owned.txt" /></label>
+            <label>Encoding<select id="file-encoding"><option value="utf-8">UTF-8</option><option value="base64">Base64 (binary)</option></select></label>
             <textarea id="file-content" rows="8" style="width:100%;font-family:var(--mono)" aria-label="File content"></textarea>
             <button id="save-file">Save with CAS</button>
             <span id="file-save-status" role="status"></span>
@@ -281,6 +285,12 @@
       <label>First message<textarea name="prompt" rows="3"></textarea></label>
       <div class="actions"><button type="button" id="cancel-create">Cancel</button><button type="submit" id="submit-create" class="primary" disabled>Create</button></div>
     </form>
+  </dialog>
+  <dialog id="manage-dialog">
+    <h2 id="manage-title"></h2>
+    <div id="manage-status" role="status"></div>
+    <div id="manage-content"></div>
+    <button id="manage-close">Close</button>
   </dialog>
   <div id="toast"></div>
 
@@ -901,6 +911,11 @@ function showWorkspace(value) {
   $("workspace-panel").open = true;
   $("workspace-result").textContent = JSON.stringify(value, null, 2);
 }
+function decodeEditorText(bytes) {
+  const value = new TextDecoder("utf-8", {fatal: true, ignoreBOM: true}).decode(bytes);
+  if (value.includes("\r")) throw new Error("Textarea would normalize carriage returns");
+  return value;
+}
 $("btn-files").onclick = async () => {
   if (!S.selectedId) return;
   const sid = S.selectedId;
@@ -915,17 +930,35 @@ $("btn-files").onclick = async () => {
     if (S.selectedId === sid) {
       showWorkspace(out);
       if (file && out.content_sha256 && typeof out.content === "string") {
-        try {
-          const bytes = Uint8Array.from(atob(out.content), c => c.charCodeAt(0));
-          $("file-content").value = new TextDecoder("utf-8", {fatal: true}).decode(bytes);
-          $("file-write-path").value = path.startsWith("/mnt/user-data/working/") ? path.slice("/mnt/user-data".length) : "";
-          S.fileEdit = {sid, hash: out.content_sha256};
-          $("file-save-status").textContent = "UTF-8 text loaded; writes require this server CAS token.";
-          $("file-editor").hidden = false;
-        } catch { $("file-save-status").textContent = "Binary file; text editing unavailable."; }
+        const bytes = Uint8Array.from(atob(out.content), c => c.charCodeAt(0));
+        let encoding = "utf-8", content;
+        try { content = decodeEditorText(bytes); }
+        catch { encoding = "base64"; content = out.content; }
+        $("file-encoding").value = encoding;
+        $("file-content").value = content;
+        $("file-write-path").value = path.startsWith("/mnt/user-data/working/") ? path.slice("/mnt/user-data".length) : "";
+        S.fileEdit = {sid, hash: out.content_sha256, encoding};
+        $("file-save-status").textContent = "File loaded; writes require this server CAS token.";
+        $("file-editor").hidden = false;
       }
     }
   } catch (e) { if (S.selectedId === sid) $("workspace-result").textContent = "Workspace error: " + e.message; }
+};
+$("file-encoding").onchange = () => {
+  const edit = S.fileEdit;
+  if (!edit) return;
+  const next = $("file-encoding").value;
+  try {
+    const value = $("file-content").value;
+    $("file-content").value = next === "base64"
+      ? Array.from(new TextEncoder().encode(value), b => String.fromCharCode(b)).join("")
+      : decodeEditorText(Uint8Array.from(atob(value), c => c.charCodeAt(0)));
+    if (next === "base64") $("file-content").value = btoa($("file-content").value);
+    edit.encoding = next;
+  } catch {
+    $("file-encoding").value = edit.encoding;
+    $("file-save-status").textContent = "Cannot convert these bytes to UTF-8; base64 draft retained.";
+  }
 };
 $("save-file").onclick = async () => {
   const edit = S.fileEdit;
@@ -935,7 +968,7 @@ $("save-file").onclick = async () => {
   $("save-file").disabled = true;
   $("file-save-status").textContent = "Saving…";
   try {
-    const out = await post(`/api/sessions/${edit.sid}/sync_file`, {path, content: $("file-content").value, if_match_sha256: edit.hash});
+    const out = await post(`/api/sessions/${edit.sid}/sync_file`, {path, content: $("file-content").value, encoding: edit.encoding, if_match_sha256: edit.hash});
     if (S.fileEdit !== edit) return;
     if (!out.content_sha256) throw new Error("Server did not return the next CAS token; reopen file before saving again");
     edit.hash = out.content_sha256;
@@ -993,6 +1026,123 @@ async function loadPermissionPolicy() {
     selector.disabled = false;
   } catch (e) { selector.replaceChildren(new Option("Permission policy unavailable", "")); toast(e.message); }
 }
+
+// ---- management uses the existing library owners, never browser credentials ----
+let managementGeneration = 0;
+$("manage-close").onclick = () => $("manage-dialog").close();
+$("manage-dialog").addEventListener("close", () => { managementGeneration++; });
+function managementField(form, name, label, value = "", type = "text") {
+  const box = el("label", null, label);
+  const input = el("input"); input.name = name; input.type = type; input.value = value;
+  box.appendChild(input); form.appendChild(box); return input;
+}
+function managementAction(parent, label, action) {
+  const button = el("button", null, label); button.type = "button";
+  button.onclick = async () => {
+    button.disabled = true;
+    try { await action(); }
+    catch (error) { $("manage-status").textContent = "Action failed: " + error.message; }
+    finally { button.disabled = false; }
+  };
+  parent.appendChild(button); return button;
+}
+async function manage(kind) {
+  const generation = ++managementGeneration;
+  const box = $("manage-content"); box.replaceChildren();
+  $("manage-title").textContent = kind === "network" ? "Network profiles (read-only)" : kind === "routines" ? "Routines" : "Environments";
+  $("manage-status").textContent = "Loading…";
+  if (!$("manage-dialog").open) $("manage-dialog").showModal();
+  try {
+    const result = await api(kind === "network" ? "/api/network-profiles" : `/api/${kind}`);
+    if (generation !== managementGeneration) return;
+    $("manage-status").textContent = kind === "network" ? "Secrets redacted. Network writes require separate approval." : "Loaded.";
+    if (kind === "network") { box.appendChild(el("pre", null, JSON.stringify(result, null, 2))); return; }
+    const rows = result[kind];
+    if (!Array.isArray(rows)) throw new Error("Unexpected management response shape");
+    if (!rows.length) box.appendChild(el("p", "muted", "No " + kind + "."));
+    for (const row of rows) {
+      const id = kind === "environments" ? row.environment_id || row.id : row.id;
+      const card = el("details"); card.dataset.resourceId = id;
+      card.appendChild(el("summary", null, row.name || id));
+      const form = el("form");
+      managementField(form, "name", "Name", row.name || "").required = true;
+      if (kind === "environments") {
+        managementField(form, "description", "Description", row.description || "");
+        form.appendChild(el("p", "muted", "Only metadata is edited; environment variables, setup and network policy are preserved."));
+      } else {
+        const enabled = managementField(form, "enabled", "Enabled", "", "checkbox"); enabled.checked = row.enabled === true;
+        const schedule = row.cron_expression ? "cron_expression" : "run_once_at";
+        managementField(form, schedule, schedule === "run_once_at" ? "Run once (RFC3339 UTC)" : "Cron (UTC)", row[schedule] || "").required = true;
+      }
+      const save = el("button", "primary", "Save"); save.type = "submit"; form.appendChild(save);
+      form.onsubmit = async event => {
+        event.preventDefault(); save.disabled = true;
+        try {
+          const body = Object.fromEntries(new FormData(form));
+          if (kind === "routines") body.enabled = form.elements.enabled.checked;
+          await post(`/api/${kind}/${encodeURIComponent(id)}`, body);
+          $("manage-status").textContent = "Saved. Refresh to read back.";
+        } catch (error) { $("manage-status").textContent = "Save failed; draft retained. " + error.message; }
+        finally { save.disabled = false; }
+      };
+      card.appendChild(form);
+      if (kind === "routines") {
+        managementAction(card, "Run now", async () => {
+          if (!confirm("Start a billable routine run now?")) return;
+          const out = await post(`/api/routines/${encodeURIComponent(id)}/run`, {});
+          $("manage-status").textContent = "Run submitted, not execution proof. Open run history to inspect the result.";
+          card.appendChild(el("pre", null, JSON.stringify(out, null, 2)));
+        });
+        managementAction(card, "Run history", async () => {
+          const out = await api(`/api/routines/${encodeURIComponent(id)}/runs`);
+          const runs = out.data || [];
+          const history = el("div");
+          for (const run of runs) {
+            managementAction(history, run.title || run.id, async () => { $("manage-dialog").close(); await selectSession(run.id); });
+            managementAction(history, "Cancel " + run.id, async () => {
+              if (confirm("Cancel only this run?")) await post(`/api/routines/${encodeURIComponent(id)}/cancel`, {session_id: run.id});
+            });
+          }
+          card.appendChild(history);
+          if (!runs.length) history.textContent = "No runs on this page.";
+        });
+        managementAction(card, "Delete routine", async () => {
+          if (confirm("Permanently delete this routine?")) { await post(`/api/routines/${encodeURIComponent(id)}/delete`, {}); await manage(kind); }
+        });
+      }
+      box.appendChild(card);
+    }
+    managementAction(box, "Refresh", () => manage(kind));
+    if (kind === "routines") managementAction(box, "New disabled routine", newRoutine);
+  } catch (error) { if (generation === managementGeneration) $("manage-status").textContent = "Load failed: " + error.message; }
+}
+async function newRoutine() {
+  const generation = ++managementGeneration;
+  $("manage-content").replaceChildren(); $("manage-status").textContent = "Loading environments…";
+  const [result, catalog] = await Promise.all([api("/api/environments"), api("/api/models")]);
+  if (generation !== managementGeneration) return;
+  const form = el("form");
+  managementField(form, "name", "Routine name").required = true;
+  managementField(form, "prompt", "Prompt").required = true;
+  managementField(form, "run_once_at", "Run once (RFC3339 UTC)").required = true;
+  const label = el("label", null, "Environment"), select = el("select"); select.name = "environment_id"; select.required = true;
+  select.replaceChildren(...result.environments.map(e => new Option(e.name || e.environment_id, e.environment_id || e.id)));
+  label.appendChild(select); form.appendChild(label);
+  const modelLabel = el("label", null, "Model"), model = el("select"); model.name = "model"; model.required = true;
+  model.replaceChildren(...(catalog.model_selector_config || []).flatMap(g => g.models || []).map(m => new Option(m.display_name || m.id, m.id)));
+  modelLabel.appendChild(model); form.appendChild(modelLabel);
+  const button = el("button", "primary", "Create disabled"); button.type = "submit"; form.appendChild(button);
+  form.onsubmit = async event => {
+    event.preventDefault(); button.disabled = true;
+    try { await post("/api/routines", Object.fromEntries(new FormData(form))); await manage("routines"); }
+    catch (error) { $("manage-status").textContent = "Create failed; draft retained. " + error.message; }
+    finally { button.disabled = false; }
+  };
+  $("manage-content").appendChild(form); $("manage-status").textContent = "Created routines stay disabled until explicitly enabled.";
+}
+$("manage-environments").onclick = () => manage("environments");
+$("manage-routines").onclick = () => manage("routines");
+$("manage-network").onclick = () => manage("network");
 
 // ---- boot ----------------------------------------------------------------
 loadPermissionPolicy();

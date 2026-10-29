@@ -1,0 +1,28 @@
+{
+  "run": "management-b7513efd8f1c",
+  "checks": [
+    {
+      "name": "automatic_auth_and_readonly_preflight",
+      "status": "passed",
+      "source": "cookies:cdp"
+    },
+    {
+      "name": "acceptance_aborted",
+      "status": "failed",
+      "error_type": "AssertionError"
+    }
+  ],
+  "created": {
+    "environments": [
+      "env_01U8bMhw5RFK4MfsHAXYz892"
+    ],
+    "sessions": [],
+    "routines": []
+  },
+  "cleanup": [
+    {
+      "environment": "env_01U8bMhw5RFK4MfsHAXYz892",
+      "archived_excluded": true
+    }
+  ]
+}

@@ -1,0 +1,214 @@
+#!/usr/bin/env python3
+"""Opt-in rendered management/CAS checks on exact newly created resources only.
+
+Uses isolated headless Chrome; signed-in Chrome is read through CDP by the
+library, never driven. Does not enroll OAuth, submit feedback or change networks.
+"""
+import argparse
+import base64
+import json
+import sys
+import threading
+import uuid
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from claude_rc import APIError, RemoteControlClient
+from claude_rc.triggers import trigger_item
+from claude_rc.webui import _Handler, _RCServer
+
+
+def main():
+    from playwright.sync_api import sync_playwright
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--output', type=Path, required=True)
+    args = parser.parse_args()
+    proof = {'run': 'management-' + uuid.uuid4().hex[:12], 'checks': [],
+             'created': {'environments': [], 'sessions': [], 'routines': []}, 'cleanup': []}
+    def save():
+        args.output.write_text(json.dumps(proof, indent=2) + '\n')
+    def record(name, status='passed', **data):
+        row = {'name': name, 'status': status, **data}
+        proof['checks'].append(row)
+        save()
+        print(json.dumps(row), flush=True)
+    class Handler(_Handler):
+        def _json(self, obj, status=200):
+            if self.command == 'POST' and self.path == '/api/routines' and status == 200:
+                created = trigger_item(obj)
+                if created.get('id'):
+                    proof['created']['routines'].append(created['id'])
+                    save()
+            return super()._json(obj, status)
+
+    rc = RemoteControlClient(direct=True, timeout=30)
+    server = _RCServer(('127.0.0.1', 0), Handler, rc, False)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        rc.list_sessions(limit=1)
+        rc.list_environments()
+        record('automatic_auth_and_readonly_preflight', source=rc._auth.origin)
+        env = rc.create_cloud_environment(proof['run'], cwd='/mnt/user-data/working',
+                                          environment={'SMOKE_MARKER': proof['run']}, languages=[])
+        eid = env.get('environment_id') or env['id']
+        proof['created']['environments'].append(eid)
+        save()
+        original = rc.get_environment(eid)
+        with sync_playwright() as p:
+            browser = p.chromium.launch(executable_path='/usr/bin/google-chrome', args=['--no-sandbox'], headless=True)
+            try:
+                page = browser.new_page(viewport={'width': 1400, 'height': 1000})
+                errors = []
+                page.on('pageerror', lambda error: errors.append(type(error).__name__))
+                page.goto(f'http://127.0.0.1:{server.server_port}', wait_until='domcontentloaded')
+                page.locator('#manage-environments').click()
+                card = page.locator(f'[data-resource-id="{eid}"]')
+                card.wait_for(timeout=45000)
+                card.locator('summary').click()
+                card.locator('[name=description]').fill('Disposable metadata readback')
+                with page.expect_response(lambda response: response.url.endswith('/api/environments/' + eid)) as response:
+                    card.get_by_role('button', name='Save', exact=True).click()
+                assert response.value.ok, 'environment save HTTP failure'
+                updated = rc.get_environment(eid)
+                if updated['description'] != 'Disposable metadata readback' or updated['config'] != original['config']:
+                    record('environment_readback_diagnostics', 'failed',
+                           description_matches=updated['description'] == 'Disposable metadata readback',
+                           config_matches=updated['config'] == original['config'])
+                assert updated['description'] == 'Disposable metadata readback', 'environment description did not persist'
+                assert updated['config'] == original['config'], 'environment configuration changed'
+                record('rendered_environment_metadata', configuration_preserved=True, independent_get=True)
+                page.locator('#manage-close').click()
+                page.locator('#manage-routines').click()
+                page.get_by_role('button', name='New disabled routine', exact=True).click(timeout=45000)
+                form = page.locator('#manage-content form')
+                form.locator('[name=name]').fill(proof['run'])
+                form.locator('[name=prompt]').fill('Reply exactly ROUTINE_OK')
+                form.locator('[name=run_once_at]').fill('2030-01-01T00:00:00Z')
+                form.locator('[name=environment_id]').select_option(eid)
+                form.locator('[name=model]').select_option('claude-haiku-5-5')
+                with page.expect_response(lambda response: response.url.endswith('/api/routines') and response.request.method == 'POST') as response:
+                    form.get_by_role('button', name='Create disabled', exact=True).click()
+                assert response.value.ok
+                trigger = trigger_item(response.value.json())
+                rid = trigger['id']
+                assert rid in proof['created']['routines']
+                created = trigger_item(rc.get_trigger(rid))
+                assert created['enabled'] is False
+                assert created['name'] == proof['run']
+                record('rendered_routine_create', independent_get=True, disabled=True, requested_model='claude-haiku-5-5')
+                card = page.locator(f'[data-resource-id="{rid}"]')
+                card.wait_for(timeout=45000)
+                card.locator('summary').click()
+                assert not card.locator('[name=enabled]').is_checked()
+                card.locator('[name=name]').fill(proof['run'] + '-edited')
+                with page.expect_response(lambda response: response.url.endswith('/api/routines/' + rid)) as response:
+                    card.get_by_role('button', name='Save', exact=True).click()
+                assert response.value.ok
+                updated = trigger_item(rc.get_trigger(rid))
+                assert updated['name'] == proof['run'] + '-edited'
+                assert updated['enabled'] is False
+                record('rendered_routine_edit', independent_get=True, disabled_preserved=True)
+                with page.expect_response(lambda response: response.url.endswith('/runs')) as response:
+                    card.get_by_role('button', name='Run history', exact=True).click()
+                assert response.value.ok
+                record('rendered_routine_run_history', service_response=True)
+                page.locator('#manage-close').click()
+                page.locator('#manage-network').click()
+                page.wait_for_function("!document.getElementById('manage-status').textContent.includes('Loading')", timeout=45000)
+                status = page.locator('#manage-status').inner_text()
+                record('rendered_network_readonly', 'passed' if status.startswith('Secrets redacted') else 'blocked', no_network_writes=True)
+                page.locator('#manage-close').click()
+
+                session = rc.create_session(eid, 'Reply exactly BINARY_READY', title=proof['run'], model='claude-haiku-5-5', permission_mode='plan')
+                sid = session['id']
+                proof['created']['sessions'].append(sid)
+                save()
+                page.evaluate('(sid) => selectSession(sid)', sid)
+                page.wait_for_function("[...document.querySelectorAll('#log .msg.assistant')].some(n=>n.textContent.includes('BINARY_READY') || n.textContent.includes('limit'))", timeout=130000)
+                assert page.locator('#log .msg.assistant').filter(has_text='BINARY_READY').count(), 'worker quota prevented ready marker'
+                target = '/working/' + proof['run'] + '.bin'
+                original_bytes = bytes(range(256))
+                rc.put_synced_file(sid, target, original_bytes)
+                read_path = '/mnt/user-data' + target
+                fetched = rc.get_session_file(sid, read_path)
+                assert base64.b64decode(fetched['content']) == original_bytes
+                def dialogs(dialog):
+                    if dialog.type == 'prompt':
+                        dialog.accept(read_path)
+                    else:
+                        dialog.accept()
+                page.on('dialog', dialogs)
+                page.locator('#btn-files').click()
+                page.wait_for_selector('#file-editor', state='visible', timeout=45000)
+                assert page.locator('#file-encoding').input_value() == 'base64'
+                assert base64.b64decode(page.locator('#file-content').input_value()) == original_bytes
+                replacement = bytes(reversed(range(256))) + b'BINARY_CAS_OK'
+                page.locator('#file-content').fill(base64.b64encode(replacement).decode())
+                with page.expect_response(lambda response: response.url.endswith('/sync_file')) as response:
+                    page.locator('#save-file').click()
+                assert response.value.ok
+                result = rc.get_session_file(sid, read_path)
+                assert base64.b64decode(result['content']) == replacement
+                record('rendered_binary_cas', independent_byte_readback=True, bytes=len(replacement))
+                rc.put_synced_file(sid, target, b'concurrent-owned-edit', if_match_sha256=result['content_sha256'])
+                page.locator('#file-content').fill(base64.b64encode(b'preserve-draft').decode())
+                with page.expect_response(lambda response: response.url.endswith('/sync_file')) as response:
+                    page.locator('#save-file').click()
+                assert response.value.status == 409
+                assert page.locator('#file-content').input_value() == base64.b64encode(b'preserve-draft').decode()
+                assert base64.b64decode(rc.get_session_file(sid, read_path)['content']) == b'concurrent-owned-edit'
+                record('rendered_binary_stale_cas', real_http_status=409, draft_preserved=True, no_overwrite=True)
+                assert not errors
+                record('browser_runtime', page_errors=errors)
+            finally:
+                browser.close()
+    except Exception as error:
+        import traceback
+        location = traceback.extract_tb(error.__traceback__)[-1]
+        record('acceptance_aborted', 'failed', error_type=type(error).__name__, line=location.lineno, file=Path(location.filename).name)
+    finally:
+        for rid in proof['created']['routines']:
+            try:
+                rc.delete_trigger(rid)
+                try:
+                    rc.get_trigger(rid)
+                except APIError as error:
+                    assert error.status == 404
+                else:
+                    raise AssertionError('routine still accessible')
+                proof['cleanup'].append({'routine': rid, 'deleted_get_404': True})
+            except Exception as error:
+                proof['cleanup'].append({'routine': rid, 'error_type': type(error).__name__})
+            save()
+        for sid in proof['created']['sessions']:
+            try:
+                rc.archive_session(sid)
+                rc.delete_session(sid)
+                try:
+                    rc.get_session(sid)
+                except APIError as error:
+                    assert error.status == 404
+                else:
+                    raise AssertionError('session still accessible')
+                proof['cleanup'].append({'session': sid, 'deleted_get_404': True})
+            except Exception as error:
+                proof['cleanup'].append({'session': sid, 'error_type': type(error).__name__})
+            save()
+        for eid in proof['created']['environments']:
+            try:
+                rc.archive_environment(eid)
+                assert eid not in {env.get('environment_id') or env.get('id') for env in rc.list_environments()}
+                proof['cleanup'].append({'environment': eid, 'archived_excluded': True})
+            except Exception as error:
+                proof['cleanup'].append({'environment': eid, 'error_type': type(error).__name__})
+            save()
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=5)
+        rc.close()
+    return int(any(row['status'] != 'passed' for row in proof['checks']) or any('error_type' in row for row in proof['cleanup']))
+
+
+if __name__ == '__main__':
+    raise SystemExit(main())

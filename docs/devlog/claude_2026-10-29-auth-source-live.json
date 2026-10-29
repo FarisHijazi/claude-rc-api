@@ -1,0 +1,39 @@
+{
+  "checks": [
+    {
+      "source": "env",
+      "status": "passed",
+      "live_http_statuses": [
+        401,
+        200,
+        200
+      ],
+      "rereads": 1,
+      "same_identity_org": true,
+      "state_mode_0600": false
+    },
+    {
+      "source": "state",
+      "status": "passed",
+      "live_http_statuses": [
+        401,
+        200,
+        200
+      ],
+      "rereads": 1,
+      "same_identity_org": true,
+      "state_mode_0600": true
+    }
+  ],
+  "credentials_logged": false,
+  "shared_oauth_refreshes": 0,
+  "scope": "env/state source loading and source-pinned recovery with browser-derived test cookies; not natural rotation or Chrome DB extraction",
+  "temporary_cookie_files_removed": true,
+  "unverified": [
+    "natural expiry/rotation",
+    "Chrome DB source",
+    "PKCE enrollment",
+    "owned OAuth refresh/restart/concurrency",
+    "trusted-device recovery"
+  ]
+}

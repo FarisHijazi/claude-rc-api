@@ -10,7 +10,7 @@ dependency (its `pyproject.toml`), so there is no second copy to keep in sync.
 - `origin` = `git@github.com:FarisHijazi/claude-rc-api.git` (push here; `main`).
 - `upstream` = `ThatCrispyToast/claude-rc-api`, **read-only**: fetch and merge
   `upstream/main` into `main`; never push there, never open upstream PRs/issues.
-- Version: ours is `0.7.0`+ (upstream already used 0.4.0). Bump the minor for a
+- Version: ours is `0.8.0`+ (upstream already used 0.4.0). Bump the minor for a
   new surface.
 
 ## Layout
@@ -213,6 +213,16 @@ These are deliberately plain paths, not `@` includes.
   `docs/devlog/claude_2026-10-28-panel-long-live-rerun.json`. These are plain paths.
 - Panel and collection consumers use the existing initialize control on a replacement
   handshake. Generic read-only streams do not acquire a new write path.
+- 0.8.0 management screens delegate to existing environment/trigger/file owners.
+  Environment panel edits accept metadata only; never round-trip redacted variables.
+  Routines are created disabled; network inspection is read-only. Binary files use
+  validated base64 through the same CAS writer. Text decoding preserves BOM and
+  refuses carriage-return normalization. `scripts/claude-rc-management-smoke` and
+  `docs/devlog/claude_2026-10-29-management-live.json` qualify this subset live.
+  `docs/devlog/claude_2026-10-29-auth-source-live.json` qualifies isolated env/state
+  source recovery, not natural expiry or Chrome DB extraction. The current full
+  gap plan is `docs/devlog/claude_2026-10-29-completeness-followup.json`; all paths
+  here are deliberately plain, not force-loaded includes.
 - Routine diagnosis: `docs/devlog/claude_2026-10-28-routine-diagnosis.json` proves
   Haiku was applied but the routine returned a weekly-limit message with
   `subtype: success, is_error: true`. Respect the error flag; do not equate turn
